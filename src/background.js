@@ -1,0 +1,236 @@
+/**
+ * Background Service Worker for AI Guardians Chrome Extension
+ * 
+ * TRACER BULLETS FOR NEXT DEVELOPER:
+ * - Configure your AI Guardians gateway endpoint
+ * - Implement authentication with your guard services
+ * - Add custom guard types and analysis pipelines
+ * - Integrate with your central logging and monitoring
+ */
+
+// Import the AI Guardians Gateway
+importScripts('gateway.js');
+
+let gateway = null;
+
+try {
+  // Extension installation handler
+  chrome.runtime.onInstalled.addListener(async () => {
+    console.log("[BG] Installed: AI Guardians Chrome Ext v0.1.0");
+    
+    // Initialize AI Guardians Gateway
+    gateway = new AIGuardiansGateway();
+    
+    // Initialize default settings
+    await initializeDefaultSettings();
+  });
+
+  /**
+   * TRACER BULLET: Initialize default settings for AI Guardians
+   */
+  async function initializeDefaultSettings() {
+    const defaultSettings = {
+      gateway_url: "https://your-ai-guardians-gateway.com/api/v1",
+      api_key: "",
+      guard_services: {
+        bias_detection: { enabled: true, threshold: 0.5 },
+        toxicity_detection: { enabled: true, threshold: 0.7 },
+        sentiment_analysis: { enabled: false, threshold: 0.6 },
+        fact_checking: { enabled: false, threshold: 0.8 }
+      },
+      logging_config: {
+        level: "info",
+        enable_central_logging: true,
+        enable_local_logging: true
+      },
+      analysis_pipeline: "default"
+    };
+
+    chrome.storage.sync.get(Object.keys(defaultSettings), (data) => {
+      const settingsToSave = {};
+      for (const [key, defaultValue] of Object.entries(defaultSettings)) {
+        if (data[key] === undefined) {
+          settingsToSave[key] = defaultValue;
+        }
+      }
+      
+      if (Object.keys(settingsToSave).length > 0) {
+        chrome.storage.sync.set(settingsToSave);
+        console.log("[BG] Initialized default settings");
+      }
+    });
+  }
+
+  // Message handler for content script communication
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    try {
+      switch (request.type) {
+        case "ANALYZE_TEXT":
+          // TRACER BULLET: Use AI Guardians Gateway for analysis
+          handleTextAnalysis(request.payload, sendResponse);
+          return true; // Keep message channel open for async response
+          
+        case "GET_SETTINGS":
+          // TRACER BULLET: Return current settings
+          chrome.storage.sync.get(['bias_threshold'], (data) => {
+            sendResponse({ success: true, settings: data });
+          });
+          return true;
+
+        case "GET_GUARD_STATUS":
+          // TRACER BULLET: Get guard service status
+          handleGuardStatusRequest(sendResponse);
+          return true;
+
+        case "UPDATE_GUARD_CONFIG":
+          // TRACER BULLET: Update guard service configuration
+          handleGuardConfigUpdate(request.payload, sendResponse);
+          return true;
+
+        case "GET_CENTRAL_CONFIG":
+          // TRACER BULLET: Get central configuration
+          handleCentralConfigRequest(sendResponse);
+          return true;
+
+        case "UPDATE_CENTRAL_CONFIG":
+          // TRACER BULLET: Update central configuration
+          handleCentralConfigUpdate(request.payload, sendResponse);
+          return true;
+          
+        default:
+          console.warn("[BG] Unknown message type:", request.type);
+          sendResponse({ success: false, error: "Unknown message type" });
+      }
+    } catch (err) {
+      console.error("[BG] Message handler error:", err);
+      sendResponse({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * TRACER BULLET: Text analysis through AI Guardians Gateway
+   */
+  async function handleTextAnalysis(text, sendResponse) {
+    try {
+      if (!gateway) {
+        throw new Error("AI Guardians Gateway not initialized");
+      }
+
+      // Use the gateway for analysis
+      const result = await gateway.analyzeText(text, {
+        source: 'chrome_extension',
+        timestamp: new Date().toISOString()
+      });
+
+      // Transform result for content script
+      const transformedResult = {
+        success: true,
+        score: result.overall_score || 0.5,
+        analysis: {
+          bias_type: result.bias_type || 'unknown',
+          confidence: result.confidence || 0.85,
+          suggestions: result.suggestions || [],
+          guard_results: result.guards || []
+        }
+      };
+
+      sendResponse(transformedResult);
+    } catch (err) {
+      console.error("[BG] Analysis failed:", err);
+      sendResponse({ 
+        success: false, 
+        error: err.message,
+        fallback_score: Math.random() * 0.8 + 0.1 // Fallback for development
+      });
+    }
+  }
+
+  /**
+   * TRACER BULLET: Handle guard status requests
+   */
+  async function handleGuardStatusRequest(sendResponse) {
+    try {
+      if (!gateway) {
+        throw new Error("AI Guardians Gateway not initialized");
+      }
+
+      const status = await gateway.getGuardServiceStatus();
+      sendResponse({ success: true, status });
+    } catch (err) {
+      console.error("[BG] Failed to get guard status:", err);
+      sendResponse({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * TRACER BULLET: Handle guard configuration updates
+   */
+  async function handleGuardConfigUpdate(payload, sendResponse) {
+    try {
+      if (!gateway) {
+        throw new Error("AI Guardians Gateway not initialized");
+      }
+
+      const { guardName, config } = payload;
+      await gateway.updateGuardService(guardName, config);
+      sendResponse({ success: true });
+    } catch (err) {
+      console.error("[BG] Failed to update guard config:", err);
+      sendResponse({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * TRACER BULLET: Handle central configuration requests
+   */
+  async function handleCentralConfigRequest(sendResponse) {
+    try {
+      if (!gateway) {
+        throw new Error("AI Guardians Gateway not initialized");
+      }
+
+      const config = await gateway.getCentralConfiguration();
+      sendResponse({ success: true, config });
+    } catch (err) {
+      console.error("[BG] Failed to get central config:", err);
+      sendResponse({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * TRACER BULLET: Handle central configuration updates
+   */
+  async function handleCentralConfigUpdate(payload, sendResponse) {
+    try {
+      if (!gateway) {
+        throw new Error("AI Guardians Gateway not initialized");
+      }
+
+      await gateway.updateCentralConfiguration(payload);
+      sendResponse({ success: true });
+    } catch (err) {
+      console.error("[BG] Failed to update central config:", err);
+      sendResponse({ success: false, error: err.message });
+    }
+  }
+
+  // TRACER BULLET: Add periodic health checks
+  chrome.alarms.create('gateway_health_check', { periodInMinutes: 5 });
+  
+  chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === 'gateway_health_check' && gateway) {
+      try {
+        const isConnected = await gateway.testGatewayConnection();
+        if (!isConnected) {
+          console.warn("[BG] Gateway connection lost");
+        }
+      } catch (err) {
+        console.error("[BG] Health check failed:", err);
+      }
+    }
+  });
+
+} catch (err) {
+  console.error("[BG] Background script error:", err);
+}
+
