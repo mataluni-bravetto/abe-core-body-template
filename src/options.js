@@ -10,6 +10,7 @@
 
 (function(){
   let testingFramework = null;
+  let eventListeners = [];
   
   try {
     // TRACER BULLET: Initialize options page with AI Guardians integration
@@ -34,36 +35,45 @@
   }
 
   /**
-   * TRACER BULLET: Set up event listeners for all controls
+   * TRACER BULLET: Set up event listeners for all controls with proper cleanup tracking
    */
   function setupEventListeners() {
-    // Gateway configuration
-    document.getElementById('test_connection').addEventListener('click', testGatewayConnection);
-    document.getElementById('gateway_url').addEventListener('change', updateGatewayUrl);
-    document.getElementById('api_key').addEventListener('change', updateApiKey);
+    const elements = [
+      { id: 'test_connection', event: 'click', handler: testGatewayConnection },
+      { id: 'gateway_url', event: 'change', handler: updateGatewayUrl },
+      { id: 'api_key', event: 'change', handler: updateApiKey },
+      { id: 'guard_services', event: 'change', handler: handleGuardServiceChange },
+      { id: 'analysis_pipeline', event: 'change', handler: updateAnalysisPipeline },
+      { id: 'analysis_timeout', event: 'change', handler: updateAnalysisTimeout },
+      { id: 'enable_central_logging', event: 'change', handler: updateLoggingConfig },
+      { id: 'enable_local_logging', event: 'change', handler: updateLoggingConfig },
+      { id: 'log_level', event: 'change', handler: updateLoggingConfig },
+      { id: 'run_tests', event: 'click', handler: runGuardServiceTests },
+      { id: 'run_performance_tests', event: 'click', handler: runPerformanceTests },
+      { id: 'run_integration_tests', event: 'click', handler: runIntegrationTests },
+      { id: 'save_config', event: 'click', handler: saveConfiguration },
+      { id: 'reset_config', event: 'click', handler: resetConfiguration },
+      { id: 'export_config', event: 'click', handler: exportConfiguration },
+      { id: 'import_config', event: 'click', handler: importConfiguration }
+    ];
 
-    // Guard services
-    document.getElementById('guard_services').addEventListener('change', handleGuardServiceChange);
+    elements.forEach(({ id, event, handler }) => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.addEventListener(event, handler);
+        eventListeners.push({ element, event, handler });
+      }
+    });
+  }
 
-    // Analysis pipeline
-    document.getElementById('analysis_pipeline').addEventListener('change', updateAnalysisPipeline);
-    document.getElementById('analysis_timeout').addEventListener('change', updateAnalysisTimeout);
-
-    // Logging configuration
-    document.getElementById('enable_central_logging').addEventListener('change', updateLoggingConfig);
-    document.getElementById('enable_local_logging').addEventListener('change', updateLoggingConfig);
-    document.getElementById('log_level').addEventListener('change', updateLoggingConfig);
-
-    // Testing
-    document.getElementById('run_tests').addEventListener('click', runGuardServiceTests);
-    document.getElementById('run_performance_tests').addEventListener('click', runPerformanceTests);
-    document.getElementById('run_integration_tests').addEventListener('click', runIntegrationTests);
-
-    // Actions
-    document.getElementById('save_config').addEventListener('click', saveConfiguration);
-    document.getElementById('reset_config').addEventListener('click', resetConfiguration);
-    document.getElementById('export_config').addEventListener('click', exportConfiguration);
-    document.getElementById('import_config').addEventListener('click', importConfiguration);
+  /**
+   * TRACER BULLET: Cleanup all event listeners
+   */
+  function cleanupEventListeners() {
+    eventListeners.forEach(({ element, event, handler }) => {
+      element.removeEventListener(event, handler);
+    });
+    eventListeners = [];
   }
 
   /**
@@ -216,7 +226,11 @@
    * TRACER BULLET: Handle guard service changes
    */
   function handleGuardServiceChange(event) {
-    const guardName = event.target.id.replace('guard_', '').replace('_enabled', '').replace('_threshold', '');
+    // Safe string manipulation with bounds checking
+    let guardName = event.target.id;
+    if (typeof guardName === 'string' && guardName.length > 0) {
+      guardName = guardName.replace('guard_', '').replace('_enabled', '').replace('_threshold', '');
+    }
     const isEnabled = event.target.type === 'checkbox' ? event.target.checked : 
       document.getElementById('guard_' + guardName + '_enabled').checked;
     const threshold = parseFloat(document.getElementById('guard_' + guardName + '_threshold').value);
@@ -348,7 +362,11 @@
     const guardServices = {};
     const guardElements = document.querySelectorAll('.guard-service');
     guardElements.forEach(guardElement => {
-      const guardName = guardElement.querySelector('input[type="checkbox"]').id.replace('guard_', '').replace('_enabled', '');
+      // Safe string manipulation with bounds checking
+      let guardName = guardElement.querySelector('input[type="checkbox"]').id;
+      if (typeof guardName === 'string' && guardName.length > 0) {
+        guardName = guardName.replace('guard_', '').replace('_enabled', '');
+      }
       const enabled = guardElement.querySelector('input[type="checkbox"]').checked;
       const threshold = parseFloat(guardElement.querySelector('input[type="number"]').value);
       
@@ -444,6 +462,9 @@
       });
     });
   }
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', cleanupEventListeners);
 
 })();
 

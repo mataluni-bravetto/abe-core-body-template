@@ -477,8 +477,8 @@ class AIGuardiansTester {
     
     const sanitized = { ...response };
     
-    // Remove sensitive data
-    if (sanitized.text && sanitized.text.length > 50) {
+    // Remove sensitive data with bounds checking
+    if (sanitized.text && typeof sanitized.text === 'string' && sanitized.text.length > 50) {
       sanitized.text = sanitized.text.substring(0, 50) + '...';
     }
     

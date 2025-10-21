@@ -1,4 +1,4 @@
-# AI Guardians Backend Integration Guide
+# 🔧 AI Guardians Backend Integration Guide
 
 This guide provides comprehensive instructions for integrating the Chrome extension with your AI Guardians backend services through the central gateway.
 
@@ -41,11 +41,12 @@ this.config = {
 Your AI Guardians gateway must implement these endpoints:
 
 ```http
-POST /api/v1/analyze
+POST /api/v1/analyze/text
+GET  /api/v1/health/live
 POST /api/v1/logging
-POST /api/v1/health
-GET  /api/v1/config
-PUT  /api/v1/config
+GET  /api/v1/guards
+GET  /api/v1/config/user
+PUT  /api/v1/config/user
 ```
 
 ### 2. Authentication Setup
@@ -66,7 +67,7 @@ headers: {
 {
   "analysis_id": "ext_1234567890_abc123",
   "text": "Text to analyze",
-  "guards": ["bias_detection", "toxicity_detection"],
+  "guards": ["biasguard", "trustguard", "contextguard"],
   "options": {
     "pipeline": "default",
     "timestamp": "2024-01-01T00:00:00.000Z"
@@ -77,10 +78,12 @@ headers: {
 ### 3. Guard Services Integration
 
 #### Supported Guard Services
-- **Bias Detection** - Identifies biased language and content
-- **Toxicity Detection** - Detects harmful or offensive content
-- **Sentiment Analysis** - Analyzes emotional tone
-- **Fact Checking** - Verifies factual accuracy
+- **BiasGuard** - Identifies biased language and content
+- **TrustGuard** - Detects harmful or offensive content
+- **ContextGuard** - Analyzes contextual relevance
+- **SecurityGuard** - Security analysis and threat detection
+- **TokenGuard** - Token optimization and efficiency
+- **HealthGuard** - Health monitoring and diagnostics
 
 #### Guard Service Configuration
 ```javascript
@@ -117,7 +120,7 @@ headers: {
     "extension_version": "0.1.0",
     "user_agent": "Mozilla/5.0...",
     "analysis_id": "ext_1234567890_abc123",
-    "guard_services": ["bias_detection"],
+    "guard_services": ["biasguard"],
     "response_time": 1500
   }
 }
@@ -147,15 +150,15 @@ Content-Type: application/json
   "gateway_url": "https://your-ai-guardians-gateway.com/api/v1",
   "api_key": "your-api-key",
   "guard_services": {
-    "bias_detection": {
+    "biasguard": {
       "enabled": true,
       "threshold": 0.5,
       "pipeline": "bias_analysis_v2"
     },
-    "toxicity_detection": {
+    "trustguard": {
       "enabled": true,
       "threshold": 0.7,
-      "pipeline": "toxicity_analysis_v1"
+      "pipeline": "trust_analysis_v1"
     }
   },
   "logging_config": {
@@ -169,8 +172,8 @@ Content-Type: application/json
 
 ### Configuration Endpoints
 ```http
-GET /api/v1/config
-PUT /api/v1/config
+GET /api/v1/config/user
+PUT /api/v1/config/user
 ```
 
 ## 🧪 Testing Framework Integration
@@ -178,7 +181,7 @@ PUT /api/v1/config
 ### Test Data Structure
 ```javascript
 {
-  "bias_detection": {
+  "biasguard": {
     "positive_cases": [
       {
         "text": "This product is clearly superior to all competitors.",
@@ -242,15 +245,15 @@ Options Page → Testing Framework → Background Script → Gateway
 ### Phase 1: Basic Integration (30 minutes)
 1. **Configure Gateway URL**
    ```javascript
-// In src/gateway.js
-this.config.gatewayUrl = 'https://your-ai-guardians-gateway.com/api/v1';
-```
+   // In src/gateway.js
+   this.config.gatewayUrl = 'https://your-ai-guardians-gateway.com/api/v1';
+   ```
 
 2. **Set up API Authentication**
    ```javascript
-// In options page, configure API key
-document.getElementById('api_key').value = 'your-api-key';
-```
+   // In options page, configure API key
+   document.getElementById('api_key').value = 'your-api-key';
+   ```
 
 3. **Test Connection**
    - Use the "Test Connection" button in options

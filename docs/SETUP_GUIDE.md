@@ -1,6 +1,6 @@
-# AI Guardians Chrome Extension - Fill Out Guide
+# 🚀 AI Guardians Chrome Extension - Setup Guide
 
-## 🚀 Quick Start (5 minutes)
+## Quick Start (5 minutes)
 
 ### 1. Load the Extension
 ```bash
@@ -18,7 +18,7 @@ chrome://extensions/
 - Click the extension icon to open popup
 - Click "Open Options" to configure threshold
 
-## 📋 Complete Fill-Out Checklist
+## 📋 Complete Setup Checklist
 
 ### Phase 1: Basic Customization (15 minutes)
 
@@ -251,7 +251,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 }
 ```
 
-## 🎯 Next Steps After Fill-Out
+## 🎯 Next Steps After Setup
 
 1. **User Testing**: Get feedback from target users
 2. **Analytics**: Add usage tracking (with user consent)

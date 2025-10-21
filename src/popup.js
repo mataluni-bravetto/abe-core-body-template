@@ -10,13 +10,23 @@
  */
 
 (function(){
+  let eventListeners = [];
+  
   try {
     // TRACER BULLET: Enhanced popup functionality
     initializePopup();
-    
+    setupEventListeners();
+  } catch (err) {
+    Logger.error('Popup init error', err);
+  }
+
+  /**
+   * TRACER BULLET: Set up event listeners with proper cleanup tracking
+   */
+  function setupEventListeners() {
     const btn = document.getElementById('noop');
     if (btn) {
-      btn.addEventListener('click', async () => {
+      const clickHandler = async () => {
         try {
           await chrome.runtime.openOptionsPage();
           Logger.info('Opened options page');
@@ -24,11 +34,25 @@
         } catch (err) {
           Logger.error('Failed to open options', err);
         }
-      });
+      };
+      
+      btn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: btn, event: 'click', handler: clickHandler });
     }
-  } catch (err) {
-    Logger.error('Popup init error', err);
   }
+
+  /**
+   * TRACER BULLET: Cleanup all event listeners
+   */
+  function cleanupEventListeners() {
+    eventListeners.forEach(({ element, event, handler }) => {
+      element.removeEventListener(event, handler);
+    });
+    eventListeners = [];
+  }
+
+  // Cleanup on popup close
+  window.addEventListener('beforeunload', cleanupEventListeners);
 
   /**
    * TRACER BULLET: Initialize popup with enhanced features

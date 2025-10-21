@@ -22,6 +22,7 @@
 
   let debounceTimer = null;
   let currentBadge = null;
+  let eventListeners = [];
 
   /**
    * TRACER BULLET: Enhanced text analysis with error handling
@@ -113,20 +114,24 @@
     `;
 
     // Add click handler for more details
-    badge.addEventListener('click', () => {
+    const clickHandler = () => {
       showDetailedAnalysis(response);
-    });
+    };
+    badge.addEventListener('click', clickHandler);
+    
+    // Store event listener for cleanup
+    eventListeners.push({ element: badge, event: 'click', handler: clickHandler });
 
     document.body.appendChild(badge);
     currentBadge = badge;
     
     // Auto-remove after delay
-    setTimeout(() => {
-      if (badge.parentNode) {
-        badge.remove();
-        currentBadge = null;
-      }
+    const removeTimer = setTimeout(() => {
+      cleanupBadge(badge);
     }, CONFIG.badgeDisplayTime);
+    
+    // Store timer for cleanup
+    badge._removeTimer = removeTimer;
   }
 
   /**
@@ -172,12 +177,12 @@
     document.body.appendChild(badge);
     currentBadge = badge;
 
-    setTimeout(() => {
-      if (badge.parentNode) {
-        badge.remove();
-        currentBadge = null;
-      }
+    const removeTimer = setTimeout(() => {
+      cleanupBadge(badge);
     }, 2000);
+    
+    // Store timer for cleanup
+    badge._removeTimer = removeTimer;
   }
 
   /**
@@ -187,6 +192,55 @@
     // TODO: Implement detailed analysis modal
     console.log("[CS] Detailed analysis:", response);
     alert(`Detailed Analysis:\nScore: ${Math.round(response.score * 100)}%\nType: ${response.analysis?.bias_type || 'Unknown'}`);
+  }
+
+  /**
+   * TRACER BULLET: Cleanup badge and associated resources
+   */
+  function cleanupBadge(badge) {
+    if (badge && badge.parentNode) {
+      // Remove event listeners
+      const badgeListeners = eventListeners.filter(listener => listener.element === badge);
+      badgeListeners.forEach(listener => {
+        listener.element.removeEventListener(listener.event, listener.handler);
+      });
+      eventListeners = eventListeners.filter(listener => listener.element !== badge);
+      
+      // Clear timer
+      if (badge._removeTimer) {
+        clearTimeout(badge._removeTimer);
+        delete badge._removeTimer;
+      }
+      
+      // Remove from DOM
+      badge.remove();
+      
+      if (currentBadge === badge) {
+        currentBadge = null;
+      }
+    }
+  }
+
+  /**
+   * TRACER BULLET: Cleanup all resources
+   */
+  function cleanup() {
+    // Clear debounce timer
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    
+    // Cleanup current badge
+    if (currentBadge) {
+      cleanupBadge(currentBadge);
+    }
+    
+    // Remove all event listeners
+    eventListeners.forEach(listener => {
+      listener.element.removeEventListener(listener.event, listener.handler);
+    });
+    eventListeners = [];
   }
 
   /**
@@ -202,17 +256,28 @@
     }, CONFIG.debounceDelay);
   }
 
-  // Event listeners
-  document.addEventListener("mouseup", handleSelection);
-  
-  // TRACER BULLET: Add keyboard shortcut support
-  document.addEventListener("keydown", (e) => {
+  // Event listeners with proper cleanup tracking
+  const mouseupHandler = handleSelection;
+  const keydownHandler = (e) => {
     // Ctrl+Shift+A for manual analysis
     if (e.ctrlKey && e.shiftKey && e.key === 'A') {
       e.preventDefault();
       analyzeSelection();
     }
-  });
+  };
+  
+  document.addEventListener("mouseup", mouseupHandler);
+  document.addEventListener("keydown", keydownHandler);
+  
+  // Store event listeners for cleanup
+  eventListeners.push(
+    { element: document, event: 'mouseup', handler: mouseupHandler },
+    { element: document, event: 'keydown', handler: keydownHandler }
+  );
+  
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', cleanup);
+  eventListeners.push({ element: window, event: 'beforeunload', handler: cleanup });
 
   console.log("[CS] AI Guardians content script loaded");
 

@@ -4,7 +4,7 @@
     "passedTests": 6,
     "failedTests": 0,
     "successRate": 100,
-    "duration": 37
+    "duration": 29
   },
   "results": [
     {
@@ -26,7 +26,7 @@
           "src/testing.js"
         ]
       },
-      "timestamp": "2025-10-21T18:41:00.785Z"
+      "timestamp": "2025-10-21T19:36:36.495Z"
     },
     {
       "name": "Manifest Validation",
@@ -43,17 +43,17 @@
         "hasContentScripts": true,
         "hasAction": true
       },
-      "timestamp": "2025-10-21T18:41:00.798Z"
+      "timestamp": "2025-10-21T19:36:36.506Z"
     },
     {
       "name": "Code Quality Check",
       "status": "PASSED",
       "result": {
         "src/background.js": {
-          "totalLines": 316,
-          "codeLines": 246,
-          "commentLines": 27,
-          "emptyLines": 43,
+          "totalLines": 389,
+          "codeLines": 294,
+          "commentLines": 36,
+          "emptyLines": 59,
           "commentRatio": 9,
           "issues": [
             "3 console.log statements found"
@@ -69,11 +69,11 @@
           }
         },
         "src/content.js": {
-          "totalLines": 209,
-          "codeLines": 158,
-          "commentLines": 19,
-          "emptyLines": 32,
-          "commentRatio": 9,
+          "totalLines": 286,
+          "codeLines": 206,
+          "commentLines": 32,
+          "emptyLines": 48,
+          "commentRatio": 11,
           "issues": [
             "4 console.log statements found",
             "1 TODO/FIXME/HACK comments found"
@@ -89,17 +89,17 @@
           }
         },
         "src/gateway.js": {
-          "totalLines": 625,
-          "codeLines": 508,
-          "commentLines": 39,
-          "emptyLines": 78,
-          "commentRatio": 6,
+          "totalLines": 791,
+          "codeLines": 630,
+          "commentLines": 58,
+          "emptyLines": 103,
+          "commentRatio": 7,
           "issues": [
-            "2 console.log statements found"
+            "3 console.log statements found"
           ],
           "errorHandling": {
-            "tryCatchBlocks": 5,
-            "catchBlocks": 5,
+            "tryCatchBlocks": 6,
+            "catchBlocks": 6,
             "hasErrorHandling": true
           },
           "asyncUsage": {
@@ -108,11 +108,11 @@
           }
         },
         "src/popup.js": {
-          "totalLines": 71,
-          "codeLines": 45,
-          "commentLines": 17,
-          "emptyLines": 9,
-          "commentRatio": 24,
+          "totalLines": 95,
+          "codeLines": 62,
+          "commentLines": 20,
+          "emptyLines": 13,
+          "commentRatio": 21,
           "issues": [
             "11 TODO/FIXME/HACK comments found"
           ],
@@ -127,11 +127,11 @@
           }
         },
         "src/options.js": {
-          "totalLines": 432,
-          "codeLines": 335,
-          "commentLines": 40,
-          "emptyLines": 57,
-          "commentRatio": 9,
+          "totalLines": 471,
+          "codeLines": 372,
+          "commentLines": 39,
+          "emptyLines": 60,
+          "commentRatio": 8,
           "issues": [],
           "errorHandling": {
             "tryCatchBlocks": 6,
@@ -163,7 +163,7 @@
           }
         }
       },
-      "timestamp": "2025-10-21T18:41:00.806Z"
+      "timestamp": "2025-10-21T19:36:36.509Z"
     },
     {
       "name": "API Schema Compatibility",
@@ -187,70 +187,56 @@
         "validation": true,
         "hasAllFeatures": true
       },
-      "timestamp": "2025-10-21T18:41:00.807Z"
+      "timestamp": "2025-10-21T19:36:36.510Z"
     },
     {
       "name": "Security Analysis",
       "status": "PASSED",
       "result": {
-        "totalIssues": 2,
-        "issues": [
-          {
-            "file": "src/content.js",
-            "type": "security",
-            "message": "innerHTML assignment detected",
-            "count": 1
-          },
-          {
-            "file": "src/options.js",
-            "type": "security",
-            "message": "innerHTML assignment detected",
-            "count": 1
-          }
-        ],
-        "securityScore": 80
+        "totalIssues": 0,
+        "issues": [],
+        "securityScore": 100
       },
-      "timestamp": "2025-10-21T18:41:00.810Z"
+      "timestamp": "2025-10-21T19:36:36.511Z"
     },
     {
       "name": "Performance Analysis",
       "status": "PASSED",
       "result": {
         "src/background.js": {
-          "fileSize": 9916,
-          "lineCount": 316,
-          "characterCount": 9916,
+          "fileSize": 11768,
+          "lineCount": 389,
+          "characterCount": 11768,
           "complexity": {
-            "total": 34,
+            "total": 43,
             "level": "high"
           }
         },
         "src/content.js": {
-          "fileSize": 5715,
-          "lineCount": 209,
-          "characterCount": 5715,
+          "fileSize": 8241,
+          "lineCount": 286,
+          "characterCount": 8241,
           "complexity": {
-            "total": 17,
+            "total": 23,
             "level": "medium"
           }
         },
         "src/gateway.js": {
-          "fileSize": 18454,
-          "lineCount": 625,
-          "characterCount": 18454,
+          "fileSize": 23649,
+          "lineCount": 791,
+          "characterCount": 23649,
           "complexity": {
-            "total": 31,
+            "total": 46,
             "level": "high"
           }
         }
       },
-      "timestamp": "2025-10-21T18:41:00.811Z"
+      "timestamp": "2025-10-21T19:36:36.515Z"
     }
   ],
-  "timestamp": "2025-10-21T18:41:00.812Z",
+  "timestamp": "2025-10-21T19:36:36.515Z",
   "recommendations": [
     "Address code quality issues found in source files",
-    "Address security issues before production deployment",
     "Run extension in Chrome developer mode for manual testing",
     "Test with real backend API endpoints",
     "Validate all guard services are working correctly"

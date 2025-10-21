@@ -91,8 +91,11 @@ class InputValidator {
       return '';
     }
     
-    // Remove all HTML tags
-    return html.replace(/<[^>]*>/g, '');
+    // Remove all HTML tags with bounds checking
+    if (typeof html === 'string' && html.length > 0) {
+      return html.replace(/<[^>]*>/g, '');
+    }
+    return html;
   }
   
   /**

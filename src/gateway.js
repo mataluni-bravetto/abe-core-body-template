@@ -24,22 +24,34 @@ class AIGuardiansGateway {
     
     // Sanitize text content
     if (sanitized.text && typeof sanitized.text === 'string') {
-      // Remove potentially dangerous characters
-      sanitized.text = sanitized.text
-        .replace(/<script[^>]*>.*?</script>/gi, '')
-        .replace(/javascript:/gi, '')
-        .replace(/onw+s*=/gi, '')
-        .replace(/<iframe[^>]*>.*?</iframe>/gi, '')
-        .substring(0, 10000); // Limit length
+      // Remove potentially dangerous characters with bounds checking
+      if (sanitized.text && typeof sanitized.text === 'string') {
+        sanitized.text = sanitized.text
+          .replace(/<script[^>]*>.*?</script>/gi, '')
+          .replace(/javascript:/gi, '')
+          .replace(/onw+s*=/gi, '')
+          .replace(/<iframe[^>]*>.*?</iframe>/gi, '');
+        
+        // Safe substring with bounds checking
+        const maxLength = 10000;
+        sanitized.text = sanitized.text.length > maxLength 
+          ? sanitized.text.substring(0, maxLength) 
+          : sanitized.text;
+      }
     }
     
-    // Sanitize other string fields
+    // Sanitize other string fields with bounds checking
     Object.keys(sanitized).forEach(key => {
-      if (typeof sanitized[key] === 'string') {
+      if (typeof sanitized[key] === 'string' && sanitized[key].length > 0) {
         sanitized[key] = sanitized[key]
           .replace(/<[^>]*>/g, '') // Remove HTML tags
-          .replace(/[<>"'&]/g, '') // Remove dangerous characters
-          .substring(0, 1000); // Limit length
+          .replace(/[<>"'&]/g, ''); // Remove dangerous characters
+        
+        // Safe substring with bounds checking
+        const maxLength = 1000;
+        sanitized[key] = sanitized[key].length > maxLength 
+          ? sanitized[key].substring(0, maxLength) 
+          : sanitized[key];
       }
     });
     
@@ -679,8 +691,8 @@ class AIGuardiansGateway {
     
     const sanitized = { ...payload };
     
-    // Remove sensitive data
-    if (sanitized.text && sanitized.text.length > 100) {
+    // Remove sensitive data with bounds checking
+    if (sanitized.text && typeof sanitized.text === 'string' && sanitized.text.length > 100) {
       sanitized.text = sanitized.text.substring(0, 100) + '...';
     }
     
