@@ -62,6 +62,79 @@ try {
   }
 
   // Message handler for content script communication
+  
+  /**
+   * TRACER BULLET: Enhanced message validation
+   */
+  
+  /**
+   * TRACER BULLET: Origin validation for security
+   */
+  function validateOrigin(sender) {
+    // Validate sender origin
+    if (!sender || !sender.origin) {
+      throw new Error('Invalid sender: origin information required');
+    }
+    
+    // Check for allowed origins
+    const allowedOrigins = [
+      'chrome-extension://',
+      'https://your-ai-guardians-gateway.com',
+      'https://localhost',
+      'https://127.0.0.1'
+    ];
+    
+    const isAllowedOrigin = allowedOrigins.some(origin => sender.origin.startsWith(origin));
+    
+    if (!isAllowedOrigin) {
+      throw new Error(`Unauthorized origin: ${sender.origin}`);
+    }
+    
+    return true;
+  }
+
+
+  function validateMessage(message, sender) {
+    // Validate message structure
+    if (!message || typeof message !== 'object') {
+      throw new Error('Invalid message: must be an object');
+    }
+    
+    // Validate required fields
+    if (!message.type || typeof message.type !== 'string') {
+      throw new Error('Invalid message: type field is required');
+    }
+    
+    // Validate sender
+    if (!sender || !sender.tab) {
+      throw new Error('Invalid sender: tab information required');
+    }
+    
+    // Validate message type
+    const allowedTypes = [
+      'ANALYZE_TEXT',
+      'GET_DIAGNOSTICS',
+      'GET_TRACE_STATS',
+      'TEST_GATEWAY_CONNECTION',
+      'GET_CENTRAL_CONFIG',
+      'UPDATE_CENTRAL_CONFIG',
+      'GET_GUARD_STATUS',
+      'TEST_GUARD_SERVICE'
+    ];
+    
+    if (!allowedTypes.includes(message.type)) {
+      throw new Error(`Invalid message type: ${message.type}`);
+    }
+    
+    // Validate payload if present
+    if (message.payload && typeof message.payload !== 'object') {
+      throw new Error('Invalid payload: must be an object');
+    }
+    
+    return true;
+  }
+
+
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     try {
       switch (request.type) {

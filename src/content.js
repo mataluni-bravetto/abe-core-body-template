@@ -80,11 +80,11 @@
     badgeContent.style.cssText = "display: flex; align-items: center; gap: 8px;";
     
     const scoreSpan = document.createElement("span");
-    scoreSpan.textContent = `Bias Score: ${score}%`;
+    scoreSpan.textContent = 'Bias Score: ' + score + '%';
     
     const confidenceSpan = document.createElement("span");
     confidenceSpan.style.cssText = "font-size: 10px; opacity: 0.8;";
-    confidenceSpan.textContent = analysis.confidence ? `(${Math.round(analysis.confidence * 100)}% confidence)` : '';
+    confidenceSpan.textContent = analysis.confidence ? '(' + Math.round(analysis.confidence * 100) + ')' : '';
     
     badgeContent.appendChild(scoreSpan);
     badgeContent.appendChild(confidenceSpan);

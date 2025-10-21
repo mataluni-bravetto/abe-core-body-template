@@ -127,7 +127,7 @@
       const enabledLabel = document.createElement('label');
       const enabledCheckbox = document.createElement('input');
       enabledCheckbox.type = 'checkbox';
-      enabledCheckbox.id = `guard_${guardName}_enabled`;
+      enabledCheckbox.id = 'guard_' + guardName + '_enabled';
       if (config.enabled) enabledCheckbox.checked = true;
       enabledLabel.appendChild(enabledCheckbox);
       enabledLabel.appendChild(document.createTextNode(' Enabled'));
@@ -136,7 +136,7 @@
       thresholdLabel.appendChild(document.createTextNode('Threshold: '));
       const thresholdInput = document.createElement('input');
       thresholdInput.type = 'number';
-      thresholdInput.id = `guard_${guardName}_threshold`;
+      thresholdInput.id = 'guard_' + guardName + '_threshold';
       thresholdInput.min = '0';
       thresholdInput.max = '1';
       thresholdInput.step = '0.05';
@@ -157,8 +157,8 @@
    */
   function updateGuardServicesUI(guardServices) {
     for (const [guardName, config] of Object.entries(guardServices)) {
-      const enabledCheckbox = document.getElementById(`guard_${guardName}_enabled`);
-      const thresholdInput = document.getElementById(`guard_${guardName}_threshold`);
+      const enabledCheckbox = document.getElementById('guard_' + guardName + '_enabled');
+      const thresholdInput = document.getElementById('guard_' + guardName + '_threshold');
       
       if (enabledCheckbox) {
         enabledCheckbox.checked = config.enabled || false;
@@ -218,8 +218,8 @@
   function handleGuardServiceChange(event) {
     const guardName = event.target.id.replace('guard_', '').replace('_enabled', '').replace('_threshold', '');
     const isEnabled = event.target.type === 'checkbox' ? event.target.checked : 
-      document.getElementById(`guard_${guardName}_enabled`).checked;
-    const threshold = parseFloat(document.getElementById(`guard_${guardName}_threshold`).value);
+      document.getElementById('guard_' + guardName + '_enabled').checked;
+    const threshold = parseFloat(document.getElementById('guard_' + guardName + '_threshold').value);
 
     const config = { enabled: isEnabled, threshold: threshold };
     

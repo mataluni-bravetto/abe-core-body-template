@@ -12,6 +12,151 @@
  */
 
 class AIGuardiansGateway {
+  /**
+   * TRACER BULLET: Sanitize request data
+   */
+  sanitizeRequestData(data) {
+    if (!data || typeof data !== 'object') {
+      return data;
+    }
+    
+    const sanitized = { ...data };
+    
+    // Sanitize text content
+    if (sanitized.text && typeof sanitized.text === 'string') {
+      // Remove potentially dangerous characters
+      sanitized.text = sanitized.text
+        .replace(/<script[^>]*>.*?</script>/gi, '')
+        .replace(/javascript:/gi, '')
+        .replace(/onw+s*=/gi, '')
+        .replace(/<iframe[^>]*>.*?</iframe>/gi, '')
+        .substring(0, 10000); // Limit length
+    }
+    
+    // Sanitize other string fields
+    Object.keys(sanitized).forEach(key => {
+      if (typeof sanitized[key] === 'string') {
+        sanitized[key] = sanitized[key]
+          .replace(/<[^>]*>/g, '') // Remove HTML tags
+          .replace(/[<>"'&]/g, '') // Remove dangerous characters
+          .substring(0, 1000); // Limit length
+      }
+    });
+    
+    return sanitized;
+  }
+
+  
+  /**
+   * TRACER BULLET: Secure logging that prevents data exposure
+   */
+  secureLog(level, message, data = {}) {
+    // Sanitize data before logging
+    const sanitizedData = this.sanitizePayload(data);
+    
+    // Log with sanitized data
+    switch (level) {
+      case 'info':
+        console.log(`[Gateway] ${message}`, sanitizedData);
+        break;
+      case 'warn':
+        console.warn(`[Gateway] ${message}`, sanitizedData);
+        break;
+      case 'error':
+        console.error(`[Gateway] ${message}`, sanitizedData);
+        break;
+      case 'trace':
+        console.log(`[Gateway-TRACE] ${message}`, sanitizedData);
+        break;
+    }
+  }
+
+  
+  /**
+   * TRACER BULLET: Enhanced request validation
+   */
+  validateRequest(endpoint, payload) {
+    // Validate endpoint
+    const allowedEndpoints = ['analyze', 'health', 'logging', 'guards', 'config'];
+    if (!allowedEndpoints.includes(endpoint)) {
+      throw new Error(`Invalid endpoint: ${endpoint}`);
+    }
+    
+    // Validate payload based on endpoint
+    switch (endpoint) {
+      case 'analyze':
+        if (!payload || typeof payload !== 'object') {
+          throw new Error('Invalid payload: must be an object');
+        }
+        if (!payload.text || typeof payload.text !== 'string') {
+          throw new Error('Invalid payload: text field is required');
+        }
+        if (payload.text.length > 10000) {
+          throw new Error('Invalid payload: text too long');
+        }
+        break;
+        
+      case 'health':
+        // Health checks don't require payload validation
+        break;
+        
+      case 'logging':
+        if (!payload || typeof payload !== 'object') {
+          throw new Error('Invalid payload: must be an object');
+        }
+        if (!payload.level || !payload.message) {
+          throw new Error('Invalid payload: level and message are required');
+        }
+        break;
+        
+      case 'guards':
+        // Guard requests don't require payload validation
+        break;
+        
+      case 'config':
+        if (payload && typeof payload !== 'object') {
+          throw new Error('Invalid payload: must be an object');
+        }
+        break;
+    }
+    
+    return true;
+  }
+
+  
+  /**
+   * TRACER BULLET: Enhanced error handling and logging
+   */
+  handleError(error, context = {}) {
+    const errorInfo = {
+      message: error.message,
+      stack: error.stack,
+      context: context,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      extensionVersion: chrome.runtime.getManifest().version
+    };
+    
+    // Log error securely (without sensitive data)
+    console.error('[Gateway] Error occurred:', {
+      message: error.message,
+      context: context,
+      timestamp: errorInfo.timestamp
+    });
+    
+    // Update trace stats
+    this.traceStats.failures++;
+    this.traceStats.errorCounts[error.name] = (this.traceStats.errorCounts[error.name] || 0) + 1;
+    
+    // Send error to central logging if available
+    if (this.centralLogger) {
+      this.centralLogger.error('Gateway error', errorInfo);
+    }
+    
+    return errorInfo;
+  }
+
+  
   constructor() {
     this.config = {
       gatewayUrl: 'https://your-ai-guardians-gateway.com/api/v1',
@@ -46,15 +191,15 @@ class AIGuardiansGateway {
   initializeLogger() {
     return {
       info: (message, metadata = {}) => {
-        console.log(`[Gateway] ${message}`, metadata);
+        this.secureLog("info", message, metadata);
         this.updateTraceStats('info', message, metadata);
       },
       warn: (message, metadata = {}) => {
-        console.warn(`[Gateway] ${message}`, metadata);
+        this.secureLog("warn", message, metadata);
         this.updateTraceStats('warn', message, metadata);
       },
       error: (message, metadata = {}) => {
-        console.error(`[Gateway] ${message}`, metadata);
+        this.secureLog("error", message, metadata);
         this.updateTraceStats('error', message, metadata);
       },
       trace: (message, metadata = {}) => {
@@ -230,6 +375,15 @@ class AIGuardiansGateway {
    * TRACER BULLET: Send request to central gateway with enhanced tracing
    */
   async sendToGateway(endpoint, payload) {
+    // Sanitize payload data
+    payload = this.sanitizeRequestData(payload);
+    try {
+      this.validateRequest(endpoint, payload);
+    } catch (error) {
+      console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
+      this.handleError(error, { endpoint, payload });
+      throw error;
+    }
     const startTime = Date.now();
     const requestId = this.generateRequestId();
     
@@ -243,7 +397,7 @@ class AIGuardiansGateway {
     };
     
     const mappedEndpoint = endpointMapping[endpoint] || endpoint;
-    const url = `${this.config.gatewayUrl}/${mappedEndpoint}`;
+    const url = this.config.gatewayUrl + '/' + mappedEndpoint;
     
     this.traceStats.requests++;
     
@@ -258,7 +412,7 @@ class AIGuardiansGateway {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        'Authorization': 'Bearer ' + this.config.apiKey,
         'X-Extension-Version': chrome.runtime.getManifest().version,
         'X-Request-ID': requestId,
         'X-Timestamp': new Date().toISOString()

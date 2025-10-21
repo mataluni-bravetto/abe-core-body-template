@@ -3,15 +3,24 @@
   "name": "AI Guardians Chrome Ext",
   "version": "0.1.0",
   "description": "BiasGuard Chrome MV3 scaffold with content script example.",
-  "permissions": ["storage", "alarms"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "src/background.js"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["src/content.js"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content.js"
+      ]
     }
   ],
   "action": {
@@ -29,7 +38,7 @@
     "128": "icons/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';"
-  }
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
+  },
+  "web_accessible_resources": []
 }
-
