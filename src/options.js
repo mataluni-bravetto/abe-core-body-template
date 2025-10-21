@@ -117,19 +117,37 @@
     for (const [guardName, config] of Object.entries(defaultGuards)) {
       const guardDiv = document.createElement('div');
       guardDiv.className = 'guard-service';
-      guardDiv.innerHTML = `
-        <h4>${config.name}</h4>
-        <div class="guard-controls">
-          <label>
-            <input type="checkbox" id="guard_${guardName}_enabled" ${config.enabled ? 'checked' : ''} />
-            Enabled
-          </label>
-          <label>
-            Threshold: 
-            <input type="number" id="guard_${guardName}_threshold" min="0" max="1" step="0.05" value="${config.threshold}" />
-          </label>
-        </div>
-      `;
+      // Create elements safely without innerHTML
+      const h4 = document.createElement('h4');
+      h4.textContent = config.name;
+      
+      const controlsDiv = document.createElement('div');
+      controlsDiv.className = 'guard-controls';
+      
+      const enabledLabel = document.createElement('label');
+      const enabledCheckbox = document.createElement('input');
+      enabledCheckbox.type = 'checkbox';
+      enabledCheckbox.id = `guard_${guardName}_enabled`;
+      if (config.enabled) enabledCheckbox.checked = true;
+      enabledLabel.appendChild(enabledCheckbox);
+      enabledLabel.appendChild(document.createTextNode(' Enabled'));
+      
+      const thresholdLabel = document.createElement('label');
+      thresholdLabel.appendChild(document.createTextNode('Threshold: '));
+      const thresholdInput = document.createElement('input');
+      thresholdInput.type = 'number';
+      thresholdInput.id = `guard_${guardName}_threshold`;
+      thresholdInput.min = '0';
+      thresholdInput.max = '1';
+      thresholdInput.step = '0.05';
+      thresholdInput.value = config.threshold;
+      thresholdLabel.appendChild(thresholdInput);
+      
+      controlsDiv.appendChild(enabledLabel);
+      controlsDiv.appendChild(thresholdLabel);
+      
+      guardDiv.appendChild(h4);
+      guardDiv.appendChild(controlsDiv);
       guardServicesContainer.appendChild(guardDiv);
     }
   }

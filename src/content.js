@@ -75,15 +75,27 @@
     
     // Create enhanced badge with more information
     const badge = document.createElement("div");
-    badge.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span>Bias Score: ${score}%</span>
-        <span style="font-size: 10px; opacity: 0.8;">
-          ${analysis.confidence ? `(${Math.round(analysis.confidence * 100)}% confidence)` : ''}
-        </span>
-      </div>
-      ${analysis.bias_type ? `<div style="font-size: 10px; margin-top: 4px;">Type: ${analysis.bias_type}</div>` : ''}
-    `;
+    // Create content using safe DOM methods
+    const badgeContent = document.createElement("div");
+    badgeContent.style.cssText = "display: flex; align-items: center; gap: 8px;";
+    
+    const scoreSpan = document.createElement("span");
+    scoreSpan.textContent = `Bias Score: ${score}%`;
+    
+    const confidenceSpan = document.createElement("span");
+    confidenceSpan.style.cssText = "font-size: 10px; opacity: 0.8;";
+    confidenceSpan.textContent = analysis.confidence ? `(${Math.round(analysis.confidence * 100)}% confidence)` : '';
+    
+    badgeContent.appendChild(scoreSpan);
+    badgeContent.appendChild(confidenceSpan);
+    badge.appendChild(badgeContent);
+    
+    if (analysis.bias_type) {
+      const typeDiv = document.createElement("div");
+      typeDiv.style.cssText = "font-size: 10px; margin-top: 4px;";
+      typeDiv.textContent = `Type: ${analysis.bias_type}`;
+      badge.appendChild(typeDiv);
+    }
     
     badge.style.cssText = `
       position: fixed;

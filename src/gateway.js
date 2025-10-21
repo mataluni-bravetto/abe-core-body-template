@@ -20,11 +20,79 @@ class AIGuardiansGateway {
       retryDelay: 1000
     };
     
+    // Enhanced tracing and logging
+    this.traceStats = {
+      requests: 0,
+      successes: 0,
+      failures: 0,
+      totalResponseTime: 0,
+      averageResponseTime: 0,
+      lastRequestTime: null,
+      errorCounts: {}
+    };
+    
+    this.logger = this.initializeLogger();
+    
     this.guardServices = new Map();
     this.centralLogger = null;
     this.centralConfig = null;
     
     this.initializeGateway();
+  }
+
+  /**
+   * TRACER BULLET: Initialize enhanced logger with tracing
+   */
+  initializeLogger() {
+    return {
+      info: (message, metadata = {}) => {
+        console.log(`[Gateway] ${message}`, metadata);
+        this.updateTraceStats('info', message, metadata);
+      },
+      warn: (message, metadata = {}) => {
+        console.warn(`[Gateway] ${message}`, metadata);
+        this.updateTraceStats('warn', message, metadata);
+      },
+      error: (message, metadata = {}) => {
+        console.error(`[Gateway] ${message}`, metadata);
+        this.updateTraceStats('error', message, metadata);
+      },
+      trace: (message, metadata = {}) => {
+        console.log(`[Gateway-TRACE] ${message}`, metadata);
+        this.updateTraceStats('trace', message, metadata);
+      }
+    };
+  }
+
+  /**
+   * TRACER BULLET: Update trace statistics
+   */
+  updateTraceStats(level, message, metadata) {
+    this.traceStats.lastRequestTime = new Date().toISOString();
+    
+    if (level === 'error') {
+      this.traceStats.failures++;
+      const errorType = metadata.error || 'unknown';
+      this.traceStats.errorCounts[errorType] = (this.traceStats.errorCounts[errorType] || 0) + 1;
+    } else if (level === 'info' && message.includes('successful')) {
+      this.traceStats.successes++;
+    }
+    
+    if (metadata.response_time) {
+      this.traceStats.totalResponseTime += metadata.response_time;
+      this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
+    }
+  }
+
+  /**
+   * TRACER BULLET: Get trace statistics
+   */
+  getTraceStats() {
+    return {
+      ...this.traceStats,
+      successRate: this.traceStats.requests > 0 ? (this.traceStats.successes / this.traceStats.requests) * 100 : 0,
+      failureRate: this.traceStats.requests > 0 ? (this.traceStats.failures / this.traceStats.requests) * 100 : 0
+    };
   }
 
   /**
@@ -105,26 +173,43 @@ class AIGuardiansGateway {
    * TRACER BULLET: Initialize guard services
    */
   async initializeGuardServices() {
+    // Updated to match backend guard service names
     const defaultGuards = {
-      bias_detection: {
+      biasguard: {
         enabled: true,
         threshold: 0.5,
-        pipeline: 'bias_analysis_v2'
+        pipeline: 'bias_analysis_v2',
+        displayName: 'Bias Detection'
       },
-      toxicity_detection: {
+      trustguard: {
         enabled: true,
         threshold: 0.7,
-        pipeline: 'toxicity_analysis_v1'
+        pipeline: 'trust_analysis_v1',
+        displayName: 'Trust Analysis'
       },
-      sentiment_analysis: {
+      contextguard: {
         enabled: false,
         threshold: 0.6,
-        pipeline: 'sentiment_analysis_v1'
+        pipeline: 'context_analysis_v1',
+        displayName: 'Context Analysis'
       },
-      fact_checking: {
+      securityguard: {
         enabled: false,
         threshold: 0.8,
-        pipeline: 'fact_check_v1'
+        pipeline: 'security_analysis_v1',
+        displayName: 'Security Analysis'
+      },
+      tokenguard: {
+        enabled: false,
+        threshold: 0.5,
+        pipeline: 'token_optimization_v1',
+        displayName: 'Token Optimization'
+      },
+      healthguard: {
+        enabled: false,
+        threshold: 0.5,
+        pipeline: 'health_monitoring_v1',
+        displayName: 'Health Monitoring'
       }
     };
 
@@ -142,10 +227,32 @@ class AIGuardiansGateway {
   }
 
   /**
-   * TRACER BULLET: Send request to central gateway
+   * TRACER BULLET: Send request to central gateway with enhanced tracing
    */
   async sendToGateway(endpoint, payload) {
-    const url = `${this.config.gatewayUrl}/${endpoint}`;
+    const startTime = Date.now();
+    const requestId = this.generateRequestId();
+    
+    // Map extension endpoints to backend API endpoints
+    const endpointMapping = {
+      'analyze': 'analyze/text',
+      'health': 'health/live',
+      'logging': 'logging',
+      'guards': 'guards',
+      'config': 'config/user'
+    };
+    
+    const mappedEndpoint = endpointMapping[endpoint] || endpoint;
+    const url = `${this.config.gatewayUrl}/${mappedEndpoint}`;
+    
+    this.traceStats.requests++;
+    
+    this.logger.trace('Sending request to gateway', {
+      requestId,
+      endpoint: mappedEndpoint,
+      url,
+      payload: this.sanitizePayload(payload)
+    });
     
     const requestOptions = {
       method: 'POST',
@@ -153,7 +260,8 @@ class AIGuardiansGateway {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.config.apiKey}`,
         'X-Extension-Version': chrome.runtime.getManifest().version,
-        'X-Request-ID': this.generateRequestId()
+        'X-Request-ID': requestId,
+        'X-Timestamp': new Date().toISOString()
       },
       body: JSON.stringify(payload)
     };
@@ -161,36 +269,80 @@ class AIGuardiansGateway {
     let lastError;
     for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
       try {
+        this.logger.trace(`Attempt ${attempt}/${this.config.retryAttempts}`, {
+          requestId,
+          endpoint: mappedEndpoint,
+          attempt
+        });
+        
         const response = await fetch(url, requestOptions);
+        const responseTime = Date.now() - startTime;
         
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
         }
         
         const result = await response.json();
         
-        // Log successful request
-        await this.centralLogger?.info('Gateway request successful', {
-          endpoint,
+        // Validate response data
+        const validationResult = this.validateApiResponse(result, endpoint);
+        if (!validationResult.isValid) {
+          this.logger.warn('API response validation failed', {
+            requestId,
+            endpoint: mappedEndpoint,
+            validationErrors: validationResult.errors
+          });
+        }
+        
+        // Update trace stats
+        this.traceStats.successes++;
+        this.traceStats.totalResponseTime += responseTime;
+        this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
+        
+        this.logger.info('Gateway request successful', {
+          requestId,
+          endpoint: mappedEndpoint,
           attempt,
-          response_time: Date.now() - payload.timestamp
+          responseTime,
+          statusCode: response.status,
+          responseSize: JSON.stringify(result).length
         });
         
         return result;
       } catch (err) {
         lastError = err;
+        const responseTime = Date.now() - startTime;
         
-        await this.centralLogger?.warn('Gateway request failed', {
-          endpoint,
+        this.logger.error('Gateway request failed', {
+          requestId,
+          endpoint: mappedEndpoint,
           attempt,
-          error: err.message
+          error: err.message,
+          responseTime,
+          errorType: err.name
         });
         
         if (attempt < this.config.retryAttempts) {
-          await this.delay(this.config.retryDelay * attempt);
+          const delayTime = this.config.retryDelay * attempt;
+          this.logger.trace(`Retrying in ${delayTime}ms`, {
+            requestId,
+            attempt,
+            nextAttempt: attempt + 1
+          });
+          await this.delay(delayTime);
         }
       }
     }
+    
+    // Final failure
+    this.traceStats.failures++;
+    this.logger.error('All retry attempts failed', {
+      requestId,
+      endpoint: mappedEndpoint,
+      totalAttempts: this.config.retryAttempts,
+      finalError: lastError.message
+    });
     
     throw lastError;
   }
@@ -363,6 +515,99 @@ class AIGuardiansGateway {
     });
 
     await this.centralLogger?.info('Central configuration updated', newConfig);
+  }
+
+  /**
+   * TRACER BULLET: Sanitize payload for logging
+   */
+  sanitizePayload(payload) {
+    if (!payload) return payload;
+    
+    const sanitized = { ...payload };
+    
+    // Remove sensitive data
+    if (sanitized.text && sanitized.text.length > 100) {
+      sanitized.text = sanitized.text.substring(0, 100) + '...';
+    }
+    
+    // Remove API keys
+    if (sanitized.apiKey) {
+      sanitized.apiKey = '***REDACTED***';
+    }
+    
+    return sanitized;
+  }
+
+  /**
+   * TRACER BULLET: Validate API response data
+   */
+  validateApiResponse(response, endpoint) {
+    const errors = [];
+    
+    if (!response) {
+      errors.push('Response is null or undefined');
+      return { isValid: false, errors };
+    }
+    
+    // Validate based on endpoint
+    switch (endpoint) {
+      case 'analyze':
+        if (!response.analysis_id) {
+          errors.push('Missing analysis_id in response');
+        }
+        if (typeof response.overall_score !== 'number') {
+          errors.push('Missing or invalid overall_score in response');
+        }
+        if (!response.guards || typeof response.guards !== 'object') {
+          errors.push('Missing or invalid guards in response');
+        }
+        break;
+        
+      case 'health':
+        if (!response.status) {
+          errors.push('Missing status in health response');
+        }
+        break;
+        
+      case 'guards':
+        if (!Array.isArray(response.guards)) {
+          errors.push('Guards response should be an array');
+        }
+        break;
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * TRACER BULLET: Get comprehensive diagnostics
+   */
+  getDiagnostics() {
+    return {
+      traceStats: this.getTraceStats(),
+      configuration: {
+        gatewayUrl: this.config.gatewayUrl,
+        timeout: this.config.timeout,
+        retryAttempts: this.config.retryAttempts,
+        retryDelay: this.config.retryDelay
+      },
+      guardServices: Array.from(this.guardServices.entries()).map(([name, config]) => ({
+        name,
+        enabled: config.enabled,
+        threshold: config.threshold,
+        successCount: config.successCount,
+        errorCount: config.errorCount,
+        lastUsed: config.lastUsed
+      })),
+      systemInfo: {
+        extensionVersion: chrome.runtime.getManifest().version,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      }
+    };
   }
 
   // Utility methods

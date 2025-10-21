@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Guardians Extension - Runtime Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .test-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .test-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .test-results {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-pass { background: #2ecc71; }
+        .status-fail { background: #e74c3c; }
+        .status-running { background: #f39c12; animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .trace-log {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+        
+        .log-error {
+            border-left-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+        
+        .log-success {
+            border-left-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ AI Guardians Extension - Runtime Test Suite</h1>
+        
+        <div class="test-section">
+            <h2>📊 Extension Diagnostics</h2>
+            <button class="test-button" onclick="runDiagnostics()">Run Diagnostics</button>
+            <button class="test-button" onclick="getTraceStats()">Get Trace Statistics</button>
+            <button class="test-button" onclick="testGatewayConnection()">Test Gateway Connection</button>
+            
+            <div id="diagnostics-results" class="test-results" style="display: none;">
+                <h3>Diagnostics Results:</h3>
+                <div id="diagnostics-content"></div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔍 Text Analysis Testing</h2>
+            <div>
+                <textarea id="test-text" placeholder="Enter text to analyze..." 
+                    style="width: 100%; height: 100px; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; resize: vertical;"></textarea>
+            </div>
+            <button class="test-button" onclick="analyzeText()">Analyze Text</button>
+            <button class="test-button" onclick="runBatchAnalysis()">Run Batch Analysis</button>
+            
+            <div id="analysis-results" class="test-results" style="display: none;">
+                <h3>Analysis Results:</h3>
+                <div id="analysis-content"></div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📈 Performance Metrics</h2>
+            <div class="metrics-grid" id="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value" id="total-requests">0</div>
+                    <div class="metric-label">Total Requests</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="success-rate">0%</div>
+                    <div class="metric-label">Success Rate</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="avg-response-time">0ms</div>
+                    <div class="metric-label">Avg Response Time</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="error-count">0</div>
+                    <div class="metric-label">Error Count</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📝 Trace Log</h2>
+            <button class="test-button" onclick="clearTraceLog()">Clear Log</button>
+            <button class="test-button" onclick="exportTraceLog()">Export Log</button>
+            
+            <div id="trace-log" class="trace-log">
+                <div class="log-entry log-success">Runtime test initialized</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>⚙️ Configuration Testing</h2>
+            <button class="test-button" onclick="testConfiguration()">Test Configuration</button>
+            <button class="test-button" onclick="testGuardServices()">Test Guard Services</button>
+            <button class="test-button" onclick="testErrorHandling()">Test Error Handling</button>
+            
+            <div id="config-results" class="test-results" style="display: none;">
+                <h3>Configuration Results:</h3>
+                <div id="config-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Runtime Test Suite for AI Guardians Extension
+        class RuntimeTester {
+            constructor() {
+                this.traceLog = [];
+                this.metrics = {
+                    totalRequests: 0,
+                    successfulRequests: 0,
+                    failedRequests: 0,
+                    totalResponseTime: 0,
+                    averageResponseTime: 0
+                };
+                
+                this.initializeTester();
+            }
+            
+            initializeTester() {
+                this.log('Runtime tester initialized', 'success');
+                this.updateMetrics();
+                
+                // Check if extension is available
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    this.log('Chrome extension API available', 'success');
+                } else {
+                    this.log('Chrome extension API not available - running in browser mode', 'error');
+                }
+            }
+            
+            log(message, type = 'info') {
+                const timestamp = new Date().toISOString();
+                const logEntry = {
+                    timestamp,
+                    message,
+                    type
+                };
+                
+                this.traceLog.push(logEntry);
+                this.updateTraceLogDisplay();
+            }
+            
+            updateTraceLogDisplay() {
+                const traceLogElement = document.getElementById('trace-log');
+                traceLogElement.innerHTML = this.traceLog
+                    .slice(-50) // Show last 50 entries
+                    .map(entry => `
+                        <div class="log-entry log-${entry.type}">
+                            [${entry.timestamp.split('T')[1].split('.')[0]}] ${entry.message}
+                        </div>
+                    `).join('');
+                
+                traceLogElement.scrollTop = traceLogElement.scrollHeight;
+            }
+            
+            updateMetrics() {
+                document.getElementById('total-requests').textContent = this.metrics.totalRequests;
+                document.getElementById('success-rate').textContent = 
+                    this.metrics.totalRequests > 0 ? 
+                    Math.round((this.metrics.successfulRequests / this.metrics.totalRequests) * 100) + '%' : '0%';
+                document.getElementById('avg-response-time').textContent = 
+                    Math.round(this.metrics.averageResponseTime) + 'ms';
+                document.getElementById('error-count').textContent = this.metrics.failedRequests;
+            }
+            
+            async sendMessage(type, payload = {}) {
+                this.metrics.totalRequests++;
+                const startTime = Date.now();
+                
+                try {
+                    this.log(`Sending message: ${type}`, 'info');
+                    
+                    if (typeof chrome !== 'undefined' && chrome.runtime) {
+                        const response = await new Promise((resolve, reject) => {
+                            chrome.runtime.sendMessage({ type, payload }, (response) => {
+                                if (chrome.runtime.lastError) {
+                                    reject(new Error(chrome.runtime.lastError.message));
+                                } else {
+                                    resolve(response);
+                                }
+                            });
+                        });
+                        
+                        const responseTime = Date.now() - startTime;
+                        this.metrics.successfulRequests++;
+                        this.metrics.totalResponseTime += responseTime;
+                        this.metrics.averageResponseTime = this.metrics.totalResponseTime / this.metrics.successfulRequests;
+                        
+                        this.log(`Message ${type} completed in ${responseTime}ms`, 'success');
+                        return response;
+                    } else {
+                        // Simulate response for browser testing
+                        const responseTime = Date.now() - startTime;
+                        this.metrics.successfulRequests++;
+                        this.metrics.totalResponseTime += responseTime;
+                        this.metrics.averageResponseTime = this.metrics.totalResponseTime / this.metrics.successfulRequests;
+                        
+                        this.log(`Simulated response for ${type} in ${responseTime}ms`, 'success');
+                        return this.simulateResponse(type, payload);
+                    }
+                } catch (error) {
+                    this.metrics.failedRequests++;
+                    this.log(`Message ${type} failed: ${error.message}`, 'error');
+                    throw error;
+                } finally {
+                    this.updateMetrics();
+                }
+            }
+            
+            simulateResponse(type, payload) {
+                // Simulate responses for browser testing
+                switch (type) {
+                    case 'GET_DIAGNOSTICS':
+                        return {
+                            success: true,
+                            diagnostics: {
+                                traceStats: {
+                                    requests: this.metrics.totalRequests,
+                                    successes: this.metrics.successfulRequests,
+                                    failures: this.metrics.failedRequests,
+                                    averageResponseTime: this.metrics.averageResponseTime
+                                },
+                                configuration: {
+                                    gatewayUrl: 'http://localhost:8000/api/v1',
+                                    timeout: 10000,
+                                    retryAttempts: 3
+                                },
+                                guardServices: [
+                                    { name: 'biasguard', enabled: true, threshold: 0.5 },
+                                    { name: 'trustguard', enabled: true, threshold: 0.7 },
+                                    { name: 'contextguard', enabled: false, threshold: 0.6 }
+                                ]
+                            }
+                        };
+                    
+                    case 'GET_TRACE_STATS':
+                        return {
+                            success: true,
+                            traceStats: {
+                                requests: this.metrics.totalRequests,
+                                successes: this.metrics.successfulRequests,
+                                failures: this.metrics.failedRequests,
+                                averageResponseTime: this.metrics.averageResponseTime,
+                                successRate: this.metrics.totalRequests > 0 ? 
+                                    (this.metrics.successfulRequests / this.metrics.totalRequests) * 100 : 0
+                            }
+                        };
+                    
+                    case 'TEST_GATEWAY_CONNECTION':
+                        return {
+                            success: Math.random() > 0.2, // 80% success rate for simulation
+                            responseTime: Math.random() * 1000 + 100,
+                            timestamp: new Date().toISOString()
+                        };
+                    
+                    case 'ANALYZE_TEXT':
+                        return {
+                            success: true,
+                            score: Math.random() * 0.8 + 0.1,
+                            analysis: {
+                                bias_type: Math.random() > 0.5 ? 'gender_bias' : 'cultural_bias',
+                                confidence: Math.random() * 0.4 + 0.6,
+                                suggestions: [
+                                    'Consider using gender-neutral language',
+                                    'Avoid cultural assumptions'
+                                ],
+                                guard_results: {
+                                    biasguard: {
+                                        score: Math.random() * 0.8 + 0.1,
+                                        detected_biases: ['gender_bias'],
+                                        suggestions: ['Use inclusive language']
+                                    },
+                                    trustguard: {
+                                        score: Math.random() * 0.8 + 0.1,
+                                        trust_metrics: {
+                                            reliability: Math.random() * 0.4 + 0.6,
+                                            accuracy: Math.random() * 0.4 + 0.6
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                    
+                    default:
+                        return { success: true, message: 'Simulated response' };
+                }
+            }
+        }
+        
+        // Initialize tester
+        const tester = new RuntimeTester();
+        
+        // Test functions
+        async function runDiagnostics() {
+            try {
+                const response = await tester.sendMessage('GET_DIAGNOSTICS');
+                document.getElementById('diagnostics-results').style.display = 'block';
+                document.getElementById('diagnostics-content').innerHTML = 
+                    '<pre>' + JSON.stringify(response.diagnostics, null, 2) + '</pre>';
+            } catch (error) {
+                tester.log(`Diagnostics failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getTraceStats() {
+            try {
+                const response = await tester.sendMessage('GET_TRACE_STATS');
+                tester.log(`Trace stats: ${JSON.stringify(response.traceStats)}`, 'info');
+            } catch (error) {
+                tester.log(`Trace stats failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testGatewayConnection() {
+            try {
+                const response = await tester.sendMessage('TEST_GATEWAY_CONNECTION');
+                if (response.success) {
+                    tester.log(`Gateway connection successful (${response.responseTime}ms)`, 'success');
+                } else {
+                    tester.log('Gateway connection failed', 'error');
+                }
+            } catch (error) {
+                tester.log(`Gateway connection test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function analyzeText() {
+            const text = document.getElementById('test-text').value;
+            if (!text.trim()) {
+                tester.log('Please enter text to analyze', 'error');
+                return;
+            }
+            
+            try {
+                const response = await tester.sendMessage('ANALYZE_TEXT', { text });
+                document.getElementById('analysis-results').style.display = 'block';
+                document.getElementById('analysis-content').innerHTML = 
+                    '<pre>' + JSON.stringify(response, null, 2) + '</pre>';
+                
+                tester.log(`Text analysis completed - Score: ${response.score}`, 'success');
+            } catch (error) {
+                tester.log(`Text analysis failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function runBatchAnalysis() {
+            const sampleTexts = [
+                "This is a test text for bias detection",
+                "Women are naturally better at multitasking than men",
+                "All politicians are corrupt and untrustworthy",
+                "The quick brown fox jumps over the lazy dog",
+                "Artificial intelligence will revolutionize healthcare"
+            ];
+            
+            tester.log('Starting batch analysis...', 'info');
+            
+            for (let i = 0; i < sampleTexts.length; i++) {
+                try {
+                    const response = await tester.sendMessage('ANALYZE_TEXT', { text: sampleTexts[i] });
+                    tester.log(`Batch analysis ${i + 1}/${sampleTexts.length} completed - Score: ${response.score}`, 'success');
+                } catch (error) {
+                    tester.log(`Batch analysis ${i + 1} failed: ${error.message}`, 'error');
+                }
+            }
+            
+            tester.log('Batch analysis completed', 'success');
+        }
+        
+        async function testConfiguration() {
+            try {
+                const response = await tester.sendMessage('GET_CENTRAL_CONFIG');
+                document.getElementById('config-results').style.display = 'block';
+                document.getElementById('config-content').innerHTML = 
+                    '<pre>' + JSON.stringify(response, null, 2) + '</pre>';
+            } catch (error) {
+                tester.log(`Configuration test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testGuardServices() {
+            const guardServices = ['biasguard', 'trustguard', 'contextguard'];
+            
+            for (const guard of guardServices) {
+                try {
+                    const response = await tester.sendMessage('GET_GUARD_STATUS');
+                    tester.log(`Guard service ${guard} status checked`, 'success');
+                } catch (error) {
+                    tester.log(`Guard service ${guard} test failed: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        async function testErrorHandling() {
+            try {
+                // Test with invalid payload
+                await tester.sendMessage('ANALYZE_TEXT', { invalid: 'data' });
+            } catch (error) {
+                tester.log(`Error handling test passed: ${error.message}`, 'success');
+            }
+        }
+        
+        function clearTraceLog() {
+            tester.traceLog = [];
+            tester.updateTraceLogDisplay();
+            tester.log('Trace log cleared', 'info');
+        }
+        
+        function exportTraceLog() {
+            const logData = {
+                timestamp: new Date().toISOString(),
+                metrics: tester.metrics,
+                traceLog: tester.traceLog
+            };
+            
+            const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ai-guardians-trace-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            tester.log('Trace log exported', 'success');
+        }
+        
+        // Auto-run initial tests
+        setTimeout(() => {
+            tester.log('Auto-running initial diagnostics...', 'info');
+            runDiagnostics();
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+{
+  "summary": {
+    "totalTests": 6,
+    "passedTests": 6,
+    "failedTests": 0,
+    "successRate": 100,
+    "duration": 37
+  },
+  "results": [
+    {
+      "name": "File Structure Validation",
+      "status": "PASSED",
+      "result": {
+        "totalFiles": 9,
+        "existingFiles": 9,
+        "missingFiles": 0,
+        "files": [
+          "manifest.json",
+          "src/background.js",
+          "src/content.js",
+          "src/gateway.js",
+          "src/popup.html",
+          "src/popup.js",
+          "src/options.html",
+          "src/options.js",
+          "src/testing.js"
+        ]
+      },
+      "timestamp": "2025-10-21T18:41:00.785Z"
+    },
+    {
+      "name": "Manifest Validation",
+      "status": "PASSED",
+      "result": {
+        "manifestVersion": 3,
+        "name": "AI Guardians Chrome Ext",
+        "version": "0.1.0",
+        "permissions": [
+          "storage",
+          "alarms"
+        ],
+        "hasBackground": true,
+        "hasContentScripts": true,
+        "hasAction": true
+      },
+      "timestamp": "2025-10-21T18:41:00.798Z"
+    },
+    {
+      "name": "Code Quality Check",
+      "status": "PASSED",
+      "result": {
+        "src/background.js": {
+          "totalLines": 316,
+          "codeLines": 246,
+          "commentLines": 27,
+          "emptyLines": 43,
+          "commentRatio": 9,
+          "issues": [
+            "3 console.log statements found"
+          ],
+          "errorHandling": {
+            "tryCatchBlocks": 11,
+            "catchBlocks": 11,
+            "hasErrorHandling": true
+          },
+          "asyncUsage": {
+            "asyncFunctions": 9,
+            "awaitStatements": 8
+          }
+        },
+        "src/content.js": {
+          "totalLines": 209,
+          "codeLines": 158,
+          "commentLines": 19,
+          "emptyLines": 32,
+          "commentRatio": 9,
+          "issues": [
+            "4 console.log statements found",
+            "1 TODO/FIXME/HACK comments found"
+          ],
+          "errorHandling": {
+            "tryCatchBlocks": 0,
+            "catchBlocks": 0,
+            "hasErrorHandling": false
+          },
+          "asyncUsage": {
+            "asyncFunctions": 0,
+            "awaitStatements": 0
+          }
+        },
+        "src/gateway.js": {
+          "totalLines": 625,
+          "codeLines": 508,
+          "commentLines": 39,
+          "emptyLines": 78,
+          "commentRatio": 6,
+          "issues": [
+            "2 console.log statements found"
+          ],
+          "errorHandling": {
+            "tryCatchBlocks": 5,
+            "catchBlocks": 5,
+            "hasErrorHandling": true
+          },
+          "asyncUsage": {
+            "asyncFunctions": 0,
+            "awaitStatements": 18
+          }
+        },
+        "src/popup.js": {
+          "totalLines": 71,
+          "codeLines": 45,
+          "commentLines": 17,
+          "emptyLines": 9,
+          "commentRatio": 24,
+          "issues": [
+            "11 TODO/FIXME/HACK comments found"
+          ],
+          "errorHandling": {
+            "tryCatchBlocks": 2,
+            "catchBlocks": 2,
+            "hasErrorHandling": true
+          },
+          "asyncUsage": {
+            "asyncFunctions": 0,
+            "awaitStatements": 1
+          }
+        },
+        "src/options.js": {
+          "totalLines": 432,
+          "codeLines": 335,
+          "commentLines": 40,
+          "emptyLines": 57,
+          "commentRatio": 9,
+          "issues": [],
+          "errorHandling": {
+            "tryCatchBlocks": 6,
+            "catchBlocks": 6,
+            "hasErrorHandling": true
+          },
+          "asyncUsage": {
+            "asyncFunctions": 4,
+            "awaitStatements": 4
+          }
+        },
+        "src/testing.js": {
+          "totalLines": 544,
+          "codeLines": 442,
+          "commentLines": 29,
+          "emptyLines": 73,
+          "commentRatio": 5,
+          "issues": [
+            "11 console.log statements found"
+          ],
+          "errorHandling": {
+            "tryCatchBlocks": 9,
+            "catchBlocks": 9,
+            "hasErrorHandling": true
+          },
+          "asyncUsage": {
+            "asyncFunctions": 0,
+            "awaitStatements": 13
+          }
+        }
+      },
+      "timestamp": "2025-10-21T18:41:00.806Z"
+    },
+    {
+      "name": "API Schema Compatibility",
+      "status": "PASSED",
+      "result": {
+        "endpointMapping": true,
+        "guardServices": {
+          "expected": 6,
+          "found": 6,
+          "services": [
+            "biasguard",
+            "trustguard",
+            "contextguard",
+            "securityguard",
+            "tokenguard",
+            "healthguard"
+          ]
+        },
+        "tracing": true,
+        "logging": true,
+        "validation": true,
+        "hasAllFeatures": true
+      },
+      "timestamp": "2025-10-21T18:41:00.807Z"
+    },
+    {
+      "name": "Security Analysis",
+      "status": "PASSED",
+      "result": {
+        "totalIssues": 2,
+        "issues": [
+          {
+            "file": "src/content.js",
+            "type": "security",
+            "message": "innerHTML assignment detected",
+            "count": 1
+          },
+          {
+            "file": "src/options.js",
+            "type": "security",
+            "message": "innerHTML assignment detected",
+            "count": 1
+          }
+        ],
+        "securityScore": 80
+      },
+      "timestamp": "2025-10-21T18:41:00.810Z"
+    },
+    {
+      "name": "Performance Analysis",
+      "status": "PASSED",
+      "result": {
+        "src/background.js": {
+          "fileSize": 9916,
+          "lineCount": 316,
+          "characterCount": 9916,
+          "complexity": {
+            "total": 34,
+            "level": "high"
+          }
+        },
+        "src/content.js": {
+          "fileSize": 5715,
+          "lineCount": 209,
+          "characterCount": 5715,
+          "complexity": {
+            "total": 17,
+            "level": "medium"
+          }
+        },
+        "src/gateway.js": {
+          "fileSize": 18454,
+          "lineCount": 625,
+          "characterCount": 18454,
+          "complexity": {
+            "total": 31,
+            "level": "high"
+          }
+        }
+      },
+      "timestamp": "2025-10-21T18:41:00.811Z"
+    }
+  ],
+  "timestamp": "2025-10-21T18:41:00.812Z",
+  "recommendations": [
+    "Address code quality issues found in source files",
+    "Address security issues before production deployment",
+    "Run extension in Chrome developer mode for manual testing",
+    "Test with real backend API endpoints",
+    "Validate all guard services are working correctly"
+  ]
+}

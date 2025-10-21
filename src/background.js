@@ -96,6 +96,21 @@ try {
           // TRACER BULLET: Update central configuration
           handleCentralConfigUpdate(request.payload, sendResponse);
           return true;
+
+        case "GET_DIAGNOSTICS":
+          // TRACER BULLET: Get comprehensive diagnostics
+          handleDiagnosticsRequest(sendResponse);
+          return true;
+
+        case "GET_TRACE_STATS":
+          // TRACER BULLET: Get trace statistics
+          handleTraceStatsRequest(sendResponse);
+          return true;
+
+        case "TEST_GATEWAY_CONNECTION":
+          // TRACER BULLET: Test gateway connection with tracing
+          handleGatewayConnectionTest(sendResponse);
+          return true;
           
         default:
           console.warn("[BG] Unknown message type:", request.type);
@@ -211,6 +226,70 @@ try {
     } catch (err) {
       console.error("[BG] Failed to update central config:", err);
       sendResponse({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * TRACER BULLET: Handle diagnostics requests
+   */
+  async function handleDiagnosticsRequest(sendResponse) {
+    try {
+      if (!gateway) {
+        throw new Error("AI Guardians Gateway not initialized");
+      }
+
+      const diagnostics = gateway.getDiagnostics();
+      sendResponse({ success: true, diagnostics });
+    } catch (err) {
+      console.error("[BG] Failed to get diagnostics:", err);
+      sendResponse({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * TRACER BULLET: Handle trace statistics requests
+   */
+  async function handleTraceStatsRequest(sendResponse) {
+    try {
+      if (!gateway) {
+        throw new Error("AI Guardians Gateway not initialized");
+      }
+
+      const traceStats = gateway.getTraceStats();
+      sendResponse({ success: true, traceStats });
+    } catch (err) {
+      console.error("[BG] Failed to get trace stats:", err);
+      sendResponse({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * TRACER BULLET: Handle gateway connection test with tracing
+   */
+  async function handleGatewayConnectionTest(sendResponse) {
+    try {
+      if (!gateway) {
+        throw new Error("AI Guardians Gateway not initialized");
+      }
+
+      const startTime = Date.now();
+      const isConnected = await gateway.testGatewayConnection();
+      const responseTime = Date.now() - startTime;
+
+      console.log(`[BG] Gateway connection test: ${isConnected ? 'SUCCESS' : 'FAILED'} (${responseTime}ms)`);
+
+      sendResponse({ 
+        success: isConnected, 
+        responseTime,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error("[BG] Gateway connection test failed:", err);
+      sendResponse({ 
+        success: false, 
+        error: err.message,
+        timestamp: new Date().toISOString()
+      });
     }
   }
 

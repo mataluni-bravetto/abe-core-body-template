@@ -1,479 +1,544 @@
 /**
- * AI Guardians Testing Framework
+ * AI Guardians Chrome Extension - Comprehensive Testing Suite
  * 
- * This module provides comprehensive testing capabilities for guard services
- * and the central gateway integration.
- * 
- * TRACER BULLETS FOR NEXT DEVELOPER:
- * - Configure your test data and expected results
- * - Add custom test cases for your guard services
- * - Integrate with your CI/CD pipeline
- * - Add performance and load testing
+ * This module provides comprehensive testing, tracing, and validation
+ * for the AI Guardians Chrome extension.
  */
 
-class AIGuardiansTesting {
+class AIGuardiansTester {
   constructor() {
     this.testResults = [];
-    this.gateway = null;
-    this.testData = this.initializeTestData();
+    this.traceData = [];
+    this.startTime = Date.now();
+    
+    this.initializeTester();
   }
 
   /**
-   * TRACER BULLET: Initialize test data for guard services
+   * Initialize the testing framework
    */
-  initializeTestData() {
-    return {
-      bias_detection: {
-        positive_cases: [
-          {
-            text: "This product is clearly superior to all competitors and anyone who disagrees is wrong.",
-            expected_bias_score: 0.8,
-            expected_bias_type: "opinion_bias"
-          },
-          {
-            text: "Women are naturally better at cooking than men.",
-            expected_bias_score: 0.9,
-            expected_bias_type: "gender_bias"
-          },
-          {
-            text: "All politicians are corrupt liars who only care about money.",
-            expected_bias_score: 0.7,
-            expected_bias_type: "political_bias"
-          }
-        ],
-        negative_cases: [
-          {
-            text: "The weather today is sunny with a temperature of 75 degrees.",
-            expected_bias_score: 0.1,
-            expected_bias_type: "neutral"
-          },
-          {
-            text: "According to the research study, 85% of participants showed improvement.",
-            expected_bias_score: 0.2,
-            expected_bias_type: "neutral"
-          }
-        ]
-      },
-      toxicity_detection: {
-        positive_cases: [
-          {
-            text: "You are an idiot and I hate you!",
-            expected_toxicity_score: 0.9,
-            expected_toxicity_type: "insult"
-          },
-          {
-            text: "This is the worst thing I've ever seen, you should be ashamed.",
-            expected_toxicity_score: 0.8,
-            expected_toxicity_type: "harassment"
-          }
-        ],
-        negative_cases: [
-          {
-            text: "Thank you for your help, I appreciate it.",
-            expected_toxicity_score: 0.1,
-            expected_toxicity_type: "neutral"
-          }
-        ]
-      },
-      sentiment_analysis: {
-        positive_cases: [
-          {
-            text: "I love this new feature, it's amazing!",
-            expected_sentiment: "positive",
-            expected_confidence: 0.9
-          },
-          {
-            text: "This is terrible, I'm very disappointed.",
-            expected_sentiment: "negative",
-            expected_confidence: 0.8
-          }
-        ],
-        neutral_cases: [
-          {
-            text: "The meeting is scheduled for 3 PM tomorrow.",
-            expected_sentiment: "neutral",
-            expected_confidence: 0.7
-          }
-        ]
+  async initializeTester() {
+    console.log('[TESTER] Initializing AI Guardians Testing Suite');
+    
+    // Set up test environment
+    await this.setupTestEnvironment();
+    
+    // Run comprehensive tests
+    await this.runAllTests();
+    
+    // Generate test report
+    this.generateTestReport();
+  }
+
+  /**
+   * Set up test environment
+   */
+  async setupTestEnvironment() {
+    console.log('[TESTER] Setting up test environment');
+    
+    // Configure test gateway URL (mock backend)
+    this.testConfig = {
+      gatewayUrl: 'http://localhost:8000/api/v1', // Local test server
+      timeout: 5000,
+      retryAttempts: 2,
+      retryDelay: 1000
+    };
+    
+    // Initialize test data
+    this.testData = {
+      sampleTexts: [
+        "This is a test text for bias detection",
+        "The quick brown fox jumps over the lazy dog",
+        "Artificial intelligence will revolutionize healthcare",
+        "Women are naturally better at multitasking than men",
+        "All politicians are corrupt and untrustworthy"
+      ],
+      expectedResponses: {
+        biasguard: ['score', 'detected_biases', 'suggestions'],
+        trustguard: ['score', 'trust_metrics', 'reliability'],
+        contextguard: ['score', 'context_drift', 'coherence']
       }
     };
   }
 
   /**
-   * TRACER BULLET: Run comprehensive guard service tests
+   * Run all comprehensive tests
    */
-  async runGuardServiceTests() {
-    console.log("[Testing] Starting guard service tests...");
+  async runAllTests() {
+    console.log('[TESTER] Starting comprehensive test suite');
     
-    const results = {
-      total_tests: 0,
-      passed_tests: 0,
-      failed_tests: 0,
-      guard_results: {}
-    };
-
-    for (const [guardName, testCases] of Object.entries(this.testData)) {
-      console.log(`[Testing] Testing ${guardName}...`);
-      
-      const guardResults = await this.testGuardService(guardName, testCases);
-      results.guard_results[guardName] = guardResults;
-      results.total_tests += guardResults.total;
-      results.passed_tests += guardResults.passed;
-      results.failed_tests += guardResults.failed;
-    }
-
-    results.success_rate = (results.passed_tests / results.total_tests) * 100;
-    
-    console.log("[Testing] Test results:", results);
-    return results;
-  }
-
-  /**
-   * TRACER BULLET: Test individual guard service
-   */
-  async testGuardService(guardName, testCases) {
-    const results = {
-      guard_name: guardName,
-      total: 0,
-      passed: 0,
-      failed: 0,
-      test_details: []
-    };
-
-    for (const [category, cases] of Object.entries(testCases)) {
-      for (const testCase of cases) {
-        results.total++;
-        
-        try {
-          const testResult = await this.runSingleTest(guardName, testCase);
-          results.test_details.push(testResult);
-          
-          if (testResult.passed) {
-            results.passed++;
-          } else {
-            results.failed++;
-          }
-        } catch (err) {
-          results.failed++;
-          results.test_details.push({
-            test_case: testCase,
-            passed: false,
-            error: err.message,
-            category
-          });
-        }
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * TRACER BULLET: Run single test case
-   */
-  async runSingleTest(guardName, testCase) {
-    try {
-      // Send test request to background script
-      const response = await this.sendTestRequest(guardName, testCase.text);
-      
-      if (!response.success) {
-        return {
-          test_case: testCase,
-          passed: false,
-          error: response.error,
-          actual_result: null
-        };
-      }
-
-      // Validate results based on guard type
-      const validation = this.validateTestResult(guardName, testCase, response.result);
-      
-      return {
-        test_case: testCase,
-        passed: validation.passed,
-        expected: testCase,
-        actual_result: response.result,
-        validation_errors: validation.errors,
-        score_difference: validation.score_difference
-      };
-    } catch (err) {
-      return {
-        test_case: testCase,
-        passed: false,
-        error: err.message,
-        actual_result: null
-      };
-    }
-  }
-
-  /**
-   * TRACER BULLET: Send test request to background script
-   */
-  async sendTestRequest(guardName, text) {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({
-        type: "TEST_GUARD_SERVICE",
-        payload: {
-          guard_name: guardName,
-          text: text
-        }
-      }, (response) => {
-        resolve(response || { success: false, error: "No response" });
-      });
-    });
-  }
-
-  /**
-   * TRACER BULLET: Validate test results
-   */
-  validateTestResult(guardName, expected, actual) {
-    const validation = {
-      passed: true,
-      errors: [],
-      score_difference: 0
-    };
-
-    switch (guardName) {
-      case 'bias_detection':
-        if (expected.expected_bias_score !== undefined) {
-          const scoreDiff = Math.abs(actual.score - expected.expected_bias_score);
-          validation.score_difference = scoreDiff;
-          
-          if (scoreDiff > 0.2) { // Allow 20% tolerance
-            validation.passed = false;
-            validation.errors.push(`Bias score mismatch: expected ${expected.expected_bias_score}, got ${actual.score}`);
-          }
-        }
-        break;
-
-      case 'toxicity_detection':
-        if (expected.expected_toxicity_score !== undefined) {
-          const scoreDiff = Math.abs(actual.score - expected.expected_toxicity_score);
-          validation.score_difference = scoreDiff;
-          
-          if (scoreDiff > 0.2) {
-            validation.passed = false;
-            validation.errors.push(`Toxicity score mismatch: expected ${expected.expected_toxicity_score}, got ${actual.score}`);
-          }
-        }
-        break;
-
-      case 'sentiment_analysis':
-        if (expected.expected_sentiment !== undefined) {
-          if (actual.sentiment !== expected.expected_sentiment) {
-            validation.passed = false;
-            validation.errors.push(`Sentiment mismatch: expected ${expected.expected_sentiment}, got ${actual.sentiment}`);
-          }
-        }
-        break;
-    }
-
-    return validation;
-  }
-
-  /**
-   * TRACER BULLET: Run performance tests
-   */
-  async runPerformanceTests() {
-    console.log("[Testing] Starting performance tests...");
-    
-    const performanceResults = {
-      response_times: [],
-      throughput: 0,
-      error_rate: 0,
-      memory_usage: 0
-    };
-
-    const testTexts = [
-      "This is a test text for performance testing.",
-      "Another test text with different content.",
-      "Performance testing with various text lengths."
+    const tests = [
+      { name: 'Gateway Connection Test', fn: this.testGatewayConnection },
+      { name: 'API Endpoint Validation', fn: this.testApiEndpoints },
+      { name: 'Guard Service Integration', fn: this.testGuardServices },
+      { name: 'Data Validation', fn: this.testDataValidation },
+      { name: 'Error Handling', fn: this.testErrorHandling },
+      { name: 'Performance Testing', fn: this.testPerformance },
+      { name: 'Trace Statistics', fn: this.testTraceStatistics },
+      { name: 'Configuration Management', fn: this.testConfiguration }
     ];
 
-    const startTime = Date.now();
-    const promises = [];
-
-    // Run concurrent tests
-    for (let i = 0; i < 10; i++) {
-      for (const text of testTexts) {
-        promises.push(this.measureResponseTime(text));
+    for (const test of tests) {
+      try {
+        console.log(`[TESTER] Running: ${test.name}`);
+        const result = await test.fn.call(this);
+        this.testResults.push({
+          name: test.name,
+          status: 'PASSED',
+          result,
+          timestamp: new Date().toISOString()
+        });
+        console.log(`[TESTER] ✅ ${test.name}: PASSED`);
+      } catch (error) {
+        this.testResults.push({
+          name: test.name,
+          status: 'FAILED',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+        console.error(`[TESTER] ❌ ${test.name}: FAILED - ${error.message}`);
       }
     }
-
-    const results = await Promise.all(promises);
-    const endTime = Date.now();
-
-    performanceResults.response_times = results;
-    performanceResults.throughput = results.length / ((endTime - startTime) / 1000);
-    performanceResults.error_rate = results.filter(r => r.error).length / results.length;
-
-    console.log("[Testing] Performance results:", performanceResults);
-    return performanceResults;
   }
 
   /**
-   * TRACER BULLET: Measure response time for single request
+   * Test gateway connection
    */
-  async measureResponseTime(text) {
+  async testGatewayConnection() {
     const startTime = Date.now();
     
     try {
-      const response = await this.sendTestRequest('bias_detection', text);
-      const endTime = Date.now();
+      const response = await this.sendTestRequest('health', { test: true });
+      const responseTime = Date.now() - startTime;
+      
+      this.traceData.push({
+        test: 'gateway_connection',
+        responseTime,
+        success: true,
+        timestamp: new Date().toISOString()
+      });
       
       return {
-        response_time: endTime - startTime,
-        success: response.success,
-        error: response.error
+        connected: true,
+        responseTime,
+        status: response.status || 'unknown'
       };
-    } catch (err) {
-      const endTime = Date.now();
-      return {
-        response_time: endTime - startTime,
+    } catch (error) {
+      this.traceData.push({
+        test: 'gateway_connection',
+        responseTime: Date.now() - startTime,
         success: false,
-        error: err.message
-      };
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+      
+      throw new Error(`Gateway connection failed: ${error.message}`);
     }
   }
 
   /**
-   * TRACER BULLET: Run integration tests
+   * Test API endpoints
    */
-  async runIntegrationTests() {
-    console.log("[Testing] Starting integration tests...");
+  async testApiEndpoints() {
+    const endpoints = [
+      { name: 'analyze/text', method: 'POST', required: ['text'] },
+      { name: 'health/live', method: 'GET', required: ['status'] },
+      { name: 'guards', method: 'GET', required: ['guards'] },
+      { name: 'config/user', method: 'GET', required: ['user_id'] }
+    ];
     
-    const integrationResults = {
-      gateway_connection: false,
-      guard_services_status: {},
-      configuration_valid: false,
-      logging_functional: false
-    };
-
-    try {
-      // Test gateway connection
-      const gatewayResponse = await this.testGatewayConnection();
-      integrationResults.gateway_connection = gatewayResponse.success;
-
-      // Test guard services status
-      const statusResponse = await this.getGuardServicesStatus();
-      integrationResults.guard_services_status = statusResponse;
-
-      // Test configuration
-      const configResponse = await this.getConfiguration();
-      integrationResults.configuration_valid = configResponse.success;
-
-      // Test logging
-      const loggingResponse = await this.testLogging();
-      integrationResults.logging_functional = loggingResponse.success;
-
-    } catch (err) {
-      console.error("[Testing] Integration test failed:", err);
+    const results = {};
+    
+    for (const endpoint of endpoints) {
+      try {
+        const response = await this.sendTestRequest(endpoint.name, {});
+        results[endpoint.name] = {
+          status: 'available',
+          response: this.sanitizeResponse(response)
+        };
+      } catch (error) {
+        results[endpoint.name] = {
+          status: 'error',
+          error: error.message
+        };
+      }
     }
-
-    console.log("[Testing] Integration results:", integrationResults);
-    return integrationResults;
+    
+    return results;
   }
 
   /**
-   * TRACER BULLET: Test gateway connection
+   * Test guard services
    */
-  async testGatewayConnection() {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({
-        type: "TEST_GATEWAY_CONNECTION"
-      }, (response) => {
-        resolve(response || { success: false, error: "No response" });
-      });
-    });
+  async testGuardServices() {
+    const guardServices = ['biasguard', 'trustguard', 'contextguard', 'securityguard'];
+    const results = {};
+    
+    for (const guard of guardServices) {
+      try {
+        const testPayload = {
+          text: this.testData.sampleTexts[0],
+          guards: [guard],
+          options: { threshold: 0.5 }
+        };
+        
+        const response = await this.sendTestRequest('analyze/text', testPayload);
+        
+        // Validate response structure
+        const validation = this.validateGuardResponse(response, guard);
+        
+        results[guard] = {
+          status: 'working',
+          validation,
+          responseTime: response.processing_time || 0
+        };
+      } catch (error) {
+        results[guard] = {
+          status: 'error',
+          error: error.message
+        };
+      }
+    }
+    
+    return results;
   }
 
   /**
-   * TRACER BULLET: Get guard services status
+   * Test data validation
    */
-  async getGuardServicesStatus() {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({
-        type: "GET_GUARD_STATUS"
-      }, (response) => {
-        resolve(response || { success: false, error: "No response" });
-      });
-    });
-  }
-
-  /**
-   * TRACER BULLET: Get configuration
-   */
-  async getConfiguration() {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({
-        type: "GET_CENTRAL_CONFIG"
-      }, (response) => {
-        resolve(response || { success: false, error: "No response" });
-      });
-    });
-  }
-
-  /**
-   * TRACER BULLET: Test logging functionality
-   */
-  async testLogging() {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage({
-        type: "TEST_LOGGING",
-        payload: {
-          level: "info",
-          message: "Test log message",
-          metadata: { test: true }
-        }
-      }, (response) => {
-        resolve(response || { success: false, error: "No response" });
-      });
-    });
-  }
-
-  /**
-   * TRACER BULLET: Generate test report
-   */
-  generateTestReport(results) {
-    const report = {
-      timestamp: new Date().toISOString(),
-      extension_version: chrome.runtime.getManifest().version,
-      test_summary: {
-        total_tests: results.total_tests,
-        passed_tests: results.passed_tests,
-        failed_tests: results.failed_tests,
-        success_rate: results.success_rate
+  async testDataValidation() {
+    const validationTests = [
+      {
+        name: 'Valid Text Analysis',
+        payload: { text: 'Valid test text', guards: ['biasguard'] },
+        shouldPass: true
       },
-      guard_results: results.guard_results,
-      recommendations: this.generateRecommendations(results)
-    };
+      {
+        name: 'Empty Text',
+        payload: { text: '', guards: ['biasguard'] },
+        shouldPass: false
+      },
+      {
+        name: 'Invalid Guard Service',
+        payload: { text: 'Test text', guards: ['invalidguard'] },
+        shouldPass: false
+      },
+      {
+        name: 'Missing Required Fields',
+        payload: { guards: ['biasguard'] },
+        shouldPass: false
+      }
+    ];
+    
+    const results = {};
+    
+    for (const test of validationTests) {
+      try {
+        const response = await this.sendTestRequest('analyze/text', test.payload);
+        results[test.name] = {
+          expected: test.shouldPass,
+          actual: true,
+          passed: test.shouldPass === true
+        };
+      } catch (error) {
+        results[test.name] = {
+          expected: test.shouldPass,
+          actual: false,
+          passed: test.shouldPass === false,
+          error: error.message
+        };
+      }
+    }
+    
+    return results;
+  }
 
+  /**
+   * Test error handling
+   */
+  async testErrorHandling() {
+    const errorTests = [
+      {
+        name: 'Network Timeout',
+        action: () => this.sendTestRequest('analyze/text', { text: 'test' }, { timeout: 1 })
+      },
+      {
+        name: 'Invalid Endpoint',
+        action: () => this.sendTestRequest('invalid/endpoint', {})
+      },
+      {
+        name: 'Malformed Payload',
+        action: () => this.sendTestRequest('analyze/text', 'invalid json')
+      }
+    ];
+    
+    const results = {};
+    
+    for (const test of errorTests) {
+      try {
+        await test.action();
+        results[test.name] = { handled: false, error: 'Expected error but got success' };
+      } catch (error) {
+        results[test.name] = { 
+          handled: true, 
+          errorType: error.name,
+          errorMessage: error.message 
+        };
+      }
+    }
+    
+    return results;
+  }
+
+  /**
+   * Test performance
+   */
+  async testPerformance() {
+    const performanceTests = [];
+    const iterations = 5;
+    
+    for (let i = 0; i < iterations; i++) {
+      const startTime = Date.now();
+      
+      try {
+        await this.sendTestRequest('analyze/text', {
+          text: this.testData.sampleTexts[i % this.testData.sampleTexts.length],
+          guards: ['biasguard', 'trustguard']
+        });
+        
+        const responseTime = Date.now() - startTime;
+        performanceTests.push({
+          iteration: i + 1,
+          responseTime,
+          success: true
+        });
+      } catch (error) {
+        performanceTests.push({
+          iteration: i + 1,
+          responseTime: Date.now() - startTime,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    const successfulTests = performanceTests.filter(t => t.success);
+    const averageResponseTime = successfulTests.reduce((sum, t) => sum + t.responseTime, 0) / successfulTests.length;
+    const maxResponseTime = Math.max(...successfulTests.map(t => t.responseTime));
+    const minResponseTime = Math.min(...successfulTests.map(t => t.responseTime));
+    
+    return {
+      totalTests: iterations,
+      successfulTests: successfulTests.length,
+      failedTests: performanceTests.length - successfulTests.length,
+      averageResponseTime,
+      maxResponseTime,
+      minResponseTime,
+      details: performanceTests
+    };
+  }
+
+  /**
+   * Test trace statistics
+   */
+  async testTraceStatistics() {
+    // Simulate multiple requests to generate trace data
+    const requests = 10;
+    const traceResults = [];
+    
+    for (let i = 0; i < requests; i++) {
+      const startTime = Date.now();
+      
+      try {
+        await this.sendTestRequest('analyze/text', {
+          text: `Test text ${i}`,
+          guards: ['biasguard']
+        });
+        
+        traceResults.push({
+          request: i + 1,
+          responseTime: Date.now() - startTime,
+          success: true
+        });
+      } catch (error) {
+        traceResults.push({
+          request: i + 1,
+          responseTime: Date.now() - startTime,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    const successfulRequests = traceResults.filter(r => r.success);
+    const totalResponseTime = successfulRequests.reduce((sum, r) => sum + r.responseTime, 0);
+    
+    return {
+      totalRequests: requests,
+      successfulRequests: successfulRequests.length,
+      failedRequests: requests - successfulRequests.length,
+      averageResponseTime: totalResponseTime / successfulRequests.length,
+      successRate: (successfulRequests.length / requests) * 100,
+      details: traceResults
+    };
+  }
+
+  /**
+   * Test configuration management
+   */
+  async testConfiguration() {
+    const configTests = [
+      {
+        name: 'Get Configuration',
+        action: () => this.sendTestRequest('config/user', {})
+      },
+      {
+        name: 'Update Configuration',
+        action: () => this.sendTestRequest('config/user', {
+          guards: { biasguard: { enabled: true, threshold: 0.6 } }
+        })
+      }
+    ];
+    
+    const results = {};
+    
+    for (const test of configTests) {
+      try {
+        const response = await test.action();
+        results[test.name] = {
+          status: 'success',
+          response: this.sanitizeResponse(response)
+        };
+      } catch (error) {
+        results[test.name] = {
+          status: 'error',
+          error: error.message
+        };
+      }
+    }
+    
+    return results;
+  }
+
+  /**
+   * Send test request
+   */
+  async sendTestRequest(endpoint, payload, options = {}) {
+    const url = `${this.testConfig.gatewayUrl}/${endpoint}`;
+    const requestOptions = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Test-Request': 'true',
+        'X-Test-ID': this.generateTestId()
+      },
+      body: JSON.stringify(payload),
+      ...options
+    };
+    
+    const response = await fetch(url, requestOptions);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  }
+
+  /**
+   * Validate guard response
+   */
+  validateGuardResponse(response, guardType) {
+    const errors = [];
+    
+    if (!response.analysis_id) {
+      errors.push('Missing analysis_id');
+    }
+    
+    if (typeof response.overall_score !== 'number') {
+      errors.push('Missing or invalid overall_score');
+    }
+    
+    if (!response.guards || !response.guards[guardType]) {
+      errors.push(`Missing guard results for ${guardType}`);
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * Sanitize response for logging
+   */
+  sanitizeResponse(response) {
+    if (!response) return response;
+    
+    const sanitized = { ...response };
+    
+    // Remove sensitive data
+    if (sanitized.text && sanitized.text.length > 50) {
+      sanitized.text = sanitized.text.substring(0, 50) + '...';
+    }
+    
+    return sanitized;
+  }
+
+  /**
+   * Generate test report
+   */
+  generateTestReport() {
+    const totalTests = this.testResults.length;
+    const passedTests = this.testResults.filter(t => t.status === 'PASSED').length;
+    const failedTests = this.testResults.filter(t => t.status === 'FAILED').length;
+    const successRate = (passedTests / totalTests) * 100;
+    
+    const report = {
+      summary: {
+        totalTests,
+        passedTests,
+        failedTests,
+        successRate: Math.round(successRate * 100) / 100,
+        duration: Date.now() - this.startTime
+      },
+      results: this.testResults,
+      traceData: this.traceData,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('[TESTER] Test Report Generated:');
+    console.log(`[TESTER] Total Tests: ${totalTests}`);
+    console.log(`[TESTER] Passed: ${passedTests}`);
+    console.log(`[TESTER] Failed: ${failedTests}`);
+    console.log(`[TESTER] Success Rate: ${successRate.toFixed(2)}%`);
+    console.log(`[TESTER] Duration: ${report.summary.duration}ms`);
+    
+    // Store report for external access
+    window.AIGuardiansTestReport = report;
+    
     return report;
   }
 
   /**
-   * TRACER BULLET: Generate recommendations based on test results
+   * Generate test ID
    */
-  generateRecommendations(results) {
-    const recommendations = [];
+  generateTestId() {
+    return `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+}
 
-    if (results.success_rate < 80) {
-      recommendations.push("Consider reviewing guard service configurations");
-    }
-
-    if (results.failed_tests > 0) {
-      recommendations.push("Investigate failed test cases and update expected values");
-    }
-
-    for (const [guardName, guardResults] of Object.entries(results.guard_results)) {
-      if (guardResults.failed > 0) {
-        recommendations.push(`Review ${guardName} configuration and thresholds`);
-      }
-    }
-
-    return recommendations;
+// Auto-initialize tester when script loads
+if (typeof window !== 'undefined') {
+  window.AIGuardiansTester = AIGuardiansTester;
+  
+  // Initialize tester if in testing mode
+  if (window.location.search.includes('test=true')) {
+    new AIGuardiansTester();
   }
 }
 
 // Export for use in other modules
-window.AIGuardiansTesting = AIGuardiansTesting;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = AIGuardiansTester;
+}
