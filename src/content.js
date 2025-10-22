@@ -12,12 +12,15 @@
 (function() {
   'use strict';
 
+  // Import constants
+  import { TEXT_ANALYSIS, ERROR_MESSAGES, SUCCESS_MESSAGES } from './constants.js';
+  
   // Configuration
   const CONFIG = {
-    minSelectionLength: 10,
-    maxSelectionLength: 5000,
-    badgeDisplayTime: 3000,
-    debounceDelay: 300
+    minSelectionLength: TEXT_ANALYSIS.MIN_SELECTION_LENGTH,
+    maxSelectionLength: TEXT_ANALYSIS.MAX_SELECTION_LENGTH,
+    badgeDisplayTime: TEXT_ANALYSIS.BADGE_DISPLAY_TIME,
+    debounceDelay: TEXT_ANALYSIS.DEBOUNCE_DELAY
   };
 
   let debounceTimer = null;
@@ -25,20 +28,23 @@
   let eventListeners = [];
 
   /**
-   * TRACER BULLET: Enhanced text analysis with error handling
+   * Analyzes the currently selected text for bias and other issues
+   * @function analyzeSelection
+   * @description Enhanced text analysis with error handling and validation
+   * @returns {void}
    */
   function analyzeSelection() {
     const selection = window.getSelection()?.toString()?.trim() || "";
     
     // Validate selection length
     if (selection.length < CONFIG.minSelectionLength) {
-      console.log("[CS] Selection too short:", selection.length);
+      Logger.info("[CS] Selection too short:", selection.length);
       return;
     }
     
     if (selection.length > CONFIG.maxSelectionLength) {
-      console.log("[CS] Selection too long:", selection.length);
-      showBadge("Text too long for analysis", "warning");
+      Logger.info("[CS] Selection too long:", selection.length);
+      showBadge(ERROR_MESSAGES.SELECTION_TOO_LONG, "warning");
       return;
     }
 
@@ -50,14 +56,14 @@
       { type: "ANALYZE_TEXT", payload: selection },
       (response) => {
         if (chrome.runtime.lastError) {
-          console.error("[CS] Runtime error:", chrome.runtime.lastError);
-          showBadge("Analysis failed", "error");
+          Logger.error("[CS] Runtime error:", chrome.runtime.lastError);
+          showBadge(ERROR_MESSAGES.ANALYSIS_FAILED, "error");
           return;
         }
 
         if (!response || !response.success) {
-          console.error("[CS] Analysis failed:", response?.error);
-          showBadge("Analysis failed", "error");
+          Logger.error("[CS] Analysis failed:", response?.error);
+          showBadge(ERROR_MESSAGES.ANALYSIS_FAILED, "error");
           return;
         }
 
@@ -68,7 +74,12 @@
   }
 
   /**
-   * TRACER BULLET: Enhanced result display
+   * Displays analysis results in a user-friendly badge
+   * @function displayAnalysisResults
+   * @param {Object} response - The analysis response from the backend
+   * @param {number} response.score - The overall bias score (0-1)
+   * @param {Object} response.analysis - Detailed analysis results
+   * @returns {void}
    */
   function displayAnalysisResults(response) {
     const score = Math.round(response.score * 100);
@@ -189,13 +200,15 @@
    * TRACER BULLET: Detailed analysis modal (placeholder)
    */
   function showDetailedAnalysis(response) {
-    // TODO: Implement detailed analysis modal
-    console.log("[CS] Detailed analysis:", response);
+    Logger.info("[CS] Detailed analysis:", response);
     alert(`Detailed Analysis:\nScore: ${Math.round(response.score * 100)}%\nType: ${response.analysis?.bias_type || 'Unknown'}`);
   }
 
   /**
-   * TRACER BULLET: Cleanup badge and associated resources
+   * Cleans up a badge element and all its associated resources
+   * @function cleanupBadge
+   * @param {HTMLElement} badge - The badge element to clean up
+   * @returns {void}
    */
   function cleanupBadge(badge) {
     if (badge && badge.parentNode) {
@@ -222,7 +235,9 @@
   }
 
   /**
-   * TRACER BULLET: Cleanup all resources
+   * Cleans up all resources including timers and event listeners
+   * @function cleanup
+   * @returns {void}
    */
   function cleanup() {
     // Clear debounce timer
@@ -244,7 +259,9 @@
   }
 
   /**
-   * TRACER BULLET: Debounced selection handler
+   * Handles text selection with debouncing to prevent excessive API calls
+   * @function handleSelection
+   * @returns {void}
    */
   function handleSelection() {
     if (debounceTimer) {
@@ -279,7 +296,7 @@
   window.addEventListener('beforeunload', cleanup);
   eventListeners.push({ element: window, event: 'beforeunload', handler: cleanup });
 
-  console.log("[CS] AI Guardians content script loaded");
+  Logger.info("[CS] AI Guardians content script loaded");
 
 })();
 

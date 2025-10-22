@@ -18,7 +18,7 @@ class AIGuardiansTester {
    * Initialize the testing framework
    */
   async initializeTester() {
-    console.log('[TESTER] Initializing AI Guardians Testing Suite');
+    Logger.info('[TESTER] Initializing AI Guardians Testing Suite');
     
     // Set up test environment
     await this.setupTestEnvironment();
@@ -34,7 +34,7 @@ class AIGuardiansTester {
    * Set up test environment
    */
   async setupTestEnvironment() {
-    console.log('[TESTER] Setting up test environment');
+    Logger.info('[TESTER] Setting up test environment');
     
     // Configure test gateway URL (mock backend)
     this.testConfig = {
@@ -65,7 +65,7 @@ class AIGuardiansTester {
    * Run all comprehensive tests
    */
   async runAllTests() {
-    console.log('[TESTER] Starting comprehensive test suite');
+    Logger.info('[TESTER] Starting comprehensive test suite');
     
     const tests = [
       { name: 'Gateway Connection Test', fn: this.testGatewayConnection },
@@ -80,7 +80,7 @@ class AIGuardiansTester {
 
     for (const test of tests) {
       try {
-        console.log(`[TESTER] Running: ${test.name}`);
+        Logger.info(`[TESTER] Running: ${test.name}`);
         const result = await test.fn.call(this);
         this.testResults.push({
           name: test.name,
@@ -88,7 +88,7 @@ class AIGuardiansTester {
           result,
           timestamp: new Date().toISOString()
         });
-        console.log(`[TESTER] ✅ ${test.name}: PASSED`);
+        Logger.info(`[TESTER] ✅ ${test.name}: PASSED`);
       } catch (error) {
         this.testResults.push({
           name: test.name,
@@ -96,7 +96,7 @@ class AIGuardiansTester {
           error: error.message,
           timestamp: new Date().toISOString()
         });
-        console.error(`[TESTER] ❌ ${test.name}: FAILED - ${error.message}`);
+        Logger.error(`[TESTER] ❌ ${test.name}: FAILED - ${error.message}`);
       }
     }
   }
@@ -507,12 +507,12 @@ class AIGuardiansTester {
       timestamp: new Date().toISOString()
     };
     
-    console.log('[TESTER] Test Report Generated:');
-    console.log(`[TESTER] Total Tests: ${totalTests}`);
-    console.log(`[TESTER] Passed: ${passedTests}`);
-    console.log(`[TESTER] Failed: ${failedTests}`);
-    console.log(`[TESTER] Success Rate: ${successRate.toFixed(2)}%`);
-    console.log(`[TESTER] Duration: ${report.summary.duration}ms`);
+    Logger.info('[TESTER] Test Report Generated:');
+    Logger.info(`[TESTER] Total Tests: ${totalTests}`);
+    Logger.info(`[TESTER] Passed: ${passedTests}`);
+    Logger.info(`[TESTER] Failed: ${failedTests}`);
+    Logger.info(`[TESTER] Success Rate: ${successRate.toFixed(2)}%`);
+    Logger.info(`[TESTER] Duration: ${report.summary.duration}ms`);
     
     // Store report for external access
     window.AIGuardiansTestReport = report;

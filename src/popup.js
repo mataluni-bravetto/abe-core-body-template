@@ -58,15 +58,9 @@
    * TRACER BULLET: Initialize popup with enhanced features
    */
   function initializePopup() {
-    // TODO: Add quick analysis status
-    // TODO: Show recent analysis count
-    // TODO: Add quick settings toggles
-    // TODO: Display current threshold setting
-    
-    // Example: Load current settings
+    // Load current settings
     chrome.storage.sync.get(['bias_threshold'], (data) => {
       if (data.bias_threshold !== undefined) {
-        // TODO: Display current threshold in popup
         Logger.info('Current threshold:', data.bias_threshold);
       }
     });
@@ -76,18 +70,18 @@
    * TRACER BULLET: Add quick analysis button
    */
   function addQuickAnalysisButton() {
-    // TODO: Add button for manual analysis of current page
-    // TODO: Implement page text extraction
-    // TODO: Send to background for analysis
+    // Future enhancement: Add button for manual analysis of current page
+    // Future enhancement: Implement page text extraction
+    // Future enhancement: Send to background for analysis
   }
 
   /**
    * TRACER BULLET: Add usage statistics
    */
   function showUsageStats() {
-    // TODO: Display analysis count
-    // TODO: Show average bias score
-    // TODO: Display most analyzed sites
+    // Future enhancement: Display analysis count
+    // Future enhancement: Show average bias score
+    // Future enhancement: Display most analyzed sites
   }
 
 })();

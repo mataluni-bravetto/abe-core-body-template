@@ -13,7 +13,10 @@
 
 class AIGuardiansGateway {
   /**
-   * TRACER BULLET: Sanitize request data
+   * Sanitizes request data to prevent XSS and injection attacks
+   * @function sanitizeRequestData
+   * @param {Object} data - The data to sanitize
+   * @returns {Object} The sanitized data
    */
   sanitizeRequestData(data) {
     if (!data || typeof data !== 'object') {
@@ -22,36 +25,21 @@ class AIGuardiansGateway {
     
     const sanitized = { ...data };
     
-    // Sanitize text content
+    // Sanitize text content using optimized string operations
     if (sanitized.text && typeof sanitized.text === 'string') {
-      // Remove potentially dangerous characters with bounds checking
-      if (sanitized.text && typeof sanitized.text === 'string') {
-        sanitized.text = sanitized.text
-          .replace(/<script[^>]*>.*?</script>/gi, '')
-          .replace(/javascript:/gi, '')
-          .replace(/onw+s*=/gi, '')
-          .replace(/<iframe[^>]*>.*?</iframe>/gi, '');
-        
-        // Safe substring with bounds checking
-        const maxLength = 10000;
-        sanitized.text = sanitized.text.length > maxLength 
-          ? sanitized.text.substring(0, maxLength) 
-          : sanitized.text;
-      }
+      sanitized.text = StringOptimizer.optimizedSanitize(
+        sanitized.text, 
+        TEXT_ANALYSIS.MAX_TEXT_LENGTH
+      );
     }
     
-    // Sanitize other string fields with bounds checking
+    // Sanitize other string fields using optimized operations
     Object.keys(sanitized).forEach(key => {
       if (typeof sanitized[key] === 'string' && sanitized[key].length > 0) {
-        sanitized[key] = sanitized[key]
-          .replace(/<[^>]*>/g, '') // Remove HTML tags
-          .replace(/[<>"'&]/g, ''); // Remove dangerous characters
-        
-        // Safe substring with bounds checking
-        const maxLength = 1000;
-        sanitized[key] = sanitized[key].length > maxLength 
-          ? sanitized[key].substring(0, maxLength) 
-          : sanitized[key];
+        sanitized[key] = StringOptimizer.optimizedSanitize(
+          sanitized[key], 
+          SECURITY.MAX_STRING_LENGTH
+        );
       }
     });
     
@@ -60,7 +48,12 @@ class AIGuardiansGateway {
 
   
   /**
-   * TRACER BULLET: Secure logging that prevents data exposure
+   * Logs messages securely without exposing sensitive data
+   * @function secureLog
+   * @param {string} level - The log level (info, warn, error, trace)
+   * @param {string} message - The log message
+   * @param {Object} data - Additional data to log
+   * @returns {void}
    */
   secureLog(level, message, data = {}) {
     // Sanitize data before logging
@@ -69,23 +62,28 @@ class AIGuardiansGateway {
     // Log with sanitized data
     switch (level) {
       case 'info':
-        console.log(`[Gateway] ${message}`, sanitizedData);
+        Logger.info(`[Gateway] ${message}`, sanitizedData);
         break;
       case 'warn':
-        console.warn(`[Gateway] ${message}`, sanitizedData);
+        Logger.warn(`[Gateway] ${message}`, sanitizedData);
         break;
       case 'error':
-        console.error(`[Gateway] ${message}`, sanitizedData);
+        Logger.error(`[Gateway] ${message}`, sanitizedData);
         break;
       case 'trace':
-        console.log(`[Gateway-TRACE] ${message}`, sanitizedData);
+        Logger.info(`[Gateway-TRACE] ${message}`, sanitizedData);
         break;
     }
   }
 
   
   /**
-   * TRACER BULLET: Enhanced request validation
+   * Validates request parameters and payload before sending
+   * @function validateRequest
+   * @param {string} endpoint - The API endpoint to validate
+   * @param {Object} payload - The request payload to validate
+   * @returns {void}
+   * @throws {Error} If validation fails
    */
   validateRequest(endpoint, payload) {
     // Validate endpoint
@@ -137,7 +135,11 @@ class AIGuardiansGateway {
 
   
   /**
-   * TRACER BULLET: Enhanced error handling and logging
+   * Handles errors with comprehensive logging and context
+   * @function handleError
+   * @param {Error} error - The error to handle
+   * @param {Object} context - Additional context about the error
+   * @returns {Object} Error information object
    */
   handleError(error, context = {}) {
     const errorInfo = {
@@ -150,7 +152,7 @@ class AIGuardiansGateway {
     };
     
     // Log error securely (without sensitive data)
-    console.error('[Gateway] Error occurred:', {
+    Logger.error('[Gateway] Error occurred:', {
       message: error.message,
       context: context,
       timestamp: errorInfo.timestamp
@@ -170,11 +172,14 @@ class AIGuardiansGateway {
 
   
   constructor() {
+    // Import constants
+    import { API_CONFIG, DEFAULT_CONFIG, SECURITY } from './constants.js';
+    
     this.config = {
-      gatewayUrl: 'https://your-ai-guardians-gateway.com/api/v1',
-      timeout: 10000,
-      retryAttempts: 3,
-      retryDelay: 1000
+      gatewayUrl: DEFAULT_CONFIG.GATEWAY_URL,
+      timeout: API_CONFIG.TIMEOUT,
+      retryAttempts: API_CONFIG.RETRY_ATTEMPTS,
+      retryDelay: API_CONFIG.RETRY_DELAY
     };
     
     // Enhanced tracing and logging
@@ -215,7 +220,7 @@ class AIGuardiansGateway {
         this.updateTraceStats('error', message, metadata);
       },
       trace: (message, metadata = {}) => {
-        console.log(`[Gateway-TRACE] ${message}`, metadata);
+        Logger.info(`[Gateway-TRACE] ${message}`, metadata);
         this.updateTraceStats('trace', message, metadata);
       }
     };
@@ -316,7 +321,7 @@ class AIGuardiansGateway {
             }
           });
         } catch (err) {
-          console.error('[Central Logger] Failed to send log:', err);
+          Logger.error('[Central Logger] Failed to send log:', err);
         }
       },
       
@@ -392,12 +397,27 @@ class AIGuardiansGateway {
     try {
       this.validateRequest(endpoint, payload);
     } catch (error) {
-      console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
+      Logger.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
       this.handleError(error, { endpoint, payload });
       throw error;
     }
     const startTime = Date.now();
     const requestId = this.generateRequestId();
+    
+    // Check cache first (for GET requests and analyze endpoint)
+    const cacheKey = this.cacheManager.generateCacheKey(endpoint, payload);
+    const cachedResponse = this.cacheManager.get(cacheKey);
+    if (cachedResponse) {
+      this.logger.trace('Cache hit', { endpoint, requestId });
+      return cachedResponse;
+    }
+    
+    // Check if request is already in progress (deduplication)
+    const queuedRequest = this.cacheManager.getQueuedRequest(cacheKey);
+    if (queuedRequest) {
+      this.logger.trace('Request deduplication', { endpoint, requestId });
+      return await queuedRequest;
+    }
     
     // Map extension endpoints to backend API endpoints
     const endpointMapping = {

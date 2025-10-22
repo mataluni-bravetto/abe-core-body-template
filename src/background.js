@@ -16,7 +16,7 @@ let gateway = null;
 try {
   // Extension installation handler
   chrome.runtime.onInstalled.addListener(async () => {
-    console.log("[BG] Installed: AI Guardians Chrome Ext v0.1.0");
+    Logger.info("[BG] Installed: AI Guardians Chrome Ext v0.1.0");
     
     // Initialize AI Guardians Gateway
     gateway = new AIGuardiansGateway();
@@ -29,21 +29,15 @@ try {
    * TRACER BULLET: Initialize default settings for AI Guardians
    */
   async function initializeDefaultSettings() {
+    // Import constants
+    import { DEFAULT_CONFIG } from './constants.js';
+    
     const defaultSettings = {
-      gateway_url: "https://your-ai-guardians-gateway.com/api/v1",
-      api_key: "",
-      guard_services: {
-        bias_detection: { enabled: true, threshold: 0.5 },
-        toxicity_detection: { enabled: true, threshold: 0.7 },
-        sentiment_analysis: { enabled: false, threshold: 0.6 },
-        fact_checking: { enabled: false, threshold: 0.8 }
-      },
-      logging_config: {
-        level: "info",
-        enable_central_logging: true,
-        enable_local_logging: true
-      },
-      analysis_pipeline: "default"
+      gateway_url: DEFAULT_CONFIG.GATEWAY_URL,
+      api_key: DEFAULT_CONFIG.API_KEY,
+      guard_services: DEFAULT_CONFIG.GUARD_SERVICES,
+      logging_config: DEFAULT_CONFIG.LOGGING_CONFIG,
+      analysis_pipeline: DEFAULT_CONFIG.ANALYSIS_PIPELINE
     };
 
     chrome.storage.sync.get(Object.keys(defaultSettings), (data) => {
@@ -56,7 +50,7 @@ try {
       
       if (Object.keys(settingsToSave).length > 0) {
         chrome.storage.sync.set(settingsToSave);
-        console.log("[BG] Initialized default settings");
+        Logger.info("[BG] Initialized default settings");
       }
     });
   }
@@ -186,11 +180,11 @@ try {
           return true;
           
         default:
-          console.warn("[BG] Unknown message type:", request.type);
+          Logger.warn("[BG] Unknown message type:", request.type);
           sendResponse({ success: false, error: "Unknown message type" });
       }
     } catch (err) {
-      console.error("[BG] Message handler error:", err);
+      Logger.error("[BG] Message handler error:", err);
       sendResponse({ success: false, error: err.message });
     }
   });
@@ -224,7 +218,7 @@ try {
 
       sendResponse(transformedResult);
     } catch (err) {
-      console.error("[BG] Analysis failed:", err);
+      Logger.error("[BG] Analysis failed:", err);
       sendResponse({ 
         success: false, 
         error: err.message,
@@ -245,7 +239,7 @@ try {
       const status = await gateway.getGuardServiceStatus();
       sendResponse({ success: true, status });
     } catch (err) {
-      console.error("[BG] Failed to get guard status:", err);
+      Logger.error("[BG] Failed to get guard status:", err);
       sendResponse({ success: false, error: err.message });
     }
   }
@@ -263,7 +257,7 @@ try {
       await gateway.updateGuardService(guardName, config);
       sendResponse({ success: true });
     } catch (err) {
-      console.error("[BG] Failed to update guard config:", err);
+      Logger.error("[BG] Failed to update guard config:", err);
       sendResponse({ success: false, error: err.message });
     }
   }
@@ -280,7 +274,7 @@ try {
       const config = await gateway.getCentralConfiguration();
       sendResponse({ success: true, config });
     } catch (err) {
-      console.error("[BG] Failed to get central config:", err);
+      Logger.error("[BG] Failed to get central config:", err);
       sendResponse({ success: false, error: err.message });
     }
   }
@@ -297,7 +291,7 @@ try {
       await gateway.updateCentralConfiguration(payload);
       sendResponse({ success: true });
     } catch (err) {
-      console.error("[BG] Failed to update central config:", err);
+      Logger.error("[BG] Failed to update central config:", err);
       sendResponse({ success: false, error: err.message });
     }
   }
@@ -314,7 +308,7 @@ try {
       const diagnostics = gateway.getDiagnostics();
       sendResponse({ success: true, diagnostics });
     } catch (err) {
-      console.error("[BG] Failed to get diagnostics:", err);
+      Logger.error("[BG] Failed to get diagnostics:", err);
       sendResponse({ success: false, error: err.message });
     }
   }
@@ -331,7 +325,7 @@ try {
       const traceStats = gateway.getTraceStats();
       sendResponse({ success: true, traceStats });
     } catch (err) {
-      console.error("[BG] Failed to get trace stats:", err);
+      Logger.error("[BG] Failed to get trace stats:", err);
       sendResponse({ success: false, error: err.message });
     }
   }
@@ -349,7 +343,7 @@ try {
       const isConnected = await gateway.testGatewayConnection();
       const responseTime = Date.now() - startTime;
 
-      console.log(`[BG] Gateway connection test: ${isConnected ? 'SUCCESS' : 'FAILED'} (${responseTime}ms)`);
+      Logger.info(`[BG] Gateway connection test: ${isConnected ? 'SUCCESS' : 'FAILED'} (${responseTime}ms)`);
 
       sendResponse({ 
         success: isConnected, 
@@ -357,7 +351,7 @@ try {
         timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error("[BG] Gateway connection test failed:", err);
+      Logger.error("[BG] Gateway connection test failed:", err);
       sendResponse({ 
         success: false, 
         error: err.message,
@@ -374,15 +368,15 @@ try {
       try {
         const isConnected = await gateway.testGatewayConnection();
         if (!isConnected) {
-          console.warn("[BG] Gateway connection lost");
+          Logger.warn("[BG] Gateway connection lost");
         }
       } catch (err) {
-        console.error("[BG] Health check failed:", err);
+        Logger.error("[BG] Health check failed:", err);
       }
     }
   });
 
 } catch (err) {
-  console.error("[BG] Background script error:", err);
+  Logger.error("[BG] Background script error:", err);
 }
 
