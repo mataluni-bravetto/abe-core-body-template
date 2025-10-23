@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Guardians</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <img src="../../assets/logos/logo-primary.png" alt="AI Guardians Logo">
+    </div>
+    <h1>AI Guardians</h1>
+    <p>Advanced AI-powered text analysis with comprehensive bias detection and guard services</p>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Status Section -->
+    <div class="status-section">
+      <div class="status-header">
+        <span class="status-title">System Status</span>
+        <div class="status-indicator" id="statusIndicator"></div>
+      </div>
+      <div class="status-details" id="statusDetails">
+        All guard services operational
+      </div>
+    </div>
+
+    <!-- Analysis Section -->
+    <div class="analysis-section">
+      <div class="analysis-title">Latest Analysis</div>
+      <div class="analysis-result" id="analysisResult">
+        <div class="bias-score">
+          <span class="score-label">Bias Score</span>
+          <span class="score-value low" id="biasScore">0.3</span>
+        </div>
+        <div class="bias-type" id="biasType">Neutral content</div>
+        <div class="confidence">Confidence: <span id="confidence">85%</span></div>
+      </div>
+    </div>
+
+    <!-- Guard Services -->
+    <div class="guard-services">
+      <div class="guard-services-title">Guard Services</div>
+      <div class="guard-list" id="guardList">
+        <div class="guard-item">
+          <span class="guard-name">BiasGuard</span>
+          <div class="guard-status"></div>
+        </div>
+        <div class="guard-item">
+          <span class="guard-name">TrustGuard</span>
+          <div class="guard-status"></div>
+        </div>
+        <div class="guard-item">
+          <span class="guard-name">ContextGuard</span>
+          <div class="guard-status disabled"></div>
+        </div>
+        <div class="guard-item">
+          <span class="guard-name">SecurityGuard</span>
+          <div class="guard-status disabled"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      <button class="btn btn-primary" id="analyzeBtn">Analyze Selected Text</button>
+      <button class="btn btn-secondary" id="optionsBtn">Open Options</button>
+      <button class="btn btn-secondary btn-small" id="testConnectionBtn">Test Connection</button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-text">AI Guardians v1.0.0</div>
+    <div class="footer-links">
+      <a href="#" class="footer-link">Help</a>
+      <a href="#" class="footer-link">Settings</a>
+      <a href="#" class="footer-link">About</a>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../logging.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
+
