@@ -12,8 +12,30 @@
 (function() {
   'use strict';
 
-  // Import constants
-  import { TEXT_ANALYSIS, ERROR_MESSAGES, SUCCESS_MESSAGES } from './constants.js';
+  // Constants are available via importScripts in service worker context
+  // For content script, we'll define them locally
+  const TEXT_ANALYSIS = {
+    MIN_SELECTION_LENGTH: 10,
+    MAX_SELECTION_LENGTH: 5000,
+    MAX_TEXT_LENGTH: 10000,
+    DEBOUNCE_DELAY: 300,
+    BADGE_DISPLAY_TIME: 3000
+  };
+  
+  const ERROR_MESSAGES = {
+    SELECTION_TOO_SHORT: 'Selection too short for analysis',
+    SELECTION_TOO_LONG: 'Text too long for analysis',
+    ANALYSIS_FAILED: 'Analysis failed',
+    CONNECTION_FAILED: 'Connection to backend failed',
+    INVALID_API_KEY: 'Invalid API key format',
+    TIMEOUT_ERROR: 'Request timed out'
+  };
+  
+  const SUCCESS_MESSAGES = {
+    ANALYSIS_COMPLETE: 'Analysis complete',
+    CONNECTION_SUCCESS: 'Connected to backend',
+    CONFIG_SAVED: 'Configuration saved'
+  };
   
   // Configuration
   const CONFIG = {

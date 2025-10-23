@@ -5,13 +5,13 @@
  * and reduce backend load.
  */
 
-import { API_CONFIG } from './constants.js';
+// Constants are available via importScripts in service worker context
 
 /**
  * Cache Manager Class
  * Handles response caching with TTL and intelligent invalidation
  */
-export class CacheManager {
+class CacheManager {
   /**
    * Initializes the cache manager
    * @constructor
@@ -215,8 +215,8 @@ export class CacheManager {
   }
 }
 
-// Export singleton instance
-export const cacheManager = new CacheManager();
+// Create global instance for Chrome extension compatibility
+const cacheManager = new CacheManager();
 
 
 

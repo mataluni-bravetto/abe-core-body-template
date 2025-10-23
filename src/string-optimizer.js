@@ -5,13 +5,13 @@
  * and reduce memory usage.
  */
 
-import { SECURITY } from './constants.js';
+// Constants are available via importScripts in service worker context
 
 /**
  * String Optimizer Class
  * Handles efficient string operations with bounds checking
  */
-export class StringOptimizer {
+class StringOptimizer {
   /**
    * Optimized string replacement with bounds checking
    * @function optimizedReplace
@@ -202,19 +202,20 @@ export class StringOptimizer {
   }
 }
 
-// Export utility functions for direct use
-export const {
-  optimizedReplace,
-  safeSubstring,
-  optimizedSanitize,
-  removeHtmlTags,
-  truncateWithEllipsis,
-  isValidString,
-  getSafeLength,
-  safeConcat,
-  safeSplit,
-  safeTrim
-} = StringOptimizer;
+// Create global instance for Chrome extension compatibility
+const stringOptimizer = new StringOptimizer();
+
+// Make utility functions available globally
+const optimizedReplace = stringOptimizer.optimizedReplace.bind(stringOptimizer);
+const safeSubstring = stringOptimizer.safeSubstring.bind(stringOptimizer);
+const optimizedSanitize = stringOptimizer.optimizedSanitize.bind(stringOptimizer);
+const removeHtmlTags = stringOptimizer.removeHtmlTags.bind(stringOptimizer);
+const truncateWithEllipsis = stringOptimizer.truncateWithEllipsis.bind(stringOptimizer);
+const isValidString = stringOptimizer.isValidString.bind(stringOptimizer);
+const getSafeLength = stringOptimizer.getSafeLength.bind(stringOptimizer);
+const safeConcat = stringOptimizer.safeConcat.bind(stringOptimizer);
+const safeSplit = stringOptimizer.safeSplit.bind(stringOptimizer);
+const safeTrim = stringOptimizer.safeTrim.bind(stringOptimizer);
 
 
 

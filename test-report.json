@@ -4,14 +4,14 @@
     "passedTests": 5,
     "failedTests": 1,
     "successRate": 83.33,
-    "duration": 31
+    "duration": 30
   },
   "results": [
     {
       "name": "File Structure Validation",
       "status": "FAILED",
       "error": "Missing required files: src/background.js, src/popup.html, src/popup.js",
-      "timestamp": "2025-10-23T17:09:13.493Z"
+      "timestamp": "2025-10-23T18:07:12.619Z"
     },
     {
       "name": "Manifest Validation",
@@ -28,7 +28,7 @@
         "hasContentScripts": true,
         "hasAction": true
       },
-      "timestamp": "2025-10-23T17:09:13.503Z"
+      "timestamp": "2025-10-23T18:07:12.631Z"
     },
     {
       "name": "Code Quality Check",
@@ -39,11 +39,11 @@
           "error": "File not found"
         },
         "src/content.js": {
-          "totalLines": 303,
-          "codeLines": 222,
-          "commentLines": 32,
-          "emptyLines": 49,
-          "commentRatio": 11,
+          "totalLines": 325,
+          "codeLines": 241,
+          "commentLines": 33,
+          "emptyLines": 51,
+          "commentRatio": 10,
           "issues": [],
           "errorHandling": {
             "tryCatchBlocks": 0,
@@ -56,10 +56,10 @@
           }
         },
         "src/gateway.js": {
-          "totalLines": 817,
+          "totalLines": 816,
           "codeLines": 652,
           "commentLines": 62,
-          "emptyLines": 103,
+          "emptyLines": 102,
           "commentRatio": 8,
           "issues": [],
           "errorHandling": {
@@ -111,7 +111,7 @@
           }
         }
       },
-      "timestamp": "2025-10-23T17:09:13.509Z"
+      "timestamp": "2025-10-23T18:07:12.635Z"
     },
     {
       "name": "API Schema Compatibility",
@@ -135,7 +135,7 @@
         "validation": true,
         "hasAllFeatures": true
       },
-      "timestamp": "2025-10-23T17:09:13.511Z"
+      "timestamp": "2025-10-23T18:07:12.637Z"
     },
     {
       "name": "Security Analysis",
@@ -145,35 +145,35 @@
         "issues": [],
         "securityScore": 100
       },
-      "timestamp": "2025-10-23T17:09:13.512Z"
+      "timestamp": "2025-10-23T18:07:12.638Z"
     },
     {
       "name": "Performance Analysis",
       "status": "PASSED",
       "result": {
         "src/content.js": {
-          "fileSize": 8837,
-          "lineCount": 303,
-          "characterCount": 8837,
+          "fileSize": 9530,
+          "lineCount": 325,
+          "characterCount": 9530,
           "complexity": {
             "total": 28,
             "level": "high"
           }
         },
         "src/gateway.js": {
-          "fileSize": 24099,
-          "lineCount": 817,
-          "characterCount": 24099,
+          "fileSize": 24112,
+          "lineCount": 816,
+          "characterCount": 24112,
           "complexity": {
             "total": 47,
             "level": "high"
           }
         }
       },
-      "timestamp": "2025-10-23T17:09:13.514Z"
+      "timestamp": "2025-10-23T18:07:12.640Z"
     }
   ],
-  "timestamp": "2025-10-23T17:09:13.514Z",
+  "timestamp": "2025-10-23T18:07:12.640Z",
   "recommendations": [
     "Fix failed tests before deployment",
     "Run extension in Chrome developer mode for manual testing",

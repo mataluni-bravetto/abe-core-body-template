@@ -8,7 +8,11 @@
  * - Integrate with your central logging and monitoring
  */
 
-// Import the AI Guardians Gateway
+// Import the AI Guardians Gateway and dependencies
+importScripts('constants.js');
+importScripts('logging.js');
+importScripts('string-optimizer.js');
+importScripts('cache-manager.js');
 importScripts('gateway.js');
 
 let gateway = null;
@@ -29,9 +33,7 @@ try {
    * TRACER BULLET: Initialize default settings for AI Guardians
    */
   async function initializeDefaultSettings() {
-    // Import constants
-    import { DEFAULT_CONFIG } from './constants.js';
-    
+    // Constants are now available via importScripts
     const defaultSettings = {
       gateway_url: DEFAULT_CONFIG.GATEWAY_URL,
       api_key: DEFAULT_CONFIG.API_KEY,

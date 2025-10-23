@@ -172,9 +172,7 @@ class AIGuardiansGateway {
 
   
   constructor() {
-    // Import constants
-    import { API_CONFIG, DEFAULT_CONFIG, SECURITY } from './constants.js';
-    
+    // Constants are now available via importScripts from service worker
     this.config = {
       gatewayUrl: DEFAULT_CONFIG.GATEWAY_URL,
       timeout: API_CONFIG.TIMEOUT,
@@ -198,6 +196,7 @@ class AIGuardiansGateway {
     this.guardServices = new Map();
     this.centralLogger = null;
     this.centralConfig = null;
+    this.cacheManager = new CacheManager();
     
     this.initializeGateway();
   }

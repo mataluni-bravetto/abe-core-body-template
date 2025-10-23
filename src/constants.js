@@ -3,12 +3,14 @@
  * 
  * This module centralizes all configuration constants to improve maintainability
  * and reduce hardcoded values throughout the codebase.
+ * 
+ * Note: Using global variables instead of ES6 exports for Chrome extension compatibility
  */
 
 /**
  * Text Analysis Constants
  */
-export const TEXT_ANALYSIS = {
+const TEXT_ANALYSIS = {
   MIN_SELECTION_LENGTH: 10,
   MAX_SELECTION_LENGTH: 5000,
   MAX_TEXT_LENGTH: 10000,
@@ -19,7 +21,7 @@ export const TEXT_ANALYSIS = {
 /**
  * API Configuration Constants
  */
-export const API_CONFIG = {
+const API_CONFIG = {
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
@@ -30,7 +32,7 @@ export const API_CONFIG = {
 /**
  * Security Constants
  */
-export const SECURITY = {
+const SECURITY = {
   MAX_API_KEY_LENGTH: 200,
   MIN_API_KEY_LENGTH: 10,
   MAX_STRING_LENGTH: 1000,
@@ -40,7 +42,7 @@ export const SECURITY = {
 /**
  * UI Constants
  */
-export const UI = {
+const UI = {
   BADGE_DISPLAY_TIME: 3000,
   LOADING_TIMEOUT: 5000,
   ANIMATION_DURATION: 300
@@ -49,7 +51,7 @@ export const UI = {
 /**
  * Error Messages
  */
-export const ERROR_MESSAGES = {
+const ERROR_MESSAGES = {
   SELECTION_TOO_SHORT: 'Selection too short for analysis',
   SELECTION_TOO_LONG: 'Text too long for analysis',
   ANALYSIS_FAILED: 'Analysis failed',
@@ -61,7 +63,7 @@ export const ERROR_MESSAGES = {
 /**
  * Success Messages
  */
-export const SUCCESS_MESSAGES = {
+const SUCCESS_MESSAGES = {
   ANALYSIS_COMPLETE: 'Analysis complete',
   CONNECTION_SUCCESS: 'Connected to backend',
   CONFIG_SAVED: 'Configuration saved'
@@ -70,7 +72,7 @@ export const SUCCESS_MESSAGES = {
 /**
  * Default Configuration Values
  */
-export const DEFAULT_CONFIG = {
+const DEFAULT_CONFIG = {
   GATEWAY_URL: 'https://jsonplaceholder.typicode.com',
   API_KEY: 'test-api-key-12345',
   GUARD_SERVICES: {
@@ -92,7 +94,7 @@ export const DEFAULT_CONFIG = {
 /**
  * HTTP Status Codes
  */
-export const HTTP_STATUS = {
+const HTTP_STATUS = {
   OK: 200,
   CREATED: 201,
   BAD_REQUEST: 400,
@@ -106,7 +108,7 @@ export const HTTP_STATUS = {
 /**
  * Log Levels
  */
-export const LOG_LEVELS = {
+const LOG_LEVELS = {
   ERROR: 'error',
   WARN: 'warn',
   INFO: 'info',
@@ -117,7 +119,7 @@ export const LOG_LEVELS = {
 /**
  * Analysis Types
  */
-export const ANALYSIS_TYPES = {
+const ANALYSIS_TYPES = {
   BIAS_DETECTION: 'bias_detection',
   TOXICITY_DETECTION: 'toxicity_detection',
   SENTIMENT_ANALYSIS: 'sentiment_analysis',
@@ -127,7 +129,7 @@ export const ANALYSIS_TYPES = {
 /**
  * Event Types
  */
-export const EVENT_TYPES = {
+const EVENT_TYPES = {
   ANALYZE_TEXT: 'ANALYZE_TEXT',
   GET_GUARD_STATUS: 'GET_GUARD_STATUS',
   UPDATE_GUARD_CONFIG: 'UPDATE_GUARD_CONFIG',
