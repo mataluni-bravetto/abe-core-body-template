@@ -67,9 +67,9 @@ class EnhancedErrorHandlingTest {
 
     // Test for potential runtime errors in source files
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js',
       'src/gateway.js'
     ];
@@ -147,9 +147,9 @@ class EnhancedErrorHandlingTest {
 
     // Test for edge case handling in source files
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js',
       'src/gateway.js'
     ];
@@ -224,7 +224,7 @@ class EnhancedErrorHandlingTest {
 
     // Test HTML files for UX error handling
     const htmlFiles = [
-      'src/popup.html',
+      'src/popup/popup.html',
       'src/options.html'
     ];
 
@@ -257,7 +257,7 @@ class EnhancedErrorHandlingTest {
 
     // Test JavaScript files for UX error handling
     const jsFiles = [
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js'
     ];
 
@@ -303,9 +303,9 @@ class EnhancedErrorHandlingTest {
 
     // Test for potential memory leaks and performance issues
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js',
       'src/gateway.js'
     ];
@@ -383,9 +383,9 @@ class EnhancedErrorHandlingTest {
 
     // Test for Chrome API error handling
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js'
     ];
 
@@ -458,7 +458,7 @@ class EnhancedErrorHandlingTest {
     // Test for network error handling
     const sourceFiles = [
       'src/gateway.js',
-      'src/background.js'
+      'src/service_worker.js'
     ];
 
     for (const file of sourceFiles) {
@@ -526,7 +526,7 @@ class EnhancedErrorHandlingTest {
     const sourceFiles = [
       'src/input-validator.js',
       'src/gateway.js',
-      'src/background.js',
+      'src/service_worker.js',
       'src/options.js'
     ];
 
@@ -595,7 +595,7 @@ class EnhancedErrorHandlingTest {
 
     // Test for concurrent operation handling
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/gateway.js',
       'src/content.js'
     ];

@@ -60,7 +60,7 @@ class FinalSecurityFixes {
       'src/content.js',
       'src/options.js',
       'src/gateway.js',
-      'src/background.js'
+      'src/service_worker.js'
     ];
 
     for (const file of sourceFiles) {
@@ -271,7 +271,7 @@ class FinalSecurityFixes {
   async enhanceErrorMessages() {
     // Read all source files and enhance error messages
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/gateway.js',
       'src/content.js',
       'src/options.js'

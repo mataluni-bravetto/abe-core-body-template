@@ -62,11 +62,11 @@ class ExtensionTestRunner {
   async testFileStructure() {
     const requiredFiles = [
       'manifest.json',
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js',
-      'src/popup.html',
-      'src/popup.js',
+      'src/popup/popup.html',
+      'src/popup/popup.js',
       'src/options.html',
       'src/options.js',
       'src/testing.js'
@@ -144,10 +144,10 @@ class ExtensionTestRunner {
    */
   async testCodeQuality() {
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js',
       'src/testing.js'
     ];
@@ -278,10 +278,10 @@ class ExtensionTestRunner {
    */
   async testSecurity() {
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js'
     ];
 
@@ -349,7 +349,7 @@ class ExtensionTestRunner {
    */
   async testPerformance() {
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js'
     ];

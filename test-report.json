@@ -1,17 +1,32 @@
 {
   "summary": {
     "totalTests": 6,
-    "passedTests": 5,
-    "failedTests": 1,
-    "successRate": 83.33,
-    "duration": 16
+    "passedTests": 6,
+    "failedTests": 0,
+    "successRate": 100,
+    "duration": 24
   },
   "results": [
     {
       "name": "File Structure Validation",
-      "status": "FAILED",
-      "error": "Missing required files: src/background.js, src/popup.html, src/popup.js",
-      "timestamp": "2025-10-24T00:20:08.006Z"
+      "status": "PASSED",
+      "result": {
+        "totalFiles": 9,
+        "existingFiles": 9,
+        "missingFiles": 0,
+        "files": [
+          "manifest.json",
+          "src/service_worker.js",
+          "src/content.js",
+          "src/gateway.js",
+          "src/popup/popup.html",
+          "src/popup/popup.js",
+          "src/options.html",
+          "src/options.js",
+          "src/testing.js"
+        ]
+      },
+      "timestamp": "2025-10-24T01:36:48.886Z"
     },
     {
       "name": "Manifest Validation",
@@ -28,15 +43,28 @@
         "hasContentScripts": true,
         "hasAction": true
       },
-      "timestamp": "2025-10-24T00:20:08.009Z"
+      "timestamp": "2025-10-24T01:36:48.888Z"
     },
     {
       "name": "Code Quality Check",
       "status": "PASSED",
       "result": {
-        "src/background.js": {
-          "status": "missing",
-          "error": "File not found"
+        "src/service_worker.js": {
+          "totalLines": 387,
+          "codeLines": 291,
+          "commentLines": 37,
+          "emptyLines": 59,
+          "commentRatio": 10,
+          "issues": [],
+          "errorHandling": {
+            "tryCatchBlocks": 11,
+            "catchBlocks": 11,
+            "hasErrorHandling": true
+          },
+          "asyncUsage": {
+            "asyncFunctions": 9,
+            "awaitStatements": 8
+          }
         },
         "src/content.js": {
           "totalLines": 325,
@@ -56,17 +84,17 @@
           }
         },
         "src/gateway.js": {
-          "totalLines": 1347,
-          "codeLines": 1046,
-          "commentLines": 121,
-          "emptyLines": 180,
+          "totalLines": 1529,
+          "codeLines": 1182,
+          "commentLines": 139,
+          "emptyLines": 208,
           "commentRatio": 9,
           "issues": [
             "8 console.log statements found"
           ],
           "errorHandling": {
-            "tryCatchBlocks": 9,
-            "catchBlocks": 9,
+            "tryCatchBlocks": 11,
+            "catchBlocks": 11,
             "hasErrorHandling": true
           },
           "asyncUsage": {
@@ -74,9 +102,22 @@
             "awaitStatements": 19
           }
         },
-        "src/popup.js": {
-          "status": "missing",
-          "error": "File not found"
+        "src/popup/popup.js": {
+          "totalLines": 338,
+          "codeLines": 265,
+          "commentLines": 29,
+          "emptyLines": 44,
+          "commentRatio": 9,
+          "issues": [],
+          "errorHandling": {
+            "tryCatchBlocks": 9,
+            "catchBlocks": 9,
+            "hasErrorHandling": true
+          },
+          "asyncUsage": {
+            "asyncFunctions": 4,
+            "awaitStatements": 9
+          }
         },
         "src/options.js": {
           "totalLines": 471,
@@ -113,7 +154,7 @@
           }
         }
       },
-      "timestamp": "2025-10-24T00:20:08.012Z"
+      "timestamp": "2025-10-24T01:36:48.893Z"
     },
     {
       "name": "API Schema Compatibility",
@@ -137,22 +178,38 @@
         "validation": true,
         "hasAllFeatures": true
       },
-      "timestamp": "2025-10-24T00:20:08.013Z"
+      "timestamp": "2025-10-24T01:36:48.897Z"
     },
     {
       "name": "Security Analysis",
       "status": "PASSED",
       "result": {
-        "totalIssues": 0,
-        "issues": [],
-        "securityScore": 100
+        "totalIssues": 1,
+        "issues": [
+          {
+            "file": "src/popup/popup.js",
+            "type": "security",
+            "message": "innerHTML assignment detected",
+            "count": 1
+          }
+        ],
+        "securityScore": 90
       },
-      "timestamp": "2025-10-24T00:20:08.015Z"
+      "timestamp": "2025-10-24T01:36:48.900Z"
     },
     {
       "name": "Performance Analysis",
       "status": "PASSED",
       "result": {
+        "src/service_worker.js": {
+          "fileSize": 11812,
+          "lineCount": 387,
+          "characterCount": 11812,
+          "complexity": {
+            "total": 43,
+            "level": "high"
+          }
+        },
         "src/content.js": {
           "fileSize": 9854,
           "lineCount": 325,
@@ -163,22 +220,22 @@
           }
         },
         "src/gateway.js": {
-          "fileSize": 41246,
-          "lineCount": 1347,
-          "characterCount": 41246,
+          "fileSize": 46470,
+          "lineCount": 1529,
+          "characterCount": 46470,
           "complexity": {
-            "total": 93,
+            "total": 113,
             "level": "high"
           }
         }
       },
-      "timestamp": "2025-10-24T00:20:08.017Z"
+      "timestamp": "2025-10-24T01:36:48.902Z"
     }
   ],
-  "timestamp": "2025-10-24T00:20:08.017Z",
+  "timestamp": "2025-10-24T01:36:48.902Z",
   "recommendations": [
-    "Fix failed tests before deployment",
     "Address code quality issues found in source files",
+    "Address security issues before production deployment",
     "Run extension in Chrome developer mode for manual testing",
     "Test with real backend API endpoints",
     "Validate all guard services are working correctly"

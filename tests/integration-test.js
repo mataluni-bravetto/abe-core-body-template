@@ -65,9 +65,9 @@ class IntegrationTester {
       manifest: {
         version: '0.1.0',
         permissions: ['storage', 'alarms'],
-        background: 'src/background.js',
+        background: 'src/service_worker.js',
         contentScripts: 'src/content.js',
-        action: 'src/popup.html'
+        action: 'src/popup/popup.html'
       },
       gateway: {
         initialized: true,
