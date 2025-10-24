@@ -158,8 +158,10 @@
     const guardList = document.getElementById('guardList');
     if (!guardList) return;
 
-    // Clear existing items
-    guardList.innerHTML = '';
+    // Clear existing items safely
+    while (guardList.firstChild) {
+      guardList.removeChild(guardList.firstChild);
+    }
 
     // Add guard service items
     Object.entries(services).forEach(([name, config]) => {

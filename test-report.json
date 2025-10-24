@@ -4,7 +4,7 @@
     "passedTests": 6,
     "failedTests": 0,
     "successRate": 100,
-    "duration": 24
+    "duration": 17
   },
   "results": [
     {
@@ -26,7 +26,7 @@
           "src/testing.js"
         ]
       },
-      "timestamp": "2025-10-24T01:36:48.886Z"
+      "timestamp": "2025-10-24T02:27:17.812Z"
     },
     {
       "name": "Manifest Validation",
@@ -43,17 +43,17 @@
         "hasContentScripts": true,
         "hasAction": true
       },
-      "timestamp": "2025-10-24T01:36:48.888Z"
+      "timestamp": "2025-10-24T02:27:17.814Z"
     },
     {
       "name": "Code Quality Check",
       "status": "PASSED",
       "result": {
         "src/service_worker.js": {
-          "totalLines": 387,
-          "codeLines": 291,
-          "commentLines": 37,
-          "emptyLines": 59,
+          "totalLines": 462,
+          "codeLines": 341,
+          "commentLines": 46,
+          "emptyLines": 75,
           "commentRatio": 10,
           "issues": [],
           "errorHandling": {
@@ -84,17 +84,17 @@
           }
         },
         "src/gateway.js": {
-          "totalLines": 1529,
-          "codeLines": 1182,
-          "commentLines": 139,
-          "emptyLines": 208,
+          "totalLines": 1689,
+          "codeLines": 1302,
+          "commentLines": 156,
+          "emptyLines": 231,
           "commentRatio": 9,
           "issues": [
-            "8 console.log statements found"
+            "10 console.log statements found"
           ],
           "errorHandling": {
-            "tryCatchBlocks": 11,
-            "catchBlocks": 11,
+            "tryCatchBlocks": 12,
+            "catchBlocks": 12,
             "hasErrorHandling": true
           },
           "asyncUsage": {
@@ -103,8 +103,8 @@
           }
         },
         "src/popup/popup.js": {
-          "totalLines": 338,
-          "codeLines": 265,
+          "totalLines": 340,
+          "codeLines": 267,
           "commentLines": 29,
           "emptyLines": 44,
           "commentRatio": 9,
@@ -154,7 +154,7 @@
           }
         }
       },
-      "timestamp": "2025-10-24T01:36:48.893Z"
+      "timestamp": "2025-10-24T02:27:17.818Z"
     },
     {
       "name": "API Schema Compatibility",
@@ -178,35 +178,28 @@
         "validation": true,
         "hasAllFeatures": true
       },
-      "timestamp": "2025-10-24T01:36:48.897Z"
+      "timestamp": "2025-10-24T02:27:17.820Z"
     },
     {
       "name": "Security Analysis",
       "status": "PASSED",
       "result": {
-        "totalIssues": 1,
-        "issues": [
-          {
-            "file": "src/popup/popup.js",
-            "type": "security",
-            "message": "innerHTML assignment detected",
-            "count": 1
-          }
-        ],
-        "securityScore": 90
+        "totalIssues": 0,
+        "issues": [],
+        "securityScore": 100
       },
-      "timestamp": "2025-10-24T01:36:48.900Z"
+      "timestamp": "2025-10-24T02:27:17.821Z"
     },
     {
       "name": "Performance Analysis",
       "status": "PASSED",
       "result": {
         "src/service_worker.js": {
-          "fileSize": 11812,
-          "lineCount": 387,
-          "characterCount": 11812,
+          "fileSize": 13724,
+          "lineCount": 462,
+          "characterCount": 13724,
           "complexity": {
-            "total": 43,
+            "total": 52,
             "level": "high"
           }
         },
@@ -220,22 +213,21 @@
           }
         },
         "src/gateway.js": {
-          "fileSize": 46470,
-          "lineCount": 1529,
-          "characterCount": 46470,
+          "fileSize": 51593,
+          "lineCount": 1689,
+          "characterCount": 51593,
           "complexity": {
-            "total": 113,
+            "total": 127,
             "level": "high"
           }
         }
       },
-      "timestamp": "2025-10-24T01:36:48.902Z"
+      "timestamp": "2025-10-24T02:27:17.823Z"
     }
   ],
-  "timestamp": "2025-10-24T01:36:48.902Z",
+  "timestamp": "2025-10-24T02:27:17.823Z",
   "recommendations": [
     "Address code quality issues found in source files",
-    "Address security issues before production deployment",
     "Run extension in Chrome developer mode for manual testing",
     "Test with real backend API endpoints",
     "Validate all guard services are working correctly"
