@@ -1,11 +1,11 @@
 /**
- * Content Script for AI Guardians Chrome Extension
+ * Content Script for AiGuardian Chrome Extension
  * 
  * TRACER BULLETS FOR NEXT DEVELOPER:
  * - Add more sophisticated text selection detection
  * - Implement keyboard shortcuts for analysis
  * - Add context menu integration
- * - Consider adding highlighting for biased text
+ * - Consider adding highlighting for analyzed text
  * - Add user feedback collection
  */
 
@@ -304,21 +304,63 @@
       analyzeSelection();
     }
   };
-  
+
   document.addEventListener("mouseup", mouseupHandler);
   document.addEventListener("keydown", keydownHandler);
-  
+
   // Store event listeners for cleanup
   eventListeners.push(
     { element: document, event: 'mouseup', handler: mouseupHandler },
     { element: document, event: 'keydown', handler: keydownHandler }
   );
-  
+
+  // Listen for messages from popup
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'ANALYZE_SELECTION') {
+      const selection = window.getSelection()?.toString()?.trim() || "";
+
+      if (selection.length < CONFIG.minSelectionLength) {
+        sendResponse({
+          success: false,
+          error: ERROR_MESSAGES.SELECTION_TOO_SHORT
+        });
+        return true;
+      }
+
+      if (selection.length > CONFIG.maxSelectionLength) {
+        sendResponse({
+          success: false,
+          error: ERROR_MESSAGES.SELECTION_TOO_LONG
+        });
+        return true;
+      }
+
+      // Send to background for analysis
+      chrome.runtime.sendMessage(
+        { type: "ANALYZE_TEXT", payload: selection },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            sendResponse({
+              success: false,
+              error: chrome.runtime.lastError.message
+            });
+            return;
+          }
+
+          // Forward response back to popup
+          sendResponse(response);
+        }
+      );
+
+      return true; // Keep channel open for async response
+    }
+  });
+
   // Cleanup on page unload
   window.addEventListener('beforeunload', cleanup);
   eventListeners.push({ element: window, event: 'beforeunload', handler: cleanup });
 
-  Logger.info("[CS] AI Guardians content script loaded");
+  Logger.info("[CS] AiGuardian content script loaded");
 
 })();
 

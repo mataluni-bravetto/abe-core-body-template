@@ -218,5 +218,8 @@ class CacheManager {
 // Create global instance for Chrome extension compatibility
 const cacheManager = new CacheManager();
 
-
-
+// Export globally
+if (typeof window !== 'undefined') {
+  window.CacheManager = CacheManager;
+  window.cacheManager = cacheManager;
+}

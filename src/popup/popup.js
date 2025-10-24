@@ -1,7 +1,7 @@
 /**
- * Popup Script for AI Guardians Chrome Extension
+ * Popup Script for AiGuardian Chrome Extension
  * 
- * Enhanced popup with real-time status, guard services, and analysis results
+ * Enhanced popup with real-time status, unified service, and analysis results
  */
 
 (function(){
@@ -21,12 +21,11 @@
    * Initialize popup with enhanced features
    */
   function initializePopup() {
-    Logger.info('Initializing AI Guardians popup');
+    Logger.info('Initializing AiGuardian popup');
     
     // Load current settings
-    chrome.storage.sync.get(['bias_threshold', 'gateway_url', 'api_key'], (data) => {
+    chrome.storage.sync.get(['gateway_url', 'api_key'], (data) => {
       Logger.info('Current settings loaded:', {
-        threshold: data.bias_threshold,
         gateway_configured: !!data.gateway_url,
         api_key_configured: !!data.api_key
       });
@@ -125,14 +124,21 @@
   function updateSystemStatus(status) {
     const indicator = document.getElementById('statusIndicator');
     const details = document.getElementById('statusDetails');
+    const serviceStatus = document.getElementById('serviceStatus');
     
     if (status.gateway_connected) {
       indicator.className = 'status-indicator';
-      details.textContent = 'All guard services operational';
+      details.textContent = 'AiGuardian service operational';
+      if (serviceStatus) {
+        serviceStatus.className = 'guard-status';
+      }
       currentStatus = 'connected';
     } else {
       indicator.className = 'status-indicator error';
       details.textContent = 'Connection failed - check settings';
+      if (serviceStatus) {
+        serviceStatus.className = 'guard-status disabled';
+      }
       currentStatus = 'error';
     }
   }
@@ -143,8 +149,8 @@
   async function loadGuardServices() {
     try {
       const response = await sendMessageToBackground('GET_GUARD_STATUS');
-      if (response.success && response.status.guard_services) {
-        updateGuardServices(response.status.guard_services);
+      if (response.success) {
+        updateGuardServices(response.status);
       }
     } catch (err) {
       Logger.error('Failed to load guard services', err);
@@ -152,33 +158,18 @@
   }
 
   /**
-   * Update guard services display
+   * Update guard services display (unified service)
    */
-  function updateGuardServices(services) {
-    const guardList = document.getElementById('guardList');
-    if (!guardList) return;
+  function updateGuardServices(status) {
+    const serviceStatus = document.getElementById('serviceStatus');
+    if (!serviceStatus) return;
 
-    // Clear existing items safely
-    while (guardList.firstChild) {
-      guardList.removeChild(guardList.firstChild);
+    // Update unified service status
+    if (status.gateway_connected) {
+      serviceStatus.className = 'guard-status';
+    } else {
+      serviceStatus.className = 'guard-status disabled';
     }
-
-    // Add guard service items
-    Object.entries(services).forEach(([name, config]) => {
-      const guardItem = document.createElement('div');
-      guardItem.className = 'guard-item';
-      
-      const guardName = document.createElement('span');
-      guardName.className = 'guard-name';
-      guardName.textContent = name.charAt(0).toUpperCase() + name.slice(1);
-      
-      const guardStatus = document.createElement('div');
-      guardStatus.className = `guard-status ${config.enabled ? '' : 'disabled'}`;
-      
-      guardItem.appendChild(guardName);
-      guardItem.appendChild(guardStatus);
-      guardList.appendChild(guardItem);
-    });
   }
 
   /**

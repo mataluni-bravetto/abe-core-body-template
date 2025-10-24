@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Guardians Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-content {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .bias-text {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        .neutral-text {
+            color: #2e7d32;
+        }
+        .instructions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .test-sections {
+            display: grid;
+            gap: 20px;
+        }
+        .test-section {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Guardians Chrome Extension Test Page</h1>
+
+    <div class="instructions">
+        <h3>Testing Instructions:</h3>
+        <ol>
+            <li>Load the AI Guardians extension in Chrome (Developer mode)</li>
+            <li>Select text below by highlighting it with your mouse</li>
+            <li>A bias analysis badge should appear in the bottom right</li>
+            <li>Test the keyboard shortcut: Ctrl+Shift+A while text is selected</li>
+            <li>Click the badge for detailed analysis</li>
+        </ol>
+    </div>
+
+    <div class="test-sections">
+        <div class="test-section">
+            <h3>Test Case 1: Short Text (Should show error)</h3>
+            <p id="short-text">Hi</p>
+        </div>
+
+        <div class="test-section">
+            <h3>Test Case 2: Text with Potential Bias</h3>
+            <p class="bias-text">This AI tool is absolutely terrible and useless for any real work. It's the worst thing ever created and should be banned immediately. Everyone knows this technology is just hype and completely unreliable.</p>
+        </div>
+
+        <div class="test-section">
+            <h3>Test Case 3: Neutral Text</h3>
+            <p class="neutral-text">The weather today is sunny with a temperature of 72 degrees Fahrenheit. The forecast predicts similar conditions for the upcoming week with no precipitation expected.</p>
+        </div>
+
+        <div class="test-section">
+            <h3>Test Case 4: Very Long Text (Should show warning if too long)</h3>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur? At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecat cupidatat non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.</p>
+        </div>
+
+        <div class="test-section">
+            <h3>Test Case 5: Mixed Content Text</h3>
+            <p>While some people claim that <span style="background: yellow;">artificial intelligence will solve all our problems</span>, others argue that it might actually <span style="background: lightcoral;">make things worse for certain groups</span>. The debate continues about whether this technology is truly beneficial or potentially harmful to society.</p>
+        </div>
+
+        <div class="test-section">
+            <h3>Test Case 6: HTML Content (Extension should sanitize)</h3>
+            <p>This contains <script>alert('XSS')</script> potentially dangerous tags and <b>bold text</b> and <a href="javascript:alert('danger')">dangerous links</a>.</p>
+        </div>
+    </div>
+
+    <div class="test-content">
+        <h3>Debug Information</h3>
+        <div id="debug-info">
+            <p>Extension loaded: <span id="extension-loaded">Checking...</span></p>
+            <p>Chrome runtime available: <span id="runtime-available">Checking...</span></p>
+        </div>
+    </div>
+
+    <script>
+        // Check if extension is loaded
+        window.addEventListener('load', function() {
+            const loadedEl = document.getElementById('extension-loaded');
+            const runtimeEl = document.getElementById('runtime-available');
+
+            // Check if Chrome runtime is available
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                runtimeEl.textContent = 'Yes';
+                runtimeEl.style.color = 'green';
+
+                // Try to communicate with extension
+                try {
+                    chrome.runtime.sendMessage({ type: 'PING' }, function(response) {
+                        if (chrome.runtime.lastError) {
+                            loadedEl.textContent = 'Partial (content script only)';
+                            loadedEl.style.color = 'orange';
+                        } else {
+                            loadedEl.textContent = 'Yes';
+                            loadedEl.style.color = 'green';
+                        }
+                    });
+                } catch (e) {
+                    loadedEl.textContent = 'No - ' + e.message;
+                    loadedEl.style.color = 'red';
+                }
+            } else {
+                loadedEl.textContent = 'No';
+                loadedEl.style.color = 'red';
+                runtimeEl.textContent = 'No';
+                runtimeEl.style.color = 'red';
+            }
+        });
+
+        // Add selection event listener for debugging
+        document.addEventListener('mouseup', function() {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const selectedText = selection.toString().trim();
+                console.log('Text selected:', selectedText.length, 'characters');
+            }
+        });
+
+        // Add keyboard shortcut listener for debugging
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+                console.log('Keyboard shortcut Ctrl+Shift+A detected');
+            }
+        });
+    </script>
+</body>
+</html>

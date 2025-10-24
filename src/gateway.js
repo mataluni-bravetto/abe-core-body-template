@@ -1,17 +1,17 @@
 /**
- * AI Guardians Central Gateway Bridge
+ * AiGuardian Central Gateway Bridge
  * 
  * This module provides a unified interface for connecting the Chrome extension
- * to the AI Guardians backend services through a central gateway.
+ * to the AiGuardian backend service through a central gateway.
  * 
  * TRACER BULLETS FOR NEXT DEVELOPER:
- * - Configure your AI Guardians gateway endpoint
- * - Implement authentication with your guard services
- * - Add custom guard types and analysis pipelines
+ * - Configure your AiGuardian gateway endpoint
+ * - Implement authentication with your unified service
+ * - Add custom analysis pipelines
  * - Integrate with your central logging and monitoring
  */
 
-class AIGuardiansGateway {
+class AiGuardianGateway {
   /**
    * TRACER BULLET: Sanitize request data
    */
@@ -533,36 +533,74 @@ class AIGuardiansGateway {
 
   
   /**
-   * TRACER BULLET: Sanitize request data
+   * TRACER BULLET: Comprehensive input sanitization to prevent XSS and injection attacks
    */
   sanitizeRequestData(data) {
     if (!data || typeof data !== 'object') {
       return data;
     }
-    
+
     const sanitized = { ...data };
-    
-    // Sanitize text content
+
+    // Prevent XSS and script injection - comprehensive pattern matching
+    const dangerousPatterns = [
+      /<script[^>]*>.*?<\/script>/gi,
+      /javascript:/gi,
+      /vbscript:/gi,
+      /data:text\/html/gi,
+      /on\w+\s*=/gi,
+      /<iframe[^>]*>.*?<\/iframe>/gi,
+      /<object[^>]*>.*?<\/object>/gi,
+      /<embed[^>]*>.*?<\/embed>/gi,
+      /<form[^>]*>.*?<\/form>/gi,
+      /<input[^>]*>/gi,
+      /<meta[^>]*>/gi,
+      /<link[^>]*>/gi,
+      /<style[^>]*>.*?<\/style>/gi,
+      /expression\s*\(/gi,
+      /vbscript:/gi,
+      /data:text\/javascript/gi
+    ];
+
+    const sanitizeString = (str, maxLength = 10000) => {
+      if (typeof str !== 'string') return str;
+
+      // Remove null bytes and control characters (except newlines and tabs for readability)
+      let sanitized = str.replace(/\x00/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+      // Apply all dangerous pattern removals
+      dangerousPatterns.forEach(pattern => {
+        sanitized = sanitized.replace(pattern, '');
+      });
+
+      // Additional HTML entity encoding for dangerous characters
+      sanitized = sanitized.replace(/[<>"'&]/g, (match) => {
+        const entityMap = {
+          '<': '<',
+          '>': '>',
+          '"': '"',
+          "'": '&#x27;',
+          '&': '&'
+        };
+        return entityMap[match];
+      });
+
+      // Limit length to prevent buffer overflow attacks
+      return sanitized.substring(0, maxLength);
+    };
+
+    // Sanitize text content with stricter limits
     if (sanitized.text && typeof sanitized.text === 'string') {
-      // Remove potentially dangerous characters
-      sanitized.text = sanitized.text
-        .replace(/<script[^>]*>.*?<\/script>/gi, '')
-        .replace(/javascript:/gi, '')
-        .replace(/onw+s*=/gi, '')
-        .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '')
-        .substring(0, 10000); // Limit length
+      sanitized.text = sanitizeString(sanitized.text, TEXT_ANALYSIS.MAX_TEXT_LENGTH);
     }
-    
-    // Sanitize other string fields
+
+    // Sanitize all other string fields
     Object.keys(sanitized).forEach(key => {
-      if (typeof sanitized[key] === 'string') {
-        sanitized[key] = sanitized[key]
-          .replace(/<[^>]*>/g, '') // Remove HTML tags
-          .replace(/[<>"'&]/g, '') // Remove dangerous characters
-          .substring(0, 1000); // Limit length
+      if (typeof sanitized[key] === 'string' && key !== 'text') {
+        sanitized[key] = sanitizeString(sanitized[key], SECURITY.MAX_STRING_LENGTH);
       }
     });
-    
+
     return sanitized;
   }
 
@@ -1042,15 +1080,16 @@ class AIGuardiansGateway {
 
   
   constructor() {
-    // Constants are now available via importScripts from service worker
+    // Simple unified gateway configuration
     this.config = {
       gatewayUrl: DEFAULT_CONFIG.GATEWAY_URL,
       timeout: API_CONFIG.TIMEOUT,
       retryAttempts: API_CONFIG.RETRY_ATTEMPTS,
-      retryDelay: API_CONFIG.RETRY_DELAY
+      retryDelay: API_CONFIG.RETRY_DELAY,
+      apiKey: ''
     };
-    
-    // Enhanced tracing and logging
+
+    // Track connection statistics
     this.traceStats = {
       requests: 0,
       successes: 0,
@@ -1060,14 +1099,11 @@ class AIGuardiansGateway {
       lastRequestTime: null,
       errorCounts: {}
     };
-    
+
     this.logger = this.initializeLogger();
-    
-    this.guardServices = new Map();
     this.centralLogger = null;
-    this.centralConfig = null;
     this.cacheManager = new CacheManager();
-    
+
     this.initializeGateway();
   }
 
@@ -1127,44 +1163,36 @@ class AIGuardiansGateway {
   }
 
   /**
-   * TRACER BULLET: Initialize gateway connection
+   * Initialize gateway connection (simplified)
+   * Client only needs to know gateway URL and API key
    */
   async initializeGateway() {
     try {
       // Load configuration from storage
       await this.loadConfiguration();
-      
+
       // Initialize central logging
       await this.initializeCentralLogging();
-      
-      // Initialize guard services
-      await this.initializeGuardServices();
-      
-      Logger.info('[Gateway] Initialized AI Guardians gateway');
+
+      Logger.info('[Gateway] Initialized unified gateway connection');
     } catch (err) {
       Logger.error('[Gateway] Initialization failed', err);
     }
   }
 
   /**
-   * TRACER BULLET: Load central configuration
+   * Load client configuration (simplified)
    */
   async loadConfiguration() {
     return new Promise((resolve) => {
       chrome.storage.sync.get([
         'gateway_url',
-        'api_key',
-        'guard_services',
-        'logging_config',
-        'analysis_pipeline'
+        'api_key'
       ], (data) => {
         this.config = {
           ...this.config,
           gatewayUrl: data.gateway_url || this.config.gatewayUrl,
-          apiKey: data.api_key || '',
-          guardServices: data.guard_services || {},
-          loggingConfig: data.logging_config || {},
-          analysisPipeline: data.analysis_pipeline || 'default'
+          apiKey: data.api_key || ''
         };
         resolve();
       });
@@ -1201,61 +1229,9 @@ class AIGuardiansGateway {
   }
 
   /**
-   * TRACER BULLET: Initialize guard services
+   * Guard services are managed by backend
+   * Client doesn't need to initialize or track them
    */
-  async initializeGuardServices() {
-    // Updated to match backend guard service names
-    const defaultGuards = {
-      biasguard: {
-        enabled: true,
-        threshold: 0.5,
-        pipeline: 'bias_analysis_v2',
-        displayName: 'Bias Detection'
-      },
-      trustguard: {
-        enabled: true,
-        threshold: 0.7,
-        pipeline: 'trust_analysis_v1',
-        displayName: 'Trust Analysis'
-      },
-      contextguard: {
-        enabled: false,
-        threshold: 0.6,
-        pipeline: 'context_analysis_v1',
-        displayName: 'Context Analysis'
-      },
-      securityguard: {
-        enabled: false,
-        threshold: 0.8,
-        pipeline: 'security_analysis_v1',
-        displayName: 'Security Analysis'
-      },
-      tokenguard: {
-        enabled: false,
-        threshold: 0.5,
-        pipeline: 'token_optimization_v1',
-        displayName: 'Token Optimization'
-      },
-      healthguard: {
-        enabled: false,
-        threshold: 0.5,
-        pipeline: 'health_monitoring_v1',
-        displayName: 'Health Monitoring'
-      }
-    };
-
-    // Load guard services configuration
-    const guardConfig = this.config.guardServices || defaultGuards;
-    
-    for (const [guardName, config] of Object.entries(guardConfig)) {
-      this.guardServices.set(guardName, {
-        ...config,
-        lastUsed: null,
-        successCount: 0,
-        errorCount: 0
-      });
-    }
-  }
 
   /**
    * TRACER BULLET: Send request to central gateway with enhanced tracing
@@ -1362,8 +1338,8 @@ class AIGuardiansGateway {
     
     // Map extension endpoints to backend API endpoints
     const endpointMapping = {
-      'analyze': 'api/v1/analyze',
-      'health': 'api/v1/health',
+      'analyze': 'gateway/unified',
+      'health': 'health/live',
       'logging': 'api/v1/logging',
       'guards': 'api/v1/guards',
       'config': 'api/v1/config'
@@ -1478,12 +1454,13 @@ class AIGuardiansGateway {
   }
 
   /**
-   * TRACER BULLET: Analyze text through guard services
+   * TRACER BULLET: Analyze text through unified gateway
+   * Client doesn't need to know about individual guard services
    */
   async analyzeText(text, options = {}) {
     const analysisId = this.generateRequestId();
     const startTime = Date.now();
-    
+
     try {
       await this.centralLogger?.info('Starting text analysis', {
         analysis_id: analysisId,
@@ -1491,49 +1468,24 @@ class AIGuardiansGateway {
         options
       });
 
-      // Get enabled guard services
-      const enabledGuards = Array.from(this.guardServices.entries())
-        .filter(([name, config]) => config.enabled)
-        .map(([name, config]) => ({ name, config }));
-
-      if (enabledGuards.length === 0) {
-        throw new Error('No guard services enabled');
-      }
-
-      // Send analysis request to gateway
+      // Send analysis request to unified gateway endpoint
+      // Backend handles all guard orchestration
       const result = await this.sendToGateway('analyze', {
         analysis_id: analysisId,
         text,
-        guards: enabledGuards.map(g => g.name),
         options: {
           ...options,
-          pipeline: this.config.analysisPipeline,
           timestamp: new Date().toISOString()
         }
       });
 
-      // Update guard service statistics
-      for (const guard of enabledGuards) {
-        const guardData = this.guardServices.get(guard.name);
-        guardData.lastUsed = new Date().toISOString();
-        guardData.successCount++;
-      }
-
       await this.centralLogger?.info('Text analysis completed', {
         analysis_id: analysisId,
-        duration: Date.now() - startTime,
-        results_count: result.guards?.length || 0
+        duration: Date.now() - startTime
       });
 
       return result;
     } catch (err) {
-      // Update error statistics
-      for (const [name, guardData] of this.guardServices.entries()) {
-        if (guardData.enabled) {
-          guardData.errorCount++;
-        }
-      }
-
       await this.centralLogger?.error('Text analysis failed', {
         analysis_id: analysisId,
         duration: Date.now() - startTime,
@@ -1545,106 +1497,69 @@ class AIGuardiansGateway {
   }
 
   /**
-   * TRACER BULLET: Get guard service status
+   * Simple unified gateway status check
+   * Client only cares if gateway is connected or not
    */
-  async getGuardServiceStatus() {
-    const status = {
-      gateway_connected: await this.testGatewayConnection(),
-      guard_services: {},
-      total_requests: 0,
-      success_rate: 0
+  async getGatewayStatus() {
+    const isConnected = await this.testGatewayConnection();
+    return {
+      connected: isConnected,
+      gateway_url: this.config.gatewayUrl,
+      last_check: new Date().toISOString()
     };
-
-    for (const [name, data] of this.guardServices.entries()) {
-      status.guard_services[name] = {
-        enabled: data.enabled,
-        last_used: data.lastUsed,
-        success_count: data.successCount,
-        error_count: data.errorCount,
-        success_rate: data.successCount + data.errorCount > 0 
-          ? (data.successCount / (data.successCount + data.errorCount)) * 100 
-          : 0
-      };
-      
-      status.total_requests += data.successCount + data.errorCount;
-    }
-
-    if (status.total_requests > 0) {
-      const totalSuccess = Array.from(this.guardServices.values())
-        .reduce((sum, data) => sum + data.successCount, 0);
-      status.success_rate = (totalSuccess / status.total_requests) * 100;
-    }
-
-    return status;
   }
 
   /**
-   * TRACER BULLET: Test gateway connection
+   * Test unified gateway connection
+   * Simple health check - alive or not
    */
   async testGatewayConnection() {
     try {
-      await this.sendToGateway('health', { test: true });
-      return true;
+      const response = await fetch(this.config.gatewayUrl + '/health/live', {
+        method: 'GET',
+        headers: {
+          'X-Extension-Version': chrome.runtime.getManifest().version
+        }
+      });
+      return response.ok;
     } catch (err) {
       return false;
     }
   }
 
   /**
-   * TRACER BULLET: Update guard service configuration
+   * Guard configuration is handled by backend
+   * Client doesn't manage individual guard services
    */
-  async updateGuardService(guardName, config) {
-    const currentConfig = this.guardServices.get(guardName);
-    if (!currentConfig) {
-      throw new Error(`Guard service '${guardName}' not found`);
-    }
-
-    const updatedConfig = { ...currentConfig, ...config };
-    this.guardServices.set(guardName, updatedConfig);
-
-    // Save to storage
-    await new Promise((resolve) => {
-      chrome.storage.sync.set({
-        guard_services: Object.fromEntries(this.guardServices)
-      }, resolve);
-    });
-
-    await this.centralLogger?.info('Guard service updated', {
-      guard_name: guardName,
-      config: updatedConfig
-    });
-  }
 
   /**
-   * TRACER BULLET: Get central configuration
+   * Get client configuration (simplified)
    */
-  async getCentralConfiguration() {
+  async getConfiguration() {
     return {
       gateway_url: this.config.gatewayUrl,
       api_key_configured: !!this.config.apiKey,
-      guard_services: Object.fromEntries(this.guardServices),
-      logging_config: this.config.loggingConfig,
-      analysis_pipeline: this.config.analysisPipeline
+      timeout: this.config.timeout,
+      retry_attempts: this.config.retryAttempts
     };
   }
 
   /**
-   * TRACER BULLET: Update central configuration
+   * Update client configuration (simplified)
    */
-  async updateCentralConfiguration(newConfig) {
+  async updateConfiguration(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    
+
     await new Promise((resolve) => {
       chrome.storage.sync.set({
         gateway_url: this.config.gatewayUrl,
         api_key: this.config.apiKey,
-        guard_services: Object.fromEntries(this.guardServices),
-        logging_config: this.config.loggingConfig,
-        analysis_pipeline: this.config.analysisPipeline
+        timeout: this.config.timeout,
+        retry_attempts: this.config.retryAttempts
       }, resolve);
     });
 
-    await this.centralLogger?.info('Central configuration updated', newConfig);
+    await this.centralLogger?.info('Configuration updated', { gateway_url: this.config.gatewayUrl });
   }
 
   /**
@@ -1718,26 +1633,21 @@ class AIGuardiansGateway {
   /**
    * TRACER BULLET: Get comprehensive diagnostics
    */
-  getDiagnostics() {
+  /**
+   * Get simplified diagnostics
+   * Client only cares about gateway connection status
+   */
+  async getDiagnostics() {
+    const connected = await this.testGatewayConnection();
     return {
-      traceStats: this.getTraceStats(),
-      configuration: {
-        gatewayUrl: this.config.gatewayUrl,
-        timeout: this.config.timeout,
-        retryAttempts: this.config.retryAttempts,
-        retryDelay: this.config.retryDelay
+      gateway: {
+        url: this.config.gatewayUrl,
+        connected: connected,
+        status: connected ? 'alive' : 'disconnected'
       },
-      guardServices: Array.from(this.guardServices.entries()).map(([name, config]) => ({
-        name,
-        enabled: config.enabled,
-        threshold: config.threshold,
-        successCount: config.successCount,
-        errorCount: config.errorCount,
-        lastUsed: config.lastUsed
-      })),
-      systemInfo: {
+      stats: this.getTraceStats(),
+      system: {
         extensionVersion: chrome.runtime.getManifest().version,
-        userAgent: navigator.userAgent,
         timestamp: new Date().toISOString()
       }
     };

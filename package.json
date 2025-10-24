@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "test:unit": "node scripts/run-unit-tests.cjs"
+  },
+  "dependencies": {
+    "chrome-devtools-mcp": "^0.9.0"
+  },
+  "devDependencies": {
+    "puppeteer": "^24.26.1"
+  }
+}

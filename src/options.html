@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>AiGuardians Configuration</title>
+    <title>AiGuardian Configuration</title>
     <link rel="stylesheet" href="../AiGuardian Assets/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css">
     <style>
       body{font:14px 'ClashGrotesk', system-ui, sans-serif; margin:16px; max-width:800px}
@@ -28,9 +28,9 @@
   </head>
   <body>
     <div style="display: flex; align-items: center; margin-bottom: 24px;">
-      <img src="../AiGuardian Assets/AiG_Logos/AIG_Logo_Primary.png" alt="AiGuardians Logo" style="width: 48px; height: 48px; margin-right: 16px;">
+      <img src="../AiGuardian Assets/AiG_Logos/AIG_Logo_Primary.png" alt="AiGuardian Logo" style="width: 48px; height: 48px; margin-right: 16px;">
       <div>
-        <h1 style="margin: 0; color: #1E40AF;">AiGuardians Configuration</h1>
+        <h1 style="margin: 0; color: #1E40AF;">AiGuardian Configuration</h1>
         <p style="margin: 4px 0 0 0; color: #6B7280; font-size: 14px;">Finally, AI tools for engineers who don't believe the hype</p>
         <p style="margin: 4px 0 0 0; color: #6B7280; font-size: 12px;">
           <a href="https://dashboard.aiguardian.ai" target="_blank" style="color: #1E40AF; text-decoration: none;">📊 Open Dashboard</a> |
@@ -52,11 +52,15 @@
       <span id="connection_status" class="status disconnected">Disconnected</span>
     </div>
 
-    <!-- Guard Services Configuration -->
+    <!-- AiGuardian Service Configuration -->
     <div class="section">
-      <h3>Guard Services</h3>
-      <div id="guard_services">
-        <!-- Guard services will be populated by JavaScript -->
+      <h3>AiGuardian Service</h3>
+      <p style="color: #6B7280; font-size: 13px; margin-bottom: 12px;">
+        Unified AI analysis service with transparent failure logging and confidence scoring.
+      </p>
+      <div class="checkbox-label">
+        <input id="enable_service" type="checkbox" checked disabled />
+        <label for="enable_service">Service Enabled (Always On)</label>
       </div>
     </div>
 

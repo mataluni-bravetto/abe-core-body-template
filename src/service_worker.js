@@ -20,10 +20,10 @@ let gateway = null;
 try {
   // Extension installation handler
   chrome.runtime.onInstalled.addListener(async () => {
-    Logger.info("[BG] Installed: AI Guardians Chrome Ext v0.1.0");
+    Logger.info("[BG] Installed: AiGuardian Chrome Ext v1.0.0");
     
-    // Initialize AI Guardians Gateway
-    gateway = new AIGuardiansGateway();
+    // Initialize AiGuardian Gateway
+    gateway = new AiGuardianGateway();
     
     // Initialize default settings
     await initializeDefaultSettings();
@@ -269,12 +269,12 @@ try {
   });
 
   /**
-   * TRACER BULLET: Text analysis through AI Guardians Gateway
+   * TRACER BULLET: Text analysis through AiGuardian Gateway
    */
   async function handleTextAnalysis(text, sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       // Use the gateway for analysis
@@ -307,15 +307,16 @@ try {
   }
 
   /**
-   * TRACER BULLET: Handle guard status requests
+   * Handle guard status requests - Simplified for unified gateway
    */
   async function handleGuardStatusRequest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
-      const status = await gateway.getGuardServiceStatus();
+      // Use simplified gateway status (just connected or not)
+      const status = await gateway.getGatewayStatus();
       sendResponse({ success: true, status });
     } catch (err) {
       Logger.error("[BG] Failed to get guard status:", err);
@@ -324,53 +325,52 @@ try {
   }
 
   /**
-   * TRACER BULLET: Handle guard configuration updates
+   * Guard configuration is handled by backend now
    */
   async function handleGuardConfigUpdate(payload, sendResponse) {
     try {
-      if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
-      }
-
-      const { guardName, config } = payload;
-      await gateway.updateGuardService(guardName, config);
-      sendResponse({ success: true });
+      // Client doesn't manage individual guards anymore
+      // This is handled by the backend
+      sendResponse({
+        success: true,
+        message: "Guard configuration is managed by backend"
+      });
     } catch (err) {
-      Logger.error("[BG] Failed to update guard config:", err);
-      sendResponse({ success: false, error: err.message });
+      Logger.error("[BG] Guard config update not supported:", err);
+      sendResponse({ success: false, error: "Guards are managed by backend" });
     }
   }
 
   /**
-   * TRACER BULLET: Handle central configuration requests
+   * Handle configuration requests - Simplified
    */
   async function handleCentralConfigRequest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
-      const config = await gateway.getCentralConfiguration();
+      const config = await gateway.getConfiguration();
       sendResponse({ success: true, config });
     } catch (err) {
-      Logger.error("[BG] Failed to get central config:", err);
+      Logger.error("[BG] Failed to get config:", err);
       sendResponse({ success: false, error: err.message });
     }
   }
 
   /**
-   * TRACER BULLET: Handle central configuration updates
+   * Handle configuration updates - Simplified
    */
   async function handleCentralConfigUpdate(payload, sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
-      await gateway.updateCentralConfiguration(payload);
+      await gateway.updateConfiguration(payload);
       sendResponse({ success: true });
     } catch (err) {
-      Logger.error("[BG] Failed to update central config:", err);
+      Logger.error("[BG] Failed to update config:", err);
       sendResponse({ success: false, error: err.message });
     }
   }
@@ -381,7 +381,7 @@ try {
   async function handleDiagnosticsRequest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       const diagnostics = gateway.getDiagnostics();
@@ -398,7 +398,7 @@ try {
   async function handleTraceStatsRequest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       const traceStats = gateway.getTraceStats();
@@ -415,7 +415,7 @@ try {
   async function handleGatewayConnectionTest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       const startTime = Date.now();

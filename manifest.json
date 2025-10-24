@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "AiGuardians",
+  "name": "AiGuardian",
   "version": "1.0.0",
   "description": "Finally, AI tools for engineers who don't believe the hype. Transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers.",
-  "author": "AiGuardians",
+  "author": "AiGuardian",
   "homepage_url": "https://aiguardian.ai",
   "permissions": [
     "storage",
@@ -26,7 +26,7 @@
     }
   ],
   "action": {
-    "default_title": "AiGuardians - Finally, AI tools for engineers who don't believe the hype",
+    "default_title": "AiGuardian - Finally, AI tools for engineers who don't believe the hype",
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "assets/icons/icon-16.png",
