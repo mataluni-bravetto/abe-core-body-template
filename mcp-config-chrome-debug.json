@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "node",
+      "args": [
+        "node_modules/chrome-devtools-mcp/build/src/index.js",
+        "--browser-url=http://127.0.0.1:9222",
+        "--categoryEmulation=false",
+        "--categoryPerformance=true",
+        "--categoryNetwork=true"
+      ],
+      "env": {
+        "DEBUG": "chrome-devtools-mcp:*"
+      }
+    }
+  }
+}
