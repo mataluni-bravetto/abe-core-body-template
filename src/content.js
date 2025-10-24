@@ -48,6 +48,7 @@
   let debounceTimer = null;
   let currentBadge = null;
   let eventListeners = [];
+  let activeHighlights = []; // Array to track our highlight elements
 
   /**
    * Analyzes the currently selected text for bias and other issues
@@ -56,16 +57,20 @@
    * @returns {void}
    */
   function analyzeSelection() {
-    const selection = window.getSelection()?.toString()?.trim() || "";
+    const selection = window.getSelection();
+    const selectionText = selection?.toString()?.trim() || "";
     
+    // TRACER BULLET: Capture the selection range to enable highlighting
+    const range = selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+
     // Validate selection length
-    if (selection.length < CONFIG.minSelectionLength) {
-      Logger.info("[CS] Selection too short:", selection.length);
+    if (selectionText.length < CONFIG.minSelectionLength) {
+      Logger.info("[CS] Selection too short:", selectionText.length);
       return;
     }
     
-    if (selection.length > CONFIG.maxSelectionLength) {
-      Logger.info("[CS] Selection too long:", selection.length);
+    if (selectionText.length > CONFIG.maxSelectionLength) {
+      Logger.info("[CS] Selection too long:", selectionText.length);
       showBadge(ERROR_MESSAGES.SELECTION_TOO_LONG, "warning");
       return;
     }
@@ -75,7 +80,7 @@
 
     // Send to background script
     chrome.runtime.sendMessage(
-      { type: "ANALYZE_TEXT", payload: selection },
+      { type: "ANALYZE_TEXT", payload: selectionText },
       (response) => {
         if (chrome.runtime.lastError) {
           Logger.error("[CS] Runtime error:", chrome.runtime.lastError);
@@ -89,8 +94,8 @@
           return;
         }
 
-        // TRACER BULLET: Display results with enhanced UI
-        displayAnalysisResults(response);
+        // TRACER BULLET: Display results with enhanced UI and pass the range for highlighting
+        displayAnalysisResults(response, range);
       }
     );
   }
@@ -99,11 +104,17 @@
    * Displays analysis results in a user-friendly badge
    * @function displayAnalysisResults
    * @param {Object} response - The analysis response from the backend
+   * @param {Range | null} range - The DOM range of the analyzed text selection
    * @param {number} response.score - The overall bias score (0-1)
    * @param {Object} response.analysis - Detailed analysis results
    * @returns {void}
    */
-  function displayAnalysisResults(response) {
+  function displayAnalysisResults(response, range) {
+    // TRACER BULLET: Highlight the text on the page
+    if (range) {
+      highlightSelection(range, response.score);
+    }
+    
     const score = Math.round(response.score * 100);
     const analysis = response.analysis || {};
     
@@ -165,6 +176,31 @@
     
     // Store timer for cleanup
     badge._removeTimer = removeTimer;
+  }
+
+  /**
+   * Wraps the given DOM range in a styled span to highlight it.
+   * @function highlightSelection
+   * @param {Range} range - The DOM range to highlight.
+   * @param {number} score - The analysis score, used to determine highlight color.
+   */
+  function highlightSelection(range, score) {
+    try {
+      const highlightSpan = document.createElement("span");
+      highlightSpan.style.backgroundColor = getScoreColor(score);
+      highlightSpan.style.color = "#FFFFFF";
+      highlightSpan.style.borderRadius = "3px";
+      highlightSpan.style.padding = "2px 1px";
+      highlightSpan.className = "aiguardian-highlight"; // Add class for easy cleanup
+      
+      // The surroundContents method is a clean way to wrap the selection.
+      // It can fail if the selection spans across incompatible DOM nodes.
+      range.surroundContents(highlightSpan);
+      
+      activeHighlights.push(highlightSpan);
+    } catch (e) {
+      Logger.error("[CS] Failed to highlight text:", e);
+    }
   }
 
   /**
@@ -257,6 +293,23 @@
   }
 
   /**
+   * Removes all highlight spans from the document.
+   * @function clearHighlights
+   */
+  function clearHighlights() {
+    activeHighlights.forEach(span => {
+      if (span.parentNode) {
+        // Unwrap the content by replacing the span with its children
+        while (span.firstChild) {
+          span.parentNode.insertBefore(span.firstChild, span);
+        }
+        span.parentNode.removeChild(span);
+      }
+    });
+    activeHighlights = [];
+  }
+
+  /**
    * Cleans up all resources including timers and event listeners
    * @function cleanup
    * @returns {void}
@@ -272,6 +325,9 @@
     if (currentBadge) {
       cleanupBadge(currentBadge);
     }
+    
+    // TRACER BULLET: Clear any active highlights
+    clearHighlights();
     
     // Remove all event listeners
     eventListeners.forEach(listener => {
@@ -290,6 +346,9 @@
       clearTimeout(debounceTimer);
     }
     
+    // TRACER BULLET: Clear previous highlights before starting a new analysis
+    clearHighlights();
+
     debounceTimer = setTimeout(() => {
       analyzeSelection();
     }, CONFIG.debounceDelay);
