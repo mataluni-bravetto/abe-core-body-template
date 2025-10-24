@@ -75,7 +75,8 @@ try {
     // Check for allowed origins
     const allowedOrigins = [
       'chrome-extension://',
-      'https://your-ai-guardians-gateway.com',
+      'https://api.aiguardian.ai',
+      'https://aiguardian.ai',
       'https://localhost',
       'https://127.0.0.1'
     ];

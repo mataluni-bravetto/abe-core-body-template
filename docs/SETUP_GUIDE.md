@@ -36,53 +36,60 @@ chrome://extensions/
 
 ### Phase 2: API Integration (30 minutes)
 
-#### ✅ Replace Mock Analysis
-**File: `src/background.js`**
+#### ✅ Configure Production API
+**File: `src/constants.js`**
 ```javascript
-// Find this function and replace the mock implementation:
-function handleTextAnalysis(text, sendResponse) {
-  // TODO: Replace with your actual API call
-  // Example structure provided in the code
-}
+const DEFAULT_CONFIG = {
+  GATEWAY_URL: 'https://api.aiguardian.ai',  // ✅ Production API endpoint
+  API_KEY: 'your-production-api-key-here',   // ✅ Update with your API key
+  // ... other configuration remains the same
+};
 ```
 
 **API Integration Steps:**
-1. **Choose your AI service:**
-   - OpenAI API
-   - Google Cloud AI
-   - Azure Cognitive Services
-   - Custom ML model endpoint
-   - Local analysis service
+1. **Configure Production API:**
+   - The extension is already configured for `api.aiguardian.ai`
+   - Update the `API_KEY` in `src/constants.js`
+   - Test connectivity using the options page
 
-2. **Update the API call:**
+2. **Verify API Endpoints:**
 ```javascript
-// Replace the mock code with:
-fetch('https://your-api-endpoint.com/analyze', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer YOUR_API_KEY'
-  },
-  body: JSON.stringify({ 
-    text: text,
-    options: {
-      threshold: await getThreshold(),
-      analysis_type: 'bias_detection'
-    }
-  })
-})
-.then(response => response.json())
-.then(data => {
-  sendResponse({ 
-    success: true, 
-    score: data.bias_score,
-    analysis: data.detailed_analysis
-  });
-})
-.catch(err => {
-  sendResponse({ success: false, error: err.message });
-});
+// The extension automatically maps to these endpoints:
+POST https://api.aiguardian.ai/api/v1/analyze  // Text analysis
+GET  https://api.aiguardian.ai/api/v1/health   // Health check
+POST https://api.aiguardian.ai/api/v1/logging  // Central logging
+GET  https://api.aiguardian.ai/api/v1/guards   // Guard services
+GET  https://api.aiguardian.ai/api/v1/config   // Configuration
+
+// Example API request format:
+{
+  "text": "Text to analyze",
+  "guards": ["biasguard", "trustguard"],
+  "options": {
+    "threshold": 0.5,
+    "analysis_type": "comprehensive"
+  }
+}
 ```
+
+**Expected API Response:**
+```json
+{
+  "analysis_id": "unique-analysis-id",
+  "overall_score": 0.65,
+  "guards": {
+    "biasguard": {"score": 0.3, "enabled": true},
+    "trustguard": {"score": 0.8, "enabled": true}
+  },
+  "suggestions": ["Analysis complete"],
+  "timestamp": "2025-01-01T00:00:00.000Z"
+}
+```
+
+3. **Test the Integration:**
+   - Use the options page "Test Connection" button
+   - Verify all guard services respond correctly
+   - Check the browser console for any errors
 
 #### ✅ Add API Configuration
 **File: `src/options.html`**

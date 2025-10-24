@@ -28,12 +28,11 @@ Chrome Extension → Central Gateway → Guard Services
 
 #### Configure Your Gateway Endpoint
 ```javascript
-// In src/gateway.js, update the configuration:
-this.config = {
-  gatewayUrl: 'https://your-ai-guardians-gateway.com/api/v1',
-  timeout: 10000,
-  retryAttempts: 3,
-  retryDelay: 1000
+// In src/constants.js, the configuration is:
+const DEFAULT_CONFIG = {
+  GATEWAY_URL: 'https://api.aiguardian.ai',
+  API_KEY: 'your-api-key-here',
+  // ... other configuration
 };
 ```
 
@@ -41,12 +40,11 @@ this.config = {
 Your AI Guardians gateway must implement these endpoints:
 
 ```http
-POST /api/v1/analyze/text
-GET  /api/v1/health/live
-POST /api/v1/logging
-GET  /api/v1/guards
-GET  /api/v1/config/user
-PUT  /api/v1/config/user
+POST /api/v1/analyze      # Text analysis endpoint
+GET  /api/v1/health       # Health check endpoint
+POST /api/v1/logging      # Central logging endpoint
+GET  /api/v1/guards       # Guard services endpoint
+GET  /api/v1/config       # User configuration endpoint
 ```
 
 ### 2. Authentication Setup

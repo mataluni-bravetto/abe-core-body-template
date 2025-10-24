@@ -73,7 +73,7 @@ const SUCCESS_MESSAGES = {
  * Default Configuration Values
  */
 const DEFAULT_CONFIG = {
-  GATEWAY_URL: 'https://jsonplaceholder.typicode.com',
+  GATEWAY_URL: 'https://api.aiguardian.ai',
   API_KEY: 'test-api-key-12345',
   GUARD_SERVICES: {
     biasguard: { enabled: true, threshold: 0.5 },

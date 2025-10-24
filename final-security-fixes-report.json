@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "totalFixes": 5,
+    "appliedFixes": 5,
+    "failedFixes": 0,
+    "successRate": 100
+  },
+  "fixes": [
+    {
+      "name": "Fix Template Injection",
+      "status": "APPLIED",
+      "timestamp": "2025-10-24T00:15:58.935Z"
+    },
+    {
+      "name": "Fix Data Exposure",
+      "status": "APPLIED",
+      "timestamp": "2025-10-24T00:15:58.936Z"
+    },
+    {
+      "name": "Add Request Sanitization",
+      "status": "APPLIED",
+      "timestamp": "2025-10-24T00:15:58.937Z"
+    },
+    {
+      "name": "Enhance Error Messages",
+      "status": "APPLIED",
+      "timestamp": "2025-10-24T00:15:58.939Z"
+    },
+    {
+      "name": "Add Security Headers",
+      "status": "APPLIED",
+      "timestamp": "2025-10-24T00:15:58.940Z"
+    }
+  ],
+  "timestamp": "2025-10-24T00:15:58.940Z"
+}

@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "AI Guardians",
+  "name": "AiGuardians",
   "version": "1.0.0",
-  "description": "AI-powered text analysis with bias detection and comprehensive guard services. Protect yourself from biased content with advanced AI technology.",
-  "author": "AI Guardians",
-  "homepage_url": "https://aiguardians.com",
+  "description": "Finally, AI tools for engineers who don't believe the hype. Transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers.",
+  "author": "AiGuardians",
+  "homepage_url": "https://aiguardian.ai",
   "permissions": [
     "storage",
     "alarms"
@@ -26,7 +26,7 @@
     }
   ],
   "action": {
-    "default_title": "AI Guardians - AI-Powered Text Analysis",
+    "default_title": "AiGuardians - Finally, AI tools for engineers who don't believe the hype",
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "assets/icons/icon-16.png",
@@ -50,12 +50,7 @@
     "open_in_tab": false
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self';"
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["assets/icons/*", "assets/logos/*"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  "web_accessible_resources": []
 }

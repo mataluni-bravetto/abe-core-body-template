@@ -4,21 +4,21 @@
     "passedTests": 5,
     "failedTests": 1,
     "successRate": 83.33,
-    "duration": 16
+    "duration": 30
   },
   "results": [
     {
       "name": "File Structure Validation",
       "status": "FAILED",
       "error": "Missing required files: src/background.js, src/popup.html, src/popup.js",
-      "timestamp": "2025-10-24T00:20:08.006Z"
+      "timestamp": "2025-10-23T18:07:12.619Z"
     },
     {
       "name": "Manifest Validation",
       "status": "PASSED",
       "result": {
         "manifestVersion": 3,
-        "name": "AiGuardians",
+        "name": "AI Guardians",
         "version": "1.0.0",
         "permissions": [
           "storage",
@@ -28,7 +28,7 @@
         "hasContentScripts": true,
         "hasAction": true
       },
-      "timestamp": "2025-10-24T00:20:08.009Z"
+      "timestamp": "2025-10-23T18:07:12.631Z"
     },
     {
       "name": "Code Quality Check",
@@ -56,17 +56,15 @@
           }
         },
         "src/gateway.js": {
-          "totalLines": 1347,
-          "codeLines": 1046,
-          "commentLines": 121,
-          "emptyLines": 180,
-          "commentRatio": 9,
-          "issues": [
-            "8 console.log statements found"
-          ],
+          "totalLines": 816,
+          "codeLines": 652,
+          "commentLines": 62,
+          "emptyLines": 102,
+          "commentRatio": 8,
+          "issues": [],
           "errorHandling": {
-            "tryCatchBlocks": 9,
-            "catchBlocks": 9,
+            "tryCatchBlocks": 6,
+            "catchBlocks": 6,
             "hasErrorHandling": true
           },
           "asyncUsage": {
@@ -113,7 +111,7 @@
           }
         }
       },
-      "timestamp": "2025-10-24T00:20:08.012Z"
+      "timestamp": "2025-10-23T18:07:12.635Z"
     },
     {
       "name": "API Schema Compatibility",
@@ -137,7 +135,7 @@
         "validation": true,
         "hasAllFeatures": true
       },
-      "timestamp": "2025-10-24T00:20:08.013Z"
+      "timestamp": "2025-10-23T18:07:12.637Z"
     },
     {
       "name": "Security Analysis",
@@ -147,38 +145,37 @@
         "issues": [],
         "securityScore": 100
       },
-      "timestamp": "2025-10-24T00:20:08.015Z"
+      "timestamp": "2025-10-23T18:07:12.638Z"
     },
     {
       "name": "Performance Analysis",
       "status": "PASSED",
       "result": {
         "src/content.js": {
-          "fileSize": 9854,
+          "fileSize": 9530,
           "lineCount": 325,
-          "characterCount": 9854,
+          "characterCount": 9530,
           "complexity": {
             "total": 28,
             "level": "high"
           }
         },
         "src/gateway.js": {
-          "fileSize": 41246,
-          "lineCount": 1347,
-          "characterCount": 41246,
+          "fileSize": 24112,
+          "lineCount": 816,
+          "characterCount": 24112,
           "complexity": {
-            "total": 93,
+            "total": 47,
             "level": "high"
           }
         }
       },
-      "timestamp": "2025-10-24T00:20:08.017Z"
+      "timestamp": "2025-10-23T18:07:12.640Z"
     }
   ],
-  "timestamp": "2025-10-24T00:20:08.017Z",
+  "timestamp": "2025-10-23T18:07:12.640Z",
   "recommendations": [
     "Fix failed tests before deployment",
-    "Address code quality issues found in source files",
     "Run extension in Chrome developer mode for manual testing",
     "Test with real backend API endpoints",
     "Validate all guard services are working correctly"

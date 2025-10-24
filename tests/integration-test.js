@@ -72,7 +72,7 @@ class IntegrationTester {
       gateway: {
         initialized: true,
         config: {
-          gatewayUrl: 'https://your-ai-guardians-gateway.com/api/v1',
+          gatewayUrl: 'https://api.aiguardian.ai',
           timeout: 10000,
           retryAttempts: 3
         }
@@ -113,7 +113,7 @@ class IntegrationTester {
   async testGatewayConnection() {
     // Simulate gateway connection test
     const connectionTest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/health/live',
+      endpoint: 'https://api.aiguardian.ai/api/v1/health',
       method: 'GET',
       headers: {
         'Authorization': 'Bearer test-api-key',
@@ -161,7 +161,7 @@ class IntegrationTester {
   async testAuthenticationFlow() {
     // Simulate authentication request
     const authRequest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/auth/login',
+      endpoint: 'https://api.aiguardian.ai/api/v1/config',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -205,7 +205,7 @@ class IntegrationTester {
     
     // Simulate text analysis request
     const analysisRequest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/analyze/text',
+      endpoint: 'https://api.aiguardian.ai/api/v1/analyze',
       method: 'POST',
       headers: {
         'Authorization': 'Bearer test-access-token',
@@ -300,7 +300,7 @@ class IntegrationTester {
       try {
         // Simulate guard service request
         const guardRequest = {
-          endpoint: `https://your-ai-guardians-gateway.com/api/v1/guards/${guard}`,
+          endpoint: `https://api.aiguardian.ai/api/v1/guards`,
           method: 'GET',
           headers: {
             'Authorization': 'Bearer test-access-token',
@@ -436,7 +436,7 @@ class IntegrationTester {
   async testConfigurationManagement() {
     // Simulate configuration retrieval
     const configRequest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/config/user',
+      endpoint: 'https://api.aiguardian.ai/api/v1/config',
       method: 'GET',
       headers: {
         'Authorization': 'Bearer test-access-token',
@@ -482,7 +482,7 @@ class IntegrationTester {
   async testLoggingMonitoring() {
     // Simulate logging request
     const loggingRequest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/logging',
+      endpoint: 'https://api.aiguardian.ai/api/v1/logging',
       method: 'POST',
       headers: {
         'Authorization': 'Bearer test-access-token',

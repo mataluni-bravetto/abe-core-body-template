@@ -38,7 +38,7 @@ class AIGuardiansTester {
     
     // Configure test gateway URL (mock backend)
     this.testConfig = {
-      gatewayUrl: 'http://localhost:8000/api/v1', // Local test server
+      gatewayUrl: 'https://api.aiguardian.ai', // Production API server
       timeout: 5000,
       retryAttempts: 2,
       retryDelay: 1000
@@ -141,10 +141,10 @@ class AIGuardiansTester {
    */
   async testApiEndpoints() {
     const endpoints = [
-      { name: 'analyze/text', method: 'POST', required: ['text'] },
-      { name: 'health/live', method: 'GET', required: ['status'] },
-      { name: 'guards', method: 'GET', required: ['guards'] },
-      { name: 'config/user', method: 'GET', required: ['user_id'] }
+      { name: 'api/v1/analyze', method: 'POST', required: ['text'] },
+      { name: 'api/v1/health', method: 'GET', required: ['status'] },
+      { name: 'api/v1/guards', method: 'GET', required: ['guards'] },
+      { name: 'api/v1/config', method: 'GET', required: ['config'] }
     ];
     
     const results = {};

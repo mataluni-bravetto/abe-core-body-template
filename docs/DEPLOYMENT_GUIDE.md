@@ -35,13 +35,16 @@
 
 ## 🔧 **BACKEND REQUIREMENTS**
 
+### **Required API Server:**
+- **Primary API Endpoint:** `https://api.aiguardian.ai` ✅ **CONFIGURED**
+- **Main Website:** `https://aiguardian.ai` ✅ **CONFIGURED**
+
 ### **Required API Endpoints:**
-- [ ] `POST /api/v1/analyze/text` - Text analysis endpoint
-- [ ] `GET /api/v1/health/live` - Health check endpoint
-- [ ] `POST /api/v1/logging` - Central logging endpoint
-- [ ] `GET /api/v1/guards` - Guard services endpoint
-- [ ] `GET /api/v1/config/user` - User configuration endpoint
-- [ ] `PUT /api/v1/config/user` - Update user configuration
+- [x] `POST /api/v1/analyze` - Text analysis endpoint ✅ **CONFIGURED**
+- [x] `GET /api/v1/health` - Health check endpoint ✅ **CONFIGURED**
+- [x] `POST /api/v1/logging` - Central logging endpoint ✅ **CONFIGURED**
+- [x] `GET /api/v1/guards` - Guard services endpoint ✅ **CONFIGURED**
+- [x] `GET /api/v1/config` - User configuration endpoint ✅ **CONFIGURED**
 
 ### **Required Backend Features:**
 - [ ] JWT Bearer token authentication

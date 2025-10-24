@@ -41,7 +41,7 @@ class DataEncryption {
       
       return text;
     } catch (error) {
-      Logger.error('Decryption failed:', error);
+      console.error('Decryption failed:', error);
       return '';
     }
   }
