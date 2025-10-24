@@ -35,9 +35,10 @@
 
 ## 🔧 **BACKEND REQUIREMENTS**
 
-### **Required API Server:**
+### **Required Production Servers:**
 - **Primary API Endpoint:** `https://api.aiguardian.ai` ✅ **CONFIGURED**
 - **Main Website:** `https://aiguardian.ai` ✅ **CONFIGURED**
+- **Dashboard:** `https://dashboard.aiguardian.ai` ✅ **CONFIGURED**
 
 ### **Required API Endpoints:**
 - [x] `POST /api/v1/analyze` - Text analysis endpoint ✅ **CONFIGURED**

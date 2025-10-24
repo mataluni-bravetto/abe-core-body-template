@@ -30,10 +30,12 @@ Chrome Extension → Central Gateway → Guard Services
 ```javascript
 // In src/constants.js, the configuration is:
 const DEFAULT_CONFIG = {
-  GATEWAY_URL: 'https://api.aiguardian.ai',
-  API_KEY: 'your-api-key-here',
+  GATEWAY_URL: 'https://api.aiguardian.ai',  // Production API server
+  API_KEY: 'your-api-key-here',               // Production API key
   // ... other configuration
 };
+
+// Dashboard available at: https://dashboard.aiguardian.ai
 ```
 
 #### Required Gateway Endpoints

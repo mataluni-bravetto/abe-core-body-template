@@ -98,6 +98,91 @@ class AIGuardiansGateway {
 
   
   /**
+   * TRACER BULLET: Enhanced request validation
+   */
+  validateRequest(endpoint, payload) {
+    // Validate endpoint
+    const allowedEndpoints = ['analyze', 'health', 'logging', 'guards', 'config'];
+    if (!allowedEndpoints.includes(endpoint)) {
+      throw new Error(`Invalid endpoint: ${endpoint}`);
+    }
+    
+    // Validate payload based on endpoint
+    switch (endpoint) {
+      case 'analyze':
+        if (!payload || typeof payload !== 'object') {
+          throw new Error('Invalid payload: must be an object');
+        }
+        if (!payload.text || typeof payload.text !== 'string') {
+          throw new Error('Invalid payload: text field is required');
+        }
+        if (payload.text.length > 10000) {
+          throw new Error('Invalid payload: text too long');
+        }
+        break;
+        
+      case 'health':
+        // Health checks don't require payload validation
+        break;
+        
+      case 'logging':
+        if (!payload || typeof payload !== 'object') {
+          throw new Error('Invalid payload: must be an object');
+        }
+        if (!payload.level || !payload.message) {
+          throw new Error('Invalid payload: level and message are required');
+        }
+        break;
+        
+      case 'guards':
+        // Guard requests don't require payload validation
+        break;
+        
+      case 'config':
+        if (payload && typeof payload !== 'object') {
+          throw new Error('Invalid payload: must be an object');
+        }
+        break;
+    }
+    
+    return true;
+  }
+
+  
+  /**
+   * TRACER BULLET: Enhanced error handling and logging
+   */
+  handleError(error, context = {}) {
+    const errorInfo = {
+      message: error.message,
+      stack: error.stack,
+      context: context,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      extensionVersion: chrome.runtime.getManifest().version
+    };
+    
+    // Log error securely (without sensitive data)
+    console.error('[Gateway] Error occurred:', {
+      message: error.message,
+      context: context,
+      timestamp: errorInfo.timestamp
+    });
+    
+    // Update trace stats
+    this.traceStats.failures++;
+    this.traceStats.errorCounts[error.name] = (this.traceStats.errorCounts[error.name] || 0) + 1;
+    
+    // Send error to central logging if available
+    if (this.centralLogger) {
+      this.centralLogger.error('Gateway error', errorInfo);
+    }
+    
+    return errorInfo;
+  }
+
+  
+  /**
    * TRACER BULLET: Sanitize request data
    */
   sanitizeRequestData(data) {
@@ -886,6 +971,12 @@ class AIGuardiansGateway {
    * TRACER BULLET: Send request to central gateway with enhanced tracing
    */
   async sendToGateway(endpoint, payload) {
+    try {
+      this.validateRequest(endpoint, payload);
+    } catch (error) {
+      this.handleError(error, { endpoint, payload });
+      throw error;
+    }
     try {
       this.validateRequest(endpoint, payload);
     } catch (error) {

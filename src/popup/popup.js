@@ -83,6 +83,23 @@
       testBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: testBtn, event: 'click', handler: clickHandler });
     }
+
+    // Settings link in footer
+    const settingsLink = document.getElementById('settingsLink');
+    if (settingsLink) {
+      const clickHandler = async () => {
+        try {
+          await chrome.runtime.openOptionsPage();
+          Logger.info('Opened options page from footer');
+          window.close();
+        } catch (err) {
+          Logger.error('Failed to open options from footer', err);
+        }
+      };
+
+      settingsLink.addEventListener('click', clickHandler);
+      eventListeners.push({ element: settingsLink, event: 'click', handler: clickHandler });
+    }
   }
 
   /**

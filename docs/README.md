@@ -125,6 +125,7 @@ AI-Guardians-chrome-ext/
 
 ### ✅ Backend Integration
 - **Unified Guards API** at `api.aiguardian.ai`
+- **Dashboard** at `dashboard.aiguardian.ai`
 - **Bearer Token Authentication** for secure API access
 - **Central Logging** integration at `api/v1/logging`
 - **Configuration Management** with sync at `api/v1/config`

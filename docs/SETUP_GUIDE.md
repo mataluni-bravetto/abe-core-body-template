@@ -49,6 +49,7 @@ const DEFAULT_CONFIG = {
 **API Integration Steps:**
 1. **Configure Production API:**
    - The extension is already configured for `api.aiguardian.ai`
+   - Dashboard available at `dashboard.aiguardian.ai`
    - Update the `API_KEY` in `src/constants.js`
    - Test connectivity using the options page
 

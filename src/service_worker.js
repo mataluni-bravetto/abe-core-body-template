@@ -77,6 +77,7 @@ try {
       'chrome-extension://',
       'https://api.aiguardian.ai',
       'https://aiguardian.ai',
+      'https://dashboard.aiguardian.ai',
       'https://localhost',
       'https://127.0.0.1'
     ];
