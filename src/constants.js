@@ -81,7 +81,13 @@ const DEFAULT_CONFIG = {
     enable_central_logging: true,
     enable_local_logging: true
   },
-  ANALYSIS_PIPELINE: 'unified'
+  ANALYSIS_PIPELINE: 'unified',
+  GUARD_SERVICES: {
+    biasguard: { enabled: true, threshold: 0.5 },
+    trustguard: { enabled: true, threshold: 0.7 },
+    contextguard: { enabled: false, threshold: 0.6 },
+    securityguard: { enabled: false, threshold: 0.8 }
+  }
 };
 
 /**

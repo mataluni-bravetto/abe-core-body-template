@@ -1,0 +1,48 @@
+{
+  "name": "@aiguardian/sdk",
+  "version": "1.0.0",
+  "description": "AiGuardian Client SDK - AI-powered content analysis with centralized logging, tracing, and configuration management",
+  "main": "src/index.js",
+  "type": "module",
+  "author": "AiGuardian Team",
+  "homepage": "https://aiguardian.ai",
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "content-analysis",
+    "bias-detection",
+    "transparency",
+    "sdk",
+    "client",
+    "logging",
+    "tracing",
+    "configuration"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aiguardian/sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aiguardian/sdk/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node tests/runner.js",
+    "build": "echo 'No build process required - pure ES modules'",
+    "lint": "echo 'No linter configured'",
+    "docs": "echo 'Documentation available in README.md'"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "browserslist": [
+    "last 2 versions",
+    "not ie <= 11"
+  ]
+}

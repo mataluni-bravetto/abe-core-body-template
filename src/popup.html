@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AiGuardian</title>
+  <title>AiGuardians</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <!-- Header -->
   <div class="header">
     <div class="logo">
-      <img src="../../AiGuardian Assets/AiG_Logos/AIG_Logo_Primary.png" alt="AiGuardian Logo">
+      <img src="../AiGuardian Assets/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo">
     </div>
-    <h1>AiGuardian</h1>
+    <h1>AiGuardians</h1>
     <p>Finally, AI tools for engineers who don't believe the hype</p>
   </div>
 
@@ -21,7 +21,7 @@
     <!-- Status Section -->
     <div class="status-section">
       <div class="status-header">
-        <span class="status-title">Guard Status</span>
+        <span class="status-title">🛡️ Guard Status</span>
         <div class="status-indicator" id="statusIndicator"></div>
       </div>
       <div class="status-details" id="statusDetails">
@@ -31,7 +31,7 @@
 
     <!-- Analysis Section -->
     <div class="analysis-section">
-      <div class="analysis-title">Trust & Transparency</div>
+      <div class="analysis-title">🔍 Trust & Transparency</div>
       <div class="analysis-result" id="analysisResult">
         <div class="bias-score">
           <span class="score-label">Confidence Score</span>
@@ -44,7 +44,7 @@
 
     <!-- AiGuardian Service Status -->
     <div class="guard-services">
-      <div class="guard-services-title">AiGuardian Service</div>
+      <div class="guard-services-title">⚡ AiGuardian Service</div>
       <div class="guard-list" id="guardList">
         <div class="guard-item">
           <span class="guard-name">Unified AI Analysis</span>
@@ -55,15 +55,23 @@
 
     <!-- Action Buttons -->
     <div class="action-buttons">
-      <button class="btn btn-primary" id="analyzeBtn">Show Me the Proof</button>
-      <button class="btn btn-secondary" id="optionsBtn">Configure Service</button>
-      <button class="btn btn-secondary btn-small" id="testConnectionBtn">Audit Trail</button>
+      <button class="btn btn-primary" id="analyzeBtn">🔍 Show Me the Proof</button>
+      <button class="btn btn-secondary" id="optionsBtn">⚙️ Configure Service</button>
+      <button class="btn btn-secondary btn-small" id="testConnectionBtn">📊 Audit Trail</button>
+    </div>
+
+    <!-- Additional Features -->
+    <div class="action-buttons">
+      <button class="btn btn-secondary btn-small" id="clearHighlightsBtn">🧹 Clear Highlights</button>
+      <button class="btn btn-secondary btn-small" id="showHistoryBtn">📜 Show History</button>
+      <button class="btn btn-secondary btn-small" id="copyAnalysisBtn">📋 Copy Analysis</button>
+      <button class="btn btn-secondary btn-small" id="testContextMenuBtn">🖱️ Test Context Menu</button>
     </div>
   </div>
 
   <!-- Footer -->
   <div class="footer">
-    <div class="footer-text">AiGuardian v1.0.0</div>
+    <div class="footer-text">AiGuardians v1.0.0</div>
     <div class="footer-links">
       <a href="https://dashboard.aiguardian.ai" target="_blank" class="footer-link">📊 Dashboard</a>
       <a href="https://aiguardian.ai" target="_blank" class="footer-link">🌐 Website</a>
@@ -72,7 +80,7 @@
   </div>
 
   <!-- Scripts -->
-  <script src="../logging.js"></script>
+  <script src="logging.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -99,6 +99,91 @@
       settingsLink.addEventListener('click', clickHandler);
       eventListeners.push({ element: settingsLink, event: 'click', handler: clickHandler });
     }
+
+    // Clear highlights button
+    const clearHighlightsBtn = document.getElementById('clearHighlightsBtn');
+    if (clearHighlightsBtn) {
+      const clickHandler = async () => {
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          await chrome.tabs.sendMessage(tab.id, { type: 'CLEAR_HIGHLIGHTS' });
+          showSuccess('✅ Highlights cleared');
+        } catch (err) {
+          Logger.error('Failed to clear highlights', err);
+          showError('❌ Failed to clear highlights');
+        }
+      };
+
+      clearHighlightsBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: clearHighlightsBtn, event: 'click', handler: clickHandler });
+    }
+
+    // Show history button
+    const showHistoryBtn = document.getElementById('showHistoryBtn');
+    if (showHistoryBtn) {
+      const clickHandler = async () => {
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          await chrome.tabs.sendMessage(tab.id, { type: 'SHOW_HISTORY' });
+          window.close();
+        } catch (err) {
+          Logger.error('Failed to show history', err);
+          showError('❌ Failed to show history');
+        }
+      };
+
+      showHistoryBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: showHistoryBtn, event: 'click', handler: clickHandler });
+    }
+
+    // Copy analysis button
+    const copyAnalysisBtn = document.getElementById('copyAnalysisBtn');
+    if (copyAnalysisBtn) {
+      const clickHandler = async () => {
+        try {
+          const data = await chrome.storage.local.get(['last_analysis']);
+          if (data.last_analysis) {
+            const analysisText = JSON.stringify(data.last_analysis, null, 2);
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            await chrome.tabs.sendMessage(tab.id, {
+              type: 'COPY_TO_CLIPBOARD',
+              payload: analysisText
+            });
+            showSuccess('✅ Analysis copied to clipboard');
+          } else {
+            showError('⚠️ No analysis to copy. Analyze some text first!');
+          }
+        } catch (err) {
+          Logger.error('Failed to copy analysis', err);
+          showError('❌ Failed to copy analysis');
+        }
+      };
+
+      copyAnalysisBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: copyAnalysisBtn, event: 'click', handler: clickHandler });
+    }
+
+    // Test context menu button
+    const testContextMenuBtn = document.getElementById('testContextMenuBtn');
+    if (testContextMenuBtn) {
+      const clickHandler = async () => {
+        try {
+          // Send message to background to recreate context menus
+          const response = await sendMessageToBackground('RECREATE_CONTEXT_MENUS');
+          if (response.success) {
+            showSuccess('✅ Context menus recreated! Try right-clicking on selected text.');
+          } else {
+            showError('❌ Failed to recreate context menus');
+          }
+        } catch (err) {
+          Logger.error('Failed to recreate context menus', err);
+          showError('❌ Error recreating context menus');
+        }
+      };
+
+      testContextMenuBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: testContextMenuBtn, event: 'click', handler: clickHandler });
+    }
   }
 
   /**
@@ -176,6 +261,14 @@
    * Trigger analysis of selected text
    */
   async function triggerAnalysis() {
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const originalText = analyzeBtn ? analyzeBtn.textContent : '';
+    
+    if (analyzeBtn) {
+      analyzeBtn.textContent = '⏳ Analyzing...';
+      analyzeBtn.disabled = true;
+    }
+    
     try {
       // Get active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -187,13 +280,19 @@
       
       if (response && response.success) {
         updateAnalysisResult(response);
+        showSuccess('✅ Analysis complete!');
         Logger.info('Analysis completed successfully');
       } else {
-        showError('No text selected or analysis failed');
+        showError('⚠️ No text selected. Please select text on the page first.');
       }
     } catch (err) {
       Logger.error('Failed to trigger analysis', err);
-      showError('Failed to analyze text');
+      showError('❌ Failed to analyze text. Make sure text is selected on the page.');
+    } finally {
+      if (analyzeBtn) {
+        analyzeBtn.textContent = originalText;
+        analyzeBtn.disabled = false;
+      }
     }
   }
 
@@ -234,25 +333,27 @@
    */
   async function testConnection() {
     const testBtn = document.getElementById('testConnectionBtn');
+    const originalText = testBtn ? testBtn.textContent : '';
+    
     if (testBtn) {
-      testBtn.textContent = 'Testing...';
+      testBtn.textContent = '⏳ Testing...';
       testBtn.disabled = true;
     }
     
     try {
       const response = await sendMessageToBackground('TEST_GATEWAY_CONNECTION');
       if (response.success) {
-        showSuccess(`Connection successful (${response.responseTime}ms)`);
+        showSuccess(`✅ Connection successful (${response.responseTime}ms)`);
         loadSystemStatus(); // Refresh status
       } else {
-        showError('Connection failed - check your settings');
+        showError('❌ Connection failed - check your settings');
       }
     } catch (err) {
       Logger.error('Connection test failed', err);
-      showError('Connection test failed');
+      showError('❌ Connection test failed');
     } finally {
       if (testBtn) {
-        testBtn.textContent = 'Test Connection';
+        testBtn.textContent = originalText;
         testBtn.disabled = false;
       }
     }

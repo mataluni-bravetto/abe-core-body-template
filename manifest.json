@@ -1,19 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "AiGuardian",
+  "name": "AiGuardians",
   "version": "1.0.0",
   "description": "Finally, AI tools for engineers who don't believe the hype. Transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers.",
-  "author": "AiGuardian",
+  "author": "AiGuardians",
   "homepage_url": "https://aiguardian.ai",
   "permissions": [
     "storage",
-    "alarms"
+    "alarms",
+    "contextMenus",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "src/service_worker.js"
+    "service_worker": "src/service-worker.js"
   },
   "content_scripts": [
     {
@@ -26,8 +28,8 @@
     }
   ],
   "action": {
-    "default_title": "AiGuardian - Finally, AI tools for engineers who don't believe the hype",
-    "default_popup": "src/popup/popup.html",
+    "default_title": "AiGuardians - Finally, AI tools for engineers who don't believe the hype",
+    "default_popup": "src/popup.html",
     "default_icon": {
       "16": "assets/icons/icon-16.png",
       "19": "assets/icons/icon-19.png",
@@ -49,8 +51,31 @@
     "page": "src/options.html",
     "open_in_tab": false
   },
+  "commands": {
+    "analyze-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+A",
+        "mac": "Command+Shift+A"
+      },
+      "description": "Analyze selected text"
+    },
+    "clear-highlights": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
+      "description": "Clear all highlights"
+    },
+    "show-history": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+H",
+        "mac": "Command+Shift+H"
+      },
+      "description": "Show analysis history"
+    }
+  },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"
+    "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "web_accessible_resources": []
 }

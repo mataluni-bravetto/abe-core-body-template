@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AiGuardian SDK Browser Example</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    input, textarea, button {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .result {
+      background: white;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 15px;
+      border-left: 4px solid #28a745;
+    }
+
+    .error {
+      border-left-color: #dc3545;
+      background: #f8d7da;
+    }
+
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .stats {
+      background: white;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 15px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .metric:last-child {
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 AiGuardian SDK Browser Example</h1>
+
+  <div class="container">
+    <div class="form-group">
+      <label for="apiKey">API Key:</label>
+      <input type="password" id="apiKey" placeholder="Enter your AiGuardian API key">
+    </div>
+
+    <div class="form-group">
+      <label for="textInput">Text to Analyze:</label>
+      <textarea id="textInput" placeholder="Enter text to analyze for bias and objectivity...">This amazing new technology will completely revolutionize the entire industry and change everything forever!</textarea>
+    </div>
+
+    <button id="analyzeBtn" onclick="analyzeText()">Analyze Text</button>
+    <button id="batchBtn" onclick="analyzeBatch()">Analyze Batch</button>
+    <button id="healthBtn" onclick="checkHealth()">Check Health</button>
+    <button id="statsBtn" onclick="showStats()">Show Stats</button>
+  </div>
+
+  <div id="results"></div>
+
+  <!-- Load the SDK from CDN -->
+  <script src="https://cdn.aiguardian.ai/sdk/v1.0.0/aiguardian-sdk.js"></script>
+
+  <script>
+    let client = null;
+
+    // Initialize client when API key is entered
+    document.getElementById('apiKey').addEventListener('input', function() {
+      const apiKey = this.value.trim();
+      if (apiKey) {
+        client = new AiGuardianClient({
+          apiKey: apiKey,
+          logging: { level: 'info' },
+          tracing: { enabled: true }
+        });
+        console.log('AiGuardian client initialized');
+      } else {
+        client = null;
+      }
+    });
+
+    // Analyze single text
+    async function analyzeText() {
+      if (!client) {
+        showError('Please enter your API key first');
+        return;
+      }
+
+      const text = document.getElementById('textInput').value.trim();
+      if (!text) {
+        showError('Please enter text to analyze');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const result = await client.analyzeText(text);
+        showResult(result);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Analyze batch of texts
+    async function analyzeBatch() {
+      if (!client) {
+        showError('Please enter your API key first');
+        return;
+      }
+
+      const texts = [
+        "This incredible breakthrough will transform healthcare completely!",
+        "The data clearly demonstrates a significant improvement in performance.",
+        "I passionately believe this is the absolute best solution available.",
+        "Research shows promising results that warrant further investigation."
+      ];
+
+      setLoading(true);
+
+      try {
+        const results = await client.analyzeBatch(texts);
+        showBatchResults(results, texts);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Check API health
+    async function checkHealth() {
+      if (!client) {
+        showError('Please enter your API key first');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const health = await client.healthCheck();
+        showHealthResult(health);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Show SDK statistics
+    function showStats() {
+      if (!client) {
+        showError('Please initialize the client first');
+        return;
+      }
+
+      const traceStats = client.getTraceStats();
+      const cacheStats = client.cache.getStats();
+      const rateStats = client.rateLimiter.getStats();
+
+      const statsHtml = `
+        <div class="stats">
+          <h3>📊 SDK Statistics</h3>
+
+          <h4>Tracing</h4>
+          <div class="metric"><span>Total Operations:</span> <span>${traceStats.totalOperations}</span></div>
+          <div class="metric"><span>Average Duration:</span> <span>${traceStats.averageDuration}ms</span></div>
+          <div class="metric"><span>Success Rate:</span> <span>${((traceStats.completedTraces / Math.max(traceStats.totalOperations, 1)) * 100).toFixed(1)}%</span></div>
+
+          <h4>Caching</h4>
+          <div class="metric"><span>Cache Size:</span> <span>${cacheStats.size}/${cacheStats.maxSize}</span></div>
+          <div class="metric"><span>Hit Rate:</span> <span>${cacheStats.hitRate.toFixed(1)}%</span></div>
+          <div class="metric"><span>Total Hits:</span> <span>${cacheStats.hits}</span></div>
+
+          <h4>Rate Limiting</h4>
+          <div class="metric"><span>Tokens Remaining:</span> <span>${rateStats.currentTokens}/${rateStats.maxTokens}</span></div>
+          <div class="metric"><span>Utilization:</span> <span>${rateStats.utilization.toFixed(1)}%</span></div>
+        </div>
+      `;
+
+      document.getElementById('results').innerHTML = statsHtml;
+    }
+
+    // Display single analysis result
+    function showResult(result) {
+      const resultHtml = `
+        <div class="result">
+          <h3>📝 Analysis Result</h3>
+          <div class="metric"><span>Bias Score:</span> <span>${(result.score * 100).toFixed(1)}%</span></div>
+          <div class="metric"><span>Bias Type:</span> <span>${result.analysis.bias_type}</span></div>
+          <div class="metric"><span>Confidence:</span> <span>${(result.analysis.confidence * 100).toFixed(1)}%</span></div>
+          <div class="metric"><span>Word Count:</span> <span>${result.analysis.word_count}</span></div>
+          <div class="metric"><span>Emotional Indicators:</span> <span>${result.analysis.emotional_indicators}</span></div>
+          <div class="metric"><span>Subjective Indicators:</span> <span>${result.analysis.subjective_indicators}</span></div>
+          <div class="metric"><span>Timestamp:</span> <span>${new Date(result.timestamp).toLocaleString()}</span></div>
+        </div>
+      `;
+
+      document.getElementById('results').innerHTML = resultHtml;
+    }
+
+    // Display batch analysis results
+    function showBatchResults(results, texts) {
+      let resultsHtml = '<div class="result"><h3>📊 Batch Analysis Results</h3>';
+
+      results.forEach((result, index) => {
+        resultsHtml += `
+          <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+            <div><strong>Text ${index + 1}:</strong> "${texts[index]}"</div>
+            <div class="metric"><span>Score:</span> <span>${(result.score * 100).toFixed(1)}%</span></div>
+            <div class="metric"><span>Type:</span> <span>${result.analysis.bias_type}</span></div>
+            <div class="metric"><span>Confidence:</span> <span>${(result.analysis.confidence * 100).toFixed(1)}%</span></div>
+          </div>
+        `;
+      });
+
+      resultsHtml += '</div>';
+      document.getElementById('results').innerHTML = resultsHtml;
+    }
+
+    // Display health check result
+    function showHealthResult(health) {
+      const resultHtml = `
+        <div class="result">
+          <h3>🏥 Health Check Result</h3>
+          <div class="metric"><span>Status:</span> <span>${health.status}</span></div>
+          <div class="metric"><span>Response Time:</span> <span>${health.responseTime}ms</span></div>
+          <div class="metric"><span>Timestamp:</span> <span>${new Date(health.timestamp).toLocaleString()}</span></div>
+          ${health.version ? `<div class="metric"><span>Version:</span> <span>${health.version}</span></div>` : ''}
+        </div>
+      `;
+
+      document.getElementById('results').innerHTML = resultHtml;
+    }
+
+    // Display error
+    function showError(message) {
+      const errorHtml = `
+        <div class="result error">
+          <h3>❌ Error</h3>
+          <p>${message}</p>
+        </div>
+      `;
+
+      document.getElementById('results').innerHTML = errorHtml;
+    }
+
+    // Set loading state
+    function setLoading(loading) {
+      const buttons = ['analyzeBtn', 'batchBtn', 'healthBtn', 'statsBtn'];
+      buttons.forEach(id => {
+        document.getElementById(id).disabled = loading;
+      });
+
+      document.body.classList.toggle('loading', loading);
+    }
+
+    // Initialize with demo key for testing
+    document.getElementById('apiKey').value = 'demo-key-for-testing';
+    document.getElementById('apiKey').dispatchEvent(new Event('input'));
+  </script>
+</body>
+</html>

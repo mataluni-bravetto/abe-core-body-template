@@ -1,11 +1,47 @@
 {
+  "name": "aiguardian",
+  "version": "1.0.0",
+  "description": "Finally, AI tools for engineers who don't believe the hype. Transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers.",
+  "author": "AiGuardian Team",
+  "homepage": "https://aiguardian.ai",
+  "license": "MIT",
   "scripts": {
-    "test:unit": "node scripts/run-unit-tests.cjs"
+    "test:unit": "node scripts/run-unit-tests.cjs",
+    "test:integration": "node tests/integration-test.js",
+    "test:security": "node tests/security-vulnerability-audit.js",
+    "test:sdk": "cd sdk && npm test",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:security",
+    "test:e2e": "jest tests/e2e/extension.test.js",
+    "build": "echo 'No build process required - pure JavaScript extension'",
+    "build:sdk": "cd sdk && npm run build",
+    "package": "zip -r aiguardian-v1.0.0.zip . -x '*.git*' '*node_modules*' '*tests*' '*sdk*' '*.md' '!*.json' '!*.html' '!*.js' '!manifest.json' '!src/*' '!assets/*'",
+    "docs": "echo 'SDK docs: sdk/README.md | Extension docs: DEVELOPER_GUIDE.md'"
   },
-  "dependencies": {
-    "chrome-devtools-mcp": "^0.9.0"
-  },
+  "workspaces": [
+    "sdk"
+  ],
   "devDependencies": {
+    "jest": "^30.2.0",
     "puppeteer": "^24.26.1"
+  },
+  "keywords": [
+    "ai",
+    "content-analysis",
+    "bias-detection",
+    "transparency",
+    "chrome-extension",
+    "sdk",
+    "skeptical-engineering",
+    "confidence-scoring"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aiguardian/aiguardian.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aiguardian/aiguardian/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

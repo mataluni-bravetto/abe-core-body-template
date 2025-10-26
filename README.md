@@ -1,215 +1,127 @@
-# 🛡️ AiGuardian Chrome Extension
+# 🛡️ AiGuardian
 
 **Finally, AI tools for engineers who don't believe the hype.**
 
-A Chrome MV3 extension providing unified AI analysis with transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers.
+AI-powered content analysis with transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers.
 
-## 🚀 Quick Start (2 minutes)
+## 🚀 AiGuardian SDK
 
-### 1. Load the Extension
+This repository contains both the **Chrome Extension** and the **AiGuardian SDK** for client-side AI content analysis.
+
+### 📦 SDK Installation
+
 ```bash
-# Open Chrome and navigate to:
-chrome://extensions/
+# Install the SDK
+npm install @aiguardian/sdk
 
-# Enable "Developer mode" (toggle in top right)
-# Click "Load unpacked" and select this folder
+# Or use directly in browser
+<script src="https://cdn.aiguardian.ai/sdk/v1.0.0/aiguardian-sdk.js"></script>
 ```
 
-### 2. Test the Extension
-- **Text Selection**: Select 10+ characters on any webpage
-- **Analysis**: See confidence score badge appear automatically
-- **Popup**: Click extension icon for quick access
-- **Options**: Click "Configure Service" to configure settings
-- **Keyboard**: Use `Ctrl+Shift+A` for manual analysis
+### 💻 SDK Usage
 
-## 🎯 What It Does
-
-### Unified AiGuardian Service
-- **Single Endpoint** - Unified `/api/v1/analyze` endpoint
-- **Backend Orchestration** - All guard logic handled server-side
-- **Transparent Logging** - "We don't claim perfect security. We claim transparent failure logging."
-- **Confidence Scores** - Clear confidence indicators for trust building
-- **Uncertainty Flagging** - "I'm not sure - needs human review" responses
-
-### Skeptical Engineer Focused
-- **Proof-First Approach** - "Show Me the Proof" button
-- **Audit Trail** - Complete transparency in decision making
-- **No Hype** - Honest about limitations and uncertainties
-- **Trust Through Transparency** - Evidence-based interactions
-
-## 🔧 Configuration
-
-### Gateway Configuration
 ```javascript
-// Default configuration in src/constants.js
-const DEFAULT_CONFIG = {
-  GATEWAY_URL: 'https://api.aiguardian.ai',
-  API_KEY: 'your-api-key-here',
-  SERVICE_ENABLED: true,
-  ANALYSIS_PIPELINE: 'unified'
-};
+import AiGuardianClient from '@aiguardian/sdk';
+
+const client = new AiGuardianClient({
+  apiKey: 'your-api-key-here'
+});
+
+// Analyze text for bias
+const result = await client.analyzeText(
+  "This amazing technology will revolutionize everything!"
+);
+
+console.log(`Bias Score: ${(result.score * 100).toFixed(1)}%`);
+console.log(`Bias Type: ${result.analysis.bias_type}`);
+console.log(`Confidence: ${(result.analysis.confidence * 100).toFixed(1)}%`);
 ```
 
-### Backend API Endpoint
-```
-POST https://api.aiguardian.ai/api/v1/analyze
-Authorization: Bearer YOUR_API_KEY
-Content-Type: application/json
+**[📖 Complete SDK Documentation](sdk/README.md)** - API reference, examples, and guides
 
-{
-  "analysis_id": "ext_1234567890_abc123",
-  "text": "Text to analyze",
-  "options": {
-    "pipeline": "unified",
-    "timestamp": "2024-01-01T00:00:00.000Z"
-  }
-}
-```
+## 🖥️ Chrome Extension
 
-## 🧪 Testing
+The Chrome extension provides browser-based AI content analysis with visual feedback.
 
-### Run Tests
-```bash
-# Comprehensive test suite
-node tests/comprehensive-test-suite.js
+### Installation
 
-# Individual test categories
-node tests/unit/gateway.test.js
-node tests/unit/cache-manager.test.js
-node tests/integration-test.js
-node tests/security-vulnerability-audit.js
-```
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" (toggle in top right)
+3. Click "Load unpacked" and select this folder
+4. Select text on any webpage to analyze
 
-### Test Results
-- ✅ **Unit Tests**: 7/7 passed (100%)
-- ✅ **Integration Tests**: 3/3 passed (100%)
-- ✅ **Edge Cases**: 4/4 passed (100%)
-- ✅ **Security Tests**: 4/4 passed (100%)
-- ✅ **Performance Tests**: 3/3 passed (100%)
+### Features
 
-**Total**: 21/21 tests passed (100% success rate)
+- **Automatic Analysis**: Select text to see bias scores instantly
+- **Visual Feedback**: Color-coded highlighting based on bias levels
+- **Context Menu**: Right-click analysis options
+- **Keyboard Shortcuts**: `Ctrl+Shift+A` for quick analysis
+- **Analysis History**: Track and review past analyses
 
-## 📊 Architecture
-
-### System Overview
-```
-Chrome Extension (Frontend)
-    ├── Content Script (Text Selection)
-    ├── Service Worker (Message Handler)
-    ├── Popup UI (User Interface)
-    └── Options Page (Configuration)
-         ↓
-    API Gateway
-         ↓
-Backend Unified Endpoint (/api/v1/analyze)
-    ├── Guard Orchestration (Server-Side)
-    ├── BiasGuard
-    ├── TrustGuard
-    ├── ContextGuard
-    ├── SecurityGuard
-    ├── TokenGuard
-    └── HealthGuard
-```
-
-### Data Flow
-```
-User selects text
-    → Content Script captures selection
-    → Service Worker receives message
-    → Gateway sends to unified endpoint
-    → Backend orchestrates all guards
-    → Response returned to extension
-    → UI updated with results
-```
-
-## 🔒 Security Features
-
-- **XSS Protection** - Safe DOM manipulation
-- **Input Validation** - Comprehensive input sanitization
-- **Data Encryption** - Sensitive data protection
-- **Rate Limiting** - API abuse prevention
-- **Secure Logging** - No sensitive data exposure
-- **CSP Implementation** - Content Security Policy
-
-## 📈 Performance
-
-- **Response Time**: ~300ms average
-- **Success Rate**: 100% in testing
-- **Memory Usage**: Optimized for Chrome MV3
-- **Scalability**: Supports concurrent requests
-- **Caching**: Intelligent request caching
-
-## 🚀 Deployment
-
-### Chrome Web Store Preparation
-1. **Create Production Build** - Package extension files
-2. **Store Listing** - Prepare screenshots and descriptions
-3. **Privacy Policy** - Set up privacy policy
-4. **Developer Account** - Set up Chrome Web Store account
-
-### Production Requirements
-- **Backend API** - Deploy with unified endpoint
-- **Authentication** - Configure API keys
-- **Monitoring** - Set up logging and metrics
-- **Security** - Implement security monitoring
-
-## 🛠️ Development
-
-### Local Development
-```bash
-# 1. Make changes to your code
-# 2. Go to chrome://extensions/
-# 3. Click refresh icon on your extension
-# 4. Test on webpage
-# 5. Check console for errors (F12 -> Console)
-```
-
-### Debugging
-- **Background Script**: `chrome://extensions/` -> Your extension -> "Inspect views: background page"
-- **Content Script**: Browser DevTools (F12) on any webpage
-- **Popup**: Right-click extension icon -> "Inspect popup"
-- **Options**: Right-click options page -> "Inspect"
+**[📚 Extension Documentation](DEVELOPER_GUIDE.md)** - Development and user guides
 
 ## 📁 Project Structure
 
 ```
-AI-Guardians-chrome-ext/
-├── manifest.json              # Chrome MV3 manifest
-├── src/                       # Extension source code
-│   ├── service_worker.js      # Service worker with message handling
-│   ├── content.js            # Content script with text analysis
-│   ├── gateway.js            # Backend API integration (unified endpoint)
-│   ├── popup/                # Extension popup interface
-│   │   ├── popup.html        # Popup UI
-│   │   ├── popup.js          # Popup functionality
-│   │   └── popup.css         # Brand-compliant styling
-│   ├── options.html          # Settings page
-│   ├── options.js            # Configuration management
-│   ├── constants.js          # Configuration constants
-│   ├── logging.js            # Central logging system
-│   ├── input-validator.js    # Input validation utilities
-│   ├── data-encryption.js    # Data encryption utilities
-│   └── rate-limiter.js       # Rate limiting implementation
+ai-guardian/
+├── sdk/                      # Client-side SDK
+│   ├── src/                  # SDK source code
+│   ├── examples/             # Usage examples
+│   ├── tests/                # SDK tests
+│   └── README.md             # SDK documentation
+├── src/                      # Chrome extension source
+├── docs/                     # Additional documentation
+├── tests/                    # Extension tests
 ├── assets/                   # Extension assets
-│   ├── icons/                # Extension icons (brand-compliant)
-│   └── logos/                # Brand logos
-├── AiGuardian Assets/        # Brand assets library
-│   ├── AiG_Logos/           # Official logos
-│   ├── AIG_Icons_Light/     # Light theme icons
-│   ├── AIG_Icons_Dark/      # Dark theme icons
-│   └── Clash Grotesk Font/  # Brand typography
-├── tests/                    # Testing framework
-│   ├── unit/                 # Unit tests
-│   └── integration/          # Integration tests
-└── reports/                  # Test and audit reports
+└── manifest.json             # Chrome extension manifest
 ```
+
+## 🎯 Key Features
+
+### SDK Features
+- **Unified API**: Single interface for all analysis types
+- **Centralized Logging**: Structured logging with trace correlation
+- **Performance Tracing**: Request timing and metrics collection
+- **Intelligent Caching**: TTL-based caching with LRU eviction
+- **Rate Limiting**: Token bucket algorithm with burst allowance
+- **Input Validation**: XSS protection and comprehensive sanitization
+
+### Extension Features
+- **Text Selection Analysis**: Automatic analysis on text selection
+- **Visual Feedback**: Color-coded bias indicators
+- **Context Integration**: Web search and fact-checking tools
+- **Keyboard Shortcuts**: Quick access to features
+- **Configuration UI**: Easy settings management
+
+## 🔧 Development
+
+### SDK Development
+```bash
+cd sdk
+npm install
+npm test
+```
+
+### Extension Development
+```bash
+# Load unpacked extension in Chrome
+# Make changes, then refresh extension
+# Test on web pages
+```
+
+## 📚 Documentation
+
+- **[SDK Documentation](sdk/README.md)** - Complete SDK API reference
+- **[Developer Guide](DEVELOPER_GUIDE.md)** - Extension development guide
+- **[Architecture](ARCHITECTURE.md)** - System architecture
+- **[User Guide](USER_GUIDE.md)** - End-user documentation
 
 ## 🤝 Support
 
-- **Dashboard**: https://dashboard.aiguardian.ai
 - **Website**: https://aiguardian.ai
-- **Documentation**: See this README
-- **Issues**: Check tracer bullets in code for guidance
+- **Dashboard**: https://dashboard.aiguardian.ai
+- **Documentation**: See links above
+- **Issues**: GitHub Issues
 
 ## 📝 License
 
@@ -217,4 +129,4 @@ Copyright © 2024 AiGuardian. All rights reserved.
 
 ---
 
-**Ready to deploy?** The extension is production-ready with 100% test coverage and brand compliance!
+**Built with ❤️ by the AiGuardian team**

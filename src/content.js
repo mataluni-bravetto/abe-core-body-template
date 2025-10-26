@@ -65,12 +65,12 @@
 
     // Validate selection length
     if (selectionText.length < CONFIG.minSelectionLength) {
-      Logger.info("[CS] Selection too short:", selectionText.length);
+      console.log("[CS] Selection too short:", selectionText.length);
       return;
     }
     
     if (selectionText.length > CONFIG.maxSelectionLength) {
-      Logger.info("[CS] Selection too long:", selectionText.length);
+      console.log("[CS] Selection too long:", selectionText.length);
       showBadge(ERROR_MESSAGES.SELECTION_TOO_LONG, "warning");
       return;
     }
@@ -83,13 +83,13 @@
       { type: "ANALYZE_TEXT", payload: selectionText },
       (response) => {
         if (chrome.runtime.lastError) {
-          Logger.error("[CS] Runtime error:", chrome.runtime.lastError);
+          console.error("[CS] Runtime error:", chrome.runtime.lastError);
           showBadge(ERROR_MESSAGES.ANALYSIS_FAILED, "error");
           return;
         }
 
         if (!response || !response.success) {
-          Logger.error("[CS] Analysis failed:", response?.error);
+          console.error("[CS] Analysis failed:", response?.error);
           showBadge(ERROR_MESSAGES.ANALYSIS_FAILED, "error");
           return;
         }
@@ -199,7 +199,7 @@
       
       activeHighlights.push(highlightSpan);
     } catch (e) {
-      Logger.error("[CS] Failed to highlight text:", e);
+      console.error("[CS] Failed to highlight text:", e);
     }
   }
 
@@ -258,7 +258,7 @@
    * TRACER BULLET: Detailed analysis modal (placeholder)
    */
   function showDetailedAnalysis(response) {
-    Logger.info("[CS] Detailed analysis:", response);
+    console.log("[CS] Detailed analysis:", response);
     alert(`Detailed Analysis:\nScore: ${Math.round(response.score * 100)}%\nType: ${response.analysis?.bias_type || 'Unknown'}`);
   }
 
@@ -373,53 +373,226 @@
     { element: document, event: 'keydown', handler: keydownHandler }
   );
 
-  // Listen for messages from popup
+  // Listen for messages from popup and background
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === 'ANALYZE_SELECTION') {
-      const selection = window.getSelection()?.toString()?.trim() || "";
+    switch (request.type) {
+      case 'ANALYZE_SELECTION':
+        const selection = window.getSelection()?.toString()?.trim() || "";
 
-      if (selection.length < CONFIG.minSelectionLength) {
-        sendResponse({
-          success: false,
-          error: ERROR_MESSAGES.SELECTION_TOO_SHORT
-        });
-        return true;
-      }
-
-      if (selection.length > CONFIG.maxSelectionLength) {
-        sendResponse({
-          success: false,
-          error: ERROR_MESSAGES.SELECTION_TOO_LONG
-        });
-        return true;
-      }
-
-      // Send to background for analysis
-      chrome.runtime.sendMessage(
-        { type: "ANALYZE_TEXT", payload: selection },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            sendResponse({
-              success: false,
-              error: chrome.runtime.lastError.message
-            });
-            return;
-          }
-
-          // Forward response back to popup
-          sendResponse(response);
+        if (selection.length < CONFIG.minSelectionLength) {
+          sendResponse({
+            success: false,
+            error: ERROR_MESSAGES.SELECTION_TOO_SHORT
+          });
+          return true;
         }
-      );
 
-      return true; // Keep channel open for async response
+        if (selection.length > CONFIG.maxSelectionLength) {
+          sendResponse({
+            success: false,
+            error: ERROR_MESSAGES.SELECTION_TOO_LONG
+          });
+          return true;
+        }
+
+        // Send to background for analysis
+        chrome.runtime.sendMessage(
+          { type: "ANALYZE_TEXT", payload: selection },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              sendResponse({
+                success: false,
+                error: chrome.runtime.lastError.message
+              });
+              return;
+            }
+
+            // Forward response back to popup
+            sendResponse(response);
+          }
+        );
+
+        return true; // Keep channel open for async response
+
+      case 'ANALYZE_SELECTION_COMMAND':
+        // Triggered by keyboard shortcut
+        analyzeSelection();
+        sendResponse({ success: true });
+        return true;
+
+      case 'CLEAR_HIGHLIGHTS':
+        clearHighlights();
+        showBadge("Highlights cleared", "info");
+        sendResponse({ success: true });
+        return true;
+
+      case 'SHOW_ANALYSIS_RESULT':
+        // Display analysis result from context menu
+        if (request.payload) {
+          const selection = window.getSelection();
+          const range = selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+          displayAnalysisResults(request.payload, range);
+        }
+        sendResponse({ success: true });
+        return true;
+
+      case 'COPY_TO_CLIPBOARD':
+        // Copy text to clipboard
+        if (request.payload) {
+          copyToClipboard(request.payload);
+          showBadge("Copied to clipboard", "info");
+        }
+        sendResponse({ success: true });
+        return true;
+
+      case 'SHOW_HISTORY':
+        // Show analysis history
+        showAnalysisHistory();
+        sendResponse({ success: true });
+        return true;
     }
   });
+
+  /**
+   * TRACER BULLET: Copy text to clipboard
+   */
+  function copyToClipboard(text) {
+    try {
+      // Create temporary textarea
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      
+      // Select and copy
+      textarea.select();
+      document.execCommand('copy');
+      
+      // Cleanup
+      document.body.removeChild(textarea);
+      
+      console.log("[CS] Text copied to clipboard");
+    } catch (err) {
+      console.error("[CS] Failed to copy to clipboard:", err);
+    }
+  }
+
+  /**
+   * TRACER BULLET: Show analysis history modal
+   */
+  function showAnalysisHistory() {
+    chrome.storage.sync.get(['analysis_history'], (data) => {
+      const history = data.analysis_history || [];
+      
+      if (history.length === 0) {
+        showBadge("No analysis history", "info");
+        return;
+      }
+      
+      // Create history modal
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        color: #333;
+        padding: 24px;
+        border-radius: 12px;
+        z-index: 2147483647;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        font: 14px system-ui, sans-serif;
+      `;
+      
+      // Create header
+      const header = document.createElement('div');
+      header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+      
+      const title = document.createElement('h2');
+      title.textContent = 'Analysis History';
+      title.style.cssText = 'margin: 0; color: #1C64D9;';
+      
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '×';
+      closeBtn.style.cssText = `
+        background: none;
+        border: none;
+        font-size: 32px;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        line-height: 1;
+      `;
+      closeBtn.onclick = () => modal.remove();
+      
+      header.appendChild(title);
+      header.appendChild(closeBtn);
+      modal.appendChild(header);
+      
+      // Create history list
+      history.slice(0, 10).forEach((entry, index) => {
+        const entryDiv = document.createElement('div');
+        entryDiv.style.cssText = `
+          padding: 12px;
+          margin: 8px 0;
+          background: #f5f5f5;
+          border-radius: 8px;
+          border-left: 4px solid ${getScoreColor(entry.analysis.score * 100)};
+        `;
+        
+        const textDiv = document.createElement('div');
+        textDiv.textContent = entry.text;
+        textDiv.style.cssText = 'font-weight: 500; margin-bottom: 8px;';
+        
+        const scoreDiv = document.createElement('div');
+        scoreDiv.textContent = `Score: ${Math.round(entry.analysis.score * 100)}% | Type: ${entry.analysis.analysis?.bias_type || 'Unknown'}`;
+        scoreDiv.style.cssText = 'font-size: 12px; color: #666;';
+        
+        const timeDiv = document.createElement('div');
+        timeDiv.textContent = new Date(entry.timestamp).toLocaleString();
+        timeDiv.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
+        
+        entryDiv.appendChild(textDiv);
+        entryDiv.appendChild(scoreDiv);
+        entryDiv.appendChild(timeDiv);
+        modal.appendChild(entryDiv);
+      });
+      
+      // Add overlay
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 2147483646;
+      `;
+      overlay.onclick = () => {
+        modal.remove();
+        overlay.remove();
+      };
+      
+      document.body.appendChild(overlay);
+      document.body.appendChild(modal);
+      
+      console.log("[CS] History modal displayed");
+    });
+  }
 
   // Cleanup on page unload
   window.addEventListener('beforeunload', cleanup);
   eventListeners.push({ element: window, event: 'beforeunload', handler: cleanup });
 
-  Logger.info("[CS] AiGuardian content script loaded");
+  console.log("[CS] AiGuardian content script loaded");
 
 })();
 
