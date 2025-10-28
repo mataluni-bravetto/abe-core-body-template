@@ -1,0 +1,130 @@
+{
+  "summary": {
+    "totalChecks": 12,
+    "passedChecks": 4,
+    "failedChecks": 8,
+    "bestPracticesScore": 33.33,
+    "status": "NEEDS_IMPROVEMENT"
+  },
+  "results": [
+    {
+      "name": "Manifest V3 Compliance",
+      "status": "NON_COMPLIANT",
+      "error": "ENOENT: no such file or directory, open 'C:\\Users\\jimmy\\.cursor\\AI-Guardians-chrome-ext\\tests\\manifest.json'",
+      "timestamp": "2025-10-24T09:20:08.284Z"
+    },
+    {
+      "name": "Chrome Extension APIs Usage",
+      "status": "NON_COMPLIANT",
+      "error": "Missing required Chrome APIs: runtime, storage",
+      "timestamp": "2025-10-24T09:20:08.285Z"
+    },
+    {
+      "name": "DevTools Protocol Compliance",
+      "status": "NON_COMPLIANT",
+      "error": "ENOENT: no such file or directory, open 'C:\\Users\\jimmy\\.cursor\\AI-Guardians-chrome-ext\\tests\\src\\service_worker.js'",
+      "timestamp": "2025-10-24T09:20:08.286Z"
+    },
+    {
+      "name": "Security Best Practices",
+      "status": "COMPLIANT",
+      "result": {
+        "securityIssues": [],
+        "securityPractices": {
+          "inputValidation": 0,
+          "outputSanitization": 0,
+          "secureAPIs": 0,
+          "errorHandling": 0
+        },
+        "compliance": true
+      },
+      "timestamp": "2025-10-24T09:20:08.287Z"
+    },
+    {
+      "name": "Performance Optimization",
+      "status": "COMPLIANT",
+      "result": {
+        "performanceMetrics": {
+          "lazyLoading": 0,
+          "eventDelegation": 0,
+          "debouncing": 0,
+          "caching": 0,
+          "asyncOperations": 0
+        },
+        "antiPatterns": [],
+        "compliance": true
+      },
+      "timestamp": "2025-10-24T09:20:08.287Z"
+    },
+    {
+      "name": "Content Security Policy",
+      "status": "NON_COMPLIANT",
+      "error": "ENOENT: no such file or directory, open 'C:\\Users\\jimmy\\.cursor\\AI-Guardians-chrome-ext\\tests\\manifest.json'",
+      "timestamp": "2025-10-24T09:20:08.288Z"
+    },
+    {
+      "name": "Service Worker Best Practices",
+      "status": "NON_COMPLIANT",
+      "error": "ENOENT: no such file or directory, open 'C:\\Users\\jimmy\\.cursor\\AI-Guardians-chrome-ext\\tests\\src\\service_worker.js'",
+      "timestamp": "2025-10-24T09:20:08.289Z"
+    },
+    {
+      "name": "Message Passing Security",
+      "status": "NON_COMPLIANT",
+      "error": "ENOENT: no such file or directory, open 'C:\\Users\\jimmy\\.cursor\\AI-Guardians-chrome-ext\\tests\\src\\service_worker.js'",
+      "timestamp": "2025-10-24T09:20:08.289Z"
+    },
+    {
+      "name": "Storage Best Practices",
+      "status": "COMPLIANT",
+      "result": {
+        "storagePractices": {
+          "properAPIs": 0,
+          "errorHandling": 0,
+          "dataValidation": 0,
+          "cleanup": 0
+        },
+        "compliance": true
+      },
+      "timestamp": "2025-10-24T09:20:08.290Z"
+    },
+    {
+      "name": "Error Handling & Logging",
+      "status": "NON_COMPLIANT",
+      "error": "Insufficient error handling - need more try-catch blocks",
+      "timestamp": "2025-10-24T09:20:08.290Z"
+    },
+    {
+      "name": "Accessibility Compliance",
+      "status": "COMPLIANT",
+      "result": {
+        "accessibilityFeatures": {
+          "semanticHTML": 0,
+          "ariaLabels": 0,
+          "keyboardNavigation": 0,
+          "colorContrast": 0
+        },
+        "compliance": true
+      },
+      "timestamp": "2025-10-24T09:20:08.291Z"
+    },
+    {
+      "name": "Internationalization",
+      "status": "NON_COMPLIANT",
+      "error": "ENOENT: no such file or directory, open 'C:\\Users\\jimmy\\.cursor\\AI-Guardians-chrome-ext\\tests\\manifest.json'",
+      "timestamp": "2025-10-24T09:20:08.291Z"
+    }
+  ],
+  "recommendations": [
+    "Extension needs significant improvements for Chrome best practices",
+    "Address failed best practices checks",
+    "Follow Chrome Extension Developer Guide",
+    "Implement proper Content Security Policy",
+    "Use Chrome DevTools Protocol for debugging",
+    "Follow Manifest V3 best practices",
+    "Implement proper error handling and logging",
+    "Ensure accessibility compliance",
+    "Add internationalization support"
+  ],
+  "timestamp": "2025-10-24T09:20:08.291Z"
+}

@@ -1,57 +1,82 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Chrome Extension specific
+*.crx
+*.pem
+*.zip
+chrome-mcp-extension/
+chrome-mcp-server.zip
 
-# C extensions
-*.so
+# Test files and reports
+*-test.html
+*-test.js
+test-*.html
+test-*.js
+debug-*.html
+debug-*.js
+minimal-*.html
+minimal-*.js
+minimal-*.json
+comprehensive-*.html
+extension-*.html
+popup-preview.html
+simple-test.html
+test-page*.html
+test-all-*.html
+test-extension*.html
+user-simulation-*.js
+verify-extension.js
+automated-test.js
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
+# JSON reports
+*-report.json
+backend-compatibility-report.json
+chrome-best-practices-report.json
+final-security-fixes-report.json
+integration-test-report.json
+security-*-report.json
+test-report.json
+
+# Documentation duplicates
+COMPREHENSIVE_REVIEW_SUMMARY.md
+FINALIZATION_REPORT.md
+POPUP_IMPROVEMENTS_SUMMARY.md
+UNIFIED_INTEGRATION_ARCHITECTURE.md
+BUTTON_FUNCTIONALITY_TEST.md
+QUICK-TEST-NOW.md
+
+# MCP related files
+MCP_SETUP_README.md
+mcp-config*.json
+
+# Python files
+*.py
+test-server.py
+
+# Install scripts
+install.sh
+cursor-install.ps1
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+package-lock.json
+
+# Build outputs
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+build/
+.next/
+.nuxt/
+.vuepress/dist
 
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-
-# Virtual environments
+# Environment variables
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # IDEs
 .vscode/
@@ -68,28 +93,6 @@ venv.bak/
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm
-.yarn-integrity
-
-# Build outputs
-dist/
-build/
-.next/
-.nuxt/
-.vuepress/dist
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # Logs
 logs

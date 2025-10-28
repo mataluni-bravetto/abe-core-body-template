@@ -1,5 +1,5 @@
 /**
- * Constants for AI Guardians Chrome Extension
+ * Constants for AiGuardian Chrome Extension
  * 
  * This module centralizes all configuration constants to improve maintainability
  * and reduce hardcoded values throughout the codebase.
@@ -75,20 +75,19 @@ const SUCCESS_MESSAGES = {
 const DEFAULT_CONFIG = {
   GATEWAY_URL: 'https://api.aiguardian.ai',
   API_KEY: 'test-api-key-12345',
-  GUARD_SERVICES: {
-    biasguard: { enabled: true, threshold: 0.5 },
-    trustguard: { enabled: true, threshold: 0.7 },
-    contextguard: { enabled: false, threshold: 0.6 },
-    securityguard: { enabled: false, threshold: 0.8 },
-    tokenguard: { enabled: false, threshold: 0.5 },
-    healthguard: { enabled: false, threshold: 0.5 }
-  },
+  SERVICE_ENABLED: true,
   LOGGING_CONFIG: {
     level: 'info',
     enable_central_logging: true,
     enable_local_logging: true
   },
-  ANALYSIS_PIPELINE: 'default'
+  ANALYSIS_PIPELINE: 'unified',
+  GUARD_SERVICES: {
+    biasguard: { enabled: true, threshold: 0.5 },
+    trustguard: { enabled: true, threshold: 0.7 },
+    contextguard: { enabled: false, threshold: 0.6 },
+    securityguard: { enabled: false, threshold: 0.8 }
+  }
 };
 
 /**

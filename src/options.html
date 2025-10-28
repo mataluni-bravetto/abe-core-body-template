@@ -5,36 +5,115 @@
     <title>AiGuardians Configuration</title>
     <link rel="stylesheet" href="../AiGuardian Assets/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css">
     <style>
-      body{font:14px 'ClashGrotesk', system-ui, sans-serif; margin:16px; max-width:800px}
-      .section{margin:24px 0; padding:16px; border:1px solid #ddd; border-radius:8px}
-      .section h3{margin:0 0 12px; color:#333}
-      label{display:block; margin:12px 0 6px; font-weight:500}
-      input, select, textarea{padding:8px 12px; width:100%; max-width:400px; border:1px solid #ccc; border-radius:4px}
+      body{
+        font:14px 'ClashGrotesk-Variable', 'ClashGrotesk', system-ui, sans-serif; 
+        margin:0; 
+        padding:20px; 
+        max-width:800px; 
+        background: linear-gradient(135deg, #081C3D 0%, #134390 50%, #1C64D9 100%);
+        color: #F9F9F9;
+        min-height: 100vh;
+      }
+      .section{
+        margin:24px 0; 
+        padding:20px; 
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius:12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      .section h3{margin:0 0 16px; color:#F9F9F9; font-weight:600}
+      label{display:block; margin:12px 0 6px; font-weight:500; color:rgba(249, 249, 249, 0.9)}
+      input, select, textarea{
+        padding:12px 16px; 
+        width:100%; 
+        max-width:400px; 
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius:8px;
+        color: #F9F9F9;
+        backdrop-filter: blur(10px);
+      }
+      input::placeholder, textarea::placeholder{color: rgba(249, 249, 249, 0.6)}
       input[type="checkbox"]{width:auto; margin-right:8px}
-      .checkbox-label{display:flex; align-items:center; margin:8px 0}
-      button{padding:8px 16px; background:#007cba; color:white; border:none; border-radius:4px; cursor:pointer; margin:8px 8px 8px 0}
-      button:hover{background:#005a87}
-      button.secondary{background:#6c757d}
-      button.secondary:hover{background:#545b62}
-      .status{display:inline-block; padding:4px 8px; border-radius:4px; font-size:12px; margin-left:8px}
-      .status.connected{background:#d4edda; color:#155724}
-      .status.disconnected{background:#f8d7da; color:#721c24}
-      .guard-service{margin:8px 0; padding:12px; background:#f8f9fa; border-radius:4px}
-      .guard-service h4{margin:0 0 8px}
+      .checkbox-label{display:flex; align-items:center; margin:8px 0; color:rgba(249, 249, 249, 0.9)}
+      button{
+        padding:12px 20px; 
+        background:#33B8FF; 
+        color:#081C3D; 
+        border:none; 
+        border-radius:8px; 
+        cursor:pointer; 
+        margin:8px 8px 8px 0;
+        font-weight:600;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(51, 184, 255, 0.3);
+      }
+      button:hover{
+        background:#1C64D9; 
+        color:#F9F9F9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(51, 184, 255, 0.4);
+      }
+      button.secondary{
+        background: rgba(255, 255, 255, 0.1);
+        color: #F9F9F9;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      button.secondary:hover{
+        background: rgba(255, 255, 255, 0.2);
+        border-color: #33B8FF;
+      }
+      .status{
+        display:inline-block; 
+        padding:6px 12px; 
+        border-radius:6px; 
+        font-size:12px; 
+        margin-left:8px;
+        font-weight:500;
+      }
+      .status.connected{
+        background: rgba(51, 184, 255, 0.2);
+        color: #33B8FF;
+        border: 1px solid rgba(51, 184, 255, 0.4);
+      }
+      .status.disconnected{
+        background: rgba(255, 87, 87, 0.2);
+        color: #FF5757;
+        border: 1px solid rgba(255, 87, 87, 0.4);
+      }
+      .guard-service{
+        margin:12px 0; 
+        padding:16px; 
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius:8px;
+      }
+      .guard-service h4{margin:0 0 12px; color:#F9F9F9}
       .guard-controls{display:flex; align-items:center; gap:12px}
-      .test-results{margin:16px 0; padding:12px; background:#e9ecef; border-radius:4px; font-family:monospace; font-size:12px}
+      .test-results{
+        margin:16px 0; 
+        padding:16px; 
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius:8px; 
+        font-family:monospace; 
+        font-size:12px;
+        color: #F9F9F9;
+      }
       .hidden{display:none}
     </style>
   </head>
   <body>
     <div style="display: flex; align-items: center; margin-bottom: 24px;">
-      <img src="../AiGuardian Assets/AiG_Logos/AIG_Logo_Primary.png" alt="AiGuardians Logo" style="width: 48px; height: 48px; margin-right: 16px;">
+      <img src="../AiGuardian Assets/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo" style="width: 48px; height: 48px; margin-right: 16px;">
       <div>
-        <h1 style="margin: 0; color: #1E40AF;">AiGuardians Configuration</h1>
-        <p style="margin: 4px 0 0 0; color: #6B7280; font-size: 14px;">Finally, AI tools for engineers who don't believe the hype</p>
-        <p style="margin: 4px 0 0 0; color: #6B7280; font-size: 12px;">
-          <a href="https://dashboard.aiguardian.ai" target="_blank" style="color: #1E40AF; text-decoration: none;">📊 Open Dashboard</a> |
-          <a href="https://aiguardian.ai" target="_blank" style="color: #1E40AF; text-decoration: none;">🌐 Main Website</a>
+        <h1 style="margin: 0; color: #33B8FF;">AiGuardians Configuration</h1>
+        <p style="margin: 4px 0 0 0; color: rgba(249, 249, 249, 0.8); font-size: 14px;">Finally, AI tools for engineers who don't believe the hype</p>
+        <p style="margin: 4px 0 0 0; color: rgba(249, 249, 249, 0.6); font-size: 12px;">
+          <a href="https://dashboard.aiguardian.ai" target="_blank" style="color: #33B8FF; text-decoration: none;">📊 Open Dashboard</a> |
+          <a href="https://aiguardian.ai" target="_blank" style="color: #33B8FF; text-decoration: none;">🌐 Main Website</a>
         </p>
       </div>
     </div>
@@ -52,11 +131,15 @@
       <span id="connection_status" class="status disconnected">Disconnected</span>
     </div>
 
-    <!-- Guard Services Configuration -->
+    <!-- AiGuardian Service Configuration -->
     <div class="section">
-      <h3>Guard Services</h3>
-      <div id="guard_services">
-        <!-- Guard services will be populated by JavaScript -->
+      <h3>AiGuardian Service</h3>
+      <p style="color: #6B7280; font-size: 13px; margin-bottom: 12px;">
+        Unified AI analysis service with transparent failure logging and confidence scoring.
+      </p>
+      <div class="checkbox-label">
+        <input id="enable_service" type="checkbox" checked disabled />
+        <label for="enable_service">Service Enabled (Always On)</label>
       </div>
     </div>
 
