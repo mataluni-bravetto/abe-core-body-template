@@ -1,5 +1,5 @@
 /**
- * AI Guardians Chrome Extension - Enhanced Error Handling Test
+ * AiGuardian Chrome Extension - Enhanced Error Handling Test
  * 
  * This script tests comprehensive error handling scenarios that might not be
  * covered by the existing test suite, including runtime errors, edge cases,

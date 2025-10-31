@@ -37,7 +37,7 @@
 ### Critical Visual Gaps
 
 1. **❌ NO BRAND LOGO INTEGRATION**
-   - Extension manifest shows generic "AI Guardians Chrome Ext"
+   - Extension manifest shows generic "AiGuardian Chrome Ext"
    - No use of AIG_Logo_Primary.png or variants
    - Missing brand recognition
 

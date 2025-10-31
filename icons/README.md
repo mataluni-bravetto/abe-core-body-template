@@ -1,6 +1,6 @@
 # Extension Icons
 
-This directory contains the extension icons for the AI Guardians Chrome Extension.
+This directory contains the extension icons for the AiGuardian Chrome Extension.
 
 ## Required Icon Sizes
 - **16x16px** - Browser toolbar and context menus

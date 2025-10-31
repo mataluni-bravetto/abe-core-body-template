@@ -1,14 +1,14 @@
 /**
- * Background Service Worker for AI Guardians Chrome Extension
+ * Background Service Worker for AiGuardian Chrome Extension
  * 
  * TRACER BULLETS FOR NEXT DEVELOPER:
- * - Configure your AI Guardians gateway endpoint
+ * - Configure your AiGuardian gateway endpoint
  * - Implement authentication with your guard services
  * - Add custom guard types and analysis pipelines
  * - Integrate with your central logging and monitoring
  */
 
-// Import the AI Guardians Gateway
+// Import the AiGuardian Gateway
 importScripts('gateway.js');
 
 let gateway = null;
@@ -16,9 +16,9 @@ let gateway = null;
 try {
   // Extension installation handler
   chrome.runtime.onInstalled.addListener(async () => {
-    Logger.info("[BG] Installed: AI Guardians Chrome Ext v0.1.0");
+    Logger.info("[BG] Installed: AiGuardian Chrome Ext v1.0.0");
     
-    // Initialize AI Guardians Gateway
+    // Initialize AiGuardian Gateway
     gateway = new AIGuardiansGateway();
     
     // Initialize default settings
@@ -26,7 +26,7 @@ try {
   });
 
   /**
-   * TRACER BULLET: Initialize default settings for AI Guardians
+   * TRACER BULLET: Initialize default settings for AiGuardian
    */
   async function initializeDefaultSettings() {
     // Import constants
@@ -133,7 +133,7 @@ try {
     try {
       switch (request.type) {
         case "ANALYZE_TEXT":
-          // TRACER BULLET: Use AI Guardians Gateway for analysis
+          // TRACER BULLET: Use AiGuardian Gateway for analysis
           handleTextAnalysis(request.payload, sendResponse);
           return true; // Keep message channel open for async response
           
@@ -190,12 +190,12 @@ try {
   });
 
   /**
-   * TRACER BULLET: Text analysis through AI Guardians Gateway
+   * TRACER BULLET: Text analysis through AiGuardian Gateway
    */
   async function handleTextAnalysis(text, sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       // Use the gateway for analysis
@@ -233,7 +233,7 @@ try {
   async function handleGuardStatusRequest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       const status = await gateway.getGuardServiceStatus();
@@ -250,7 +250,7 @@ try {
   async function handleGuardConfigUpdate(payload, sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       const { guardName, config } = payload;
@@ -268,7 +268,7 @@ try {
   async function handleCentralConfigRequest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       const config = await gateway.getCentralConfiguration();
@@ -285,7 +285,7 @@ try {
   async function handleCentralConfigUpdate(payload, sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       await gateway.updateCentralConfiguration(payload);
@@ -302,7 +302,7 @@ try {
   async function handleDiagnosticsRequest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       const diagnostics = gateway.getDiagnostics();
@@ -319,7 +319,7 @@ try {
   async function handleTraceStatsRequest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       const traceStats = gateway.getTraceStats();
@@ -336,7 +336,7 @@ try {
   async function handleGatewayConnectionTest(sendResponse) {
     try {
       if (!gateway) {
-        throw new Error("AI Guardians Gateway not initialized");
+        throw new Error("AiGuardian Gateway not initialized");
       }
 
       const startTime = Date.now();

@@ -1,4 +1,4 @@
-# 🚀 AI Guardians Chrome Extension - Setup Guide
+# 🚀 AiGuardian Chrome Extension - Setup Guide
 
 ## Quick Start (5 minutes)
 

@@ -1,4 +1,4 @@
-# 🛡️ AI Guardians Chrome Extension
+# 🛡️ AiGuardian Chrome Extension
 
 A comprehensive Chrome MV3 extension for AI-powered text analysis with bias detection capabilities, featuring robust security, testing, and backend integration.
 

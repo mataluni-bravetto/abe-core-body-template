@@ -1,11 +1,11 @@
-# 🔧 AI Guardians Backend Integration Guide
+# 🔧 AiGuardian Backend Integration Guide
 
-This guide provides comprehensive instructions for integrating the Chrome extension with your AI Guardians backend services through the central gateway.
+This guide provides comprehensive instructions for integrating the Chrome extension with your AiGuardian backend services through the central gateway.
 
 ## 🏗️ Architecture Overview
 
 ### Central Gateway Pattern
-The extension uses a **central gateway pattern** to communicate with AI Guardians backend services:
+The extension uses a **central gateway pattern** to communicate with AiGuardian backend services:
 
 ```
 Chrome Extension → Central Gateway → Guard Services
@@ -38,7 +38,7 @@ this.config = {
 ```
 
 #### Required Gateway Endpoints
-Your AI Guardians gateway must implement these endpoints:
+Your AiGuardian gateway must implement these endpoints:
 
 ```http
 POST /api/v1/analyze/text

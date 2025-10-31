@@ -1,8 +1,8 @@
 /**
- * Options Script for AI Guardians Chrome Extension
+ * Options Script for AiGuardian Chrome Extension
  * 
  * TRACER BULLETS FOR NEXT DEVELOPER:
- * - Configure your AI Guardians gateway endpoint
+ * - Configure your AiGuardian gateway endpoint
  * - Implement guard services management
  * - Add testing and validation capabilities
  * - Integrate with central logging and monitoring
@@ -13,7 +13,7 @@
   let eventListeners = [];
   
   try {
-    // TRACER BULLET: Initialize options page with AI Guardians integration
+    // TRACER BULLET: Initialize options page with AiGuardian integration
     initializeOptions();
     setupEventListeners();
     loadCurrentConfiguration();
@@ -22,7 +22,7 @@
   }
 
   /**
-   * TRACER BULLET: Initialize options page with AI Guardians features
+   * TRACER BULLET: Initialize options page with AiGuardian features
    */
   function initializeOptions() {
     // Initialize testing framework

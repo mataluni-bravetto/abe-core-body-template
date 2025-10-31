@@ -1,5 +1,5 @@
 /**
- * AI Guardians Chrome Extension - Deployment Script
+ * AiGuardian Chrome Extension - Deployment Script
  * 
  * This script automates the deployment preparation process by:
  * - Organizing files into proper directories
@@ -22,7 +22,7 @@ class DeploymentScript {
    * Run complete deployment preparation
    */
   async runDeploymentPreparation() {
-    console.log('🚀 Starting AI Guardians Extension Deployment Preparation');
+    console.log('🚀 Starting AiGuardian Extension Deployment Preparation');
     console.log('=' .repeat(60));
     
     const steps = [

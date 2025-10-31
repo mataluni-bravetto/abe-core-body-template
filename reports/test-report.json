@@ -33,7 +33,7 @@
       "status": "PASSED",
       "result": {
         "manifestVersion": 3,
-        "name": "AI Guardians Chrome Ext",
+        "name": "AiGuardian Chrome Ext",
         "version": "0.1.0",
         "permissions": [
           "storage",

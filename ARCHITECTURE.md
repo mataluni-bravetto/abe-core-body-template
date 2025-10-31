@@ -1,4 +1,4 @@
-# 🏗️ AiGuardians Chrome Extension - Architecture Documentation
+# 🏗️ AiGuardian Chrome Extension - Architecture Documentation
 
 ## 📐 System Architecture
 
@@ -419,7 +419,7 @@ graph TB
 ```mermaid
 graph LR
     subgraph "Chrome Extension"
-        Extension[AiGuardians Extension]
+        Extension[AiGuardian Extension]
     end
     
     subgraph "Chrome APIs"

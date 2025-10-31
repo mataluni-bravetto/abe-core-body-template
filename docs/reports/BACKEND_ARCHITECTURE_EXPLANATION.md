@@ -1,4 +1,4 @@
-# 🏗️ Backend Architecture Explanation - AI Guardians Chrome Extension
+# 🏗️ Backend Architecture Explanation - AiGuardian Chrome Extension
 
 ## 📋 **YES - The Backend is a Separate Server**
 

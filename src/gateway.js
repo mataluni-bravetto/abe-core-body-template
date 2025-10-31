@@ -392,10 +392,10 @@ class AiGuardianGateway {
     
     // Map extension endpoints to backend API endpoints
     const endpointMapping = {
-      'analyze': 'gateway/unified',
-      'health': 'health/live',
+      'analyze': 'api/v1/guards/process',
+      'health': 'api/v1/health',
       'logging': 'api/v1/logging',
-      'guards': 'api/v1/guards',
+      'guards': 'api/v1/guards/list',
       'config': 'api/v1/config'
     };
     
@@ -522,15 +522,21 @@ class AiGuardianGateway {
         options
       });
 
-      // Send analysis request to unified gateway endpoint
+      // Send analysis request to unified backend API endpoint
       // Backend handles all guard orchestration
       const result = await this.sendToGateway('analyze', {
-        analysis_id: analysisId,
-        text,
-        options: {
-          ...options,
-          timestamp: new Date().toISOString()
-        }
+        service_type: options.service_type || 'biasguard', // Default to biasguard per plan
+        payload: {
+          text,
+          analysis_id: analysisId,
+          options: {
+            ...options,
+            timestamp: new Date().toISOString()
+          }
+        },
+        user_id: options.user_id || 'anonymous',
+        session_id: options.session_id || this.generateRequestId(),
+        request_id: analysisId
       });
 
       await this.centralLogger?.info('Text analysis completed', {
