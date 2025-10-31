@@ -1,4 +1,4 @@
-# 🎯 AiGuardian Chrome Extension - Complete Feature List
+# 🎯 AiGuardians Chrome Extension - Complete Feature List
 
 ## ✅ Implemented Features (All Working with Mock Data)
 
@@ -32,9 +32,9 @@
 - **Status**: Fully Implemented & Testable
 - **How to Use**:
   - Right-click on selected text
-  - Choose from AiGuardian menu options
+  - Choose from AiGuardians menu options
 - **Menu Options**:
-  - **Analyze with AiGuardian**: Analyze selected text
+  - **Analyze with AiGuardians**: Analyze selected text
   - **Search Web for Context**: Open Google search with selected text
   - **Copy Last Analysis**: Copy most recent analysis to clipboard
   - **Clear All Highlights**: Remove all text highlights
@@ -160,7 +160,7 @@
 - Badge notifications
 
 ### Brand Compliance ✅
-- AiGuardian color scheme
+- AiGuardians color scheme
 - Clash Grotesk typography
 - Consistent iconography
 - Professional styling
@@ -221,7 +221,7 @@
 ### Test 3: Context Menu
 1. Select text on webpage
 2. Right-click
-3. ✅ See "Analyze with AiGuardian" option
+3. ✅ See "Analyze with AiGuardians" option
 4. Click it
 5. ✅ Analysis appears
 

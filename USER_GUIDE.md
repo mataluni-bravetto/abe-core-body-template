@@ -1,10 +1,10 @@
-# 📖 AiGuardian Chrome Extension - User Guide
+# 📖 AiGuardians Chrome Extension - User Guide
 
-## 🎯 Welcome to AiGuardian
+## 🎯 Welcome to AiGuardians
 
 **Finally, AI tools for engineers who don't believe the hype.**
 
-AiGuardian is a Chrome extension that helps you analyze text for bias, emotional language, and objectivity. It provides transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers and critical thinkers.
+AiGuardians is a Chrome extension that helps you analyze text for bias, emotional language, and objectivity. It provides transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers and critical thinkers.
 
 ---
 
@@ -13,7 +13,7 @@ AiGuardian is a Chrome extension that helps you analyze text for bias, emotional
 ### **Option 1: Chrome Web Store** (Recommended)
 
 1. Visit the [Chrome Web Store](https://chrome.google.com/webstore)
-2. Search for "AiGuardian"
+2. Search for "AiGuardians"
 3. Click **"Add to Chrome"**
 4. Click **"Add extension"** in the popup
 5. Done! The extension icon will appear in your toolbar
@@ -33,11 +33,11 @@ AiGuardian is a Chrome extension that helps you analyze text for bias, emotional
 
 ### **Step 1: First Time Setup**
 
-1. Click the AiGuardian icon in your Chrome toolbar
+1. Click the AiGuardians icon in your Chrome toolbar
 2. Click **"⚙️ Configure Service"**
 3. Enter your configuration:
    - **Gateway URL:** `https://api.aiguardian.ai` (or your backend URL)
-   - **API Key:** Your AiGuardian API key
+   - **API Key:** Your AiGuardians API key
 4. Click **"Save Configuration"**
 5. Click **"Test Connection"** to verify it works
 
@@ -53,7 +53,7 @@ AiGuardian is a Chrome extension that helps you analyze text for bias, emotional
 
 ### **Step 3: View Detailed Analysis**
 
-1. Click the AiGuardian icon in your toolbar
+1. Click the AiGuardians icon in your toolbar
 2. View the detailed analysis in the popup:
    - **Guard Status:** Service operational status
    - **Confidence Score:** Overall confidence level
@@ -69,8 +69,8 @@ AiGuardian is a Chrome extension that helps you analyze text for bias, emotional
 Click the extension icon to open the popup dashboard:
 
 #### **Header Section**
-- **Logo:** AiGuardian branding
-- **Title:** "AiGuardian"
+- **Logo:** AiGuardians branding
+- **Title:** "AiGuardians"
 - **Tagline:** "Finally, AI tools for engineers who don't believe the hype"
 
 #### **Guard Status Section**
@@ -98,7 +98,7 @@ Click the extension icon to open the popup dashboard:
 #### **Footer**
 - **Version:** Extension version number
 - **Links:**
-  - 📊 Dashboard - Opens your AiGuardian dashboard
+  - 📊 Dashboard - Opens your AiGuardians dashboard
   - 🌐 Website - Opens the main website
   - ⚙️ Settings - Opens configuration page
 
@@ -244,7 +244,7 @@ Each guard service has:
 
 ### **Gateway URL**
 
-**What it is:** The backend API endpoint for AiGuardian
+**What it is:** The backend API endpoint for AiGuardians
 
 **Default:** `https://api.aiguardian.ai`
 
@@ -258,7 +258,7 @@ Each guard service has:
 
 ### **API Key**
 
-**What it is:** Your authentication key for the AiGuardian API
+**What it is:** Your authentication key for the AiGuardians API
 
 **Format:** 
 - Minimum 10 characters

@@ -1,4 +1,4 @@
-# 👨‍💻 AiGuardian Chrome Extension - Developer Guide & SDK
+# 👨‍💻 AiGuardians Chrome Extension - Developer Guide & SDK
 
 ## 🎯 Overview
 
@@ -651,7 +651,7 @@ zip -r aiguardians-v1.0.0.zip . \
 2. Click **"New Item"**
 3. Upload ZIP file
 4. Fill in store listing:
-   - Name: AiGuardian
+   - Name: AiGuardians
    - Description: (from manifest)
    - Category: Productivity
    - Screenshots: (5 required)
@@ -745,7 +745,7 @@ function cleanup() {
 - [Content Scripts](https://developer.chrome.com/docs/extensions/mv3/content_scripts/)
 - [Message Passing](https://developer.chrome.com/docs/extensions/mv3/messaging/)
 
-### **AiGuardian Documentation**
+### **AiGuardians Documentation**
 - [Architecture](./ARCHITECTURE.md)
 - [Dependencies](./DEPENDENCIES.md)
 - [User Guide](./USER_GUIDE.md)
@@ -781,6 +781,6 @@ function cleanup() {
 
 **Last Updated:** October 26, 2025  
 **Version:** 1.0.0  
-**Maintainer:** AiGuardian Team  
+**Maintainer:** AiGuardians Team  
 **License:** MIT
 

@@ -1,5 +1,5 @@
 /**
- * Manual Functionality Test for AiGuardian Chrome Extension
+ * Manual Functionality Test for AI Guardians Chrome Extension
  *
  * This script tests all core functionality to ensure trace stats,
  * gateway operations, and extension commands work correctly.
@@ -274,7 +274,7 @@ class ManualTester {
   }
 
   async runAllTests() {
-    this.log('info', '🏃 Starting AiGuardian Manual Functionality Tests');
+    this.log('info', '🏃 Starting AI Guardians Manual Functionality Tests');
 
     const tests = [
       this.testCacheManager.bind(this),

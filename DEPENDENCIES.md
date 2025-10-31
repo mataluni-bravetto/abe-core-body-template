@@ -1,8 +1,8 @@
-# 📦 AiGuardian Chrome Extension - Dependencies Documentation
+# 📦 AiGuardians Chrome Extension - Dependencies Documentation
 
 ## 🎯 Overview
 
-This document maps all dependencies (internal and external) used by the AiGuardian Chrome extension.
+This document maps all dependencies (internal and external) used by the AiGuardians Chrome extension.
 
 ---
 
