@@ -28,7 +28,7 @@
     }
   ],
   "action": {
-    "default_title": "AiGuardians - Finally, AI tools for engineers who don't believe the hype",
+    "default_title": "AiGuardian - Finally, AI tools for engineers who don't believe the hype",
     "default_popup": "src/popup.html",
     "default_icon": {
       "16": "assets/icons/icon-16.png",
