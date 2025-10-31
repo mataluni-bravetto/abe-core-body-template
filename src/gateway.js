@@ -392,8 +392,8 @@ class AiGuardianGateway {
     
     // Map extension endpoints to backend API endpoints
     const endpointMapping = {
-      'analyze': 'gateway/unified',
-      'health': 'health/live',
+      'analyze': 'api/v1/guards/process',
+      'health': 'api/v1/health',
       'logging': 'api/v1/logging',
       'guards': 'api/v1/guards/list',
       'config': 'api/v1/config'
