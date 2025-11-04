@@ -1,6 +1,6 @@
 # 📊 Analysis & Audit Reports
 
-This directory contains analysis reports, audit documentation, and executive summaries for the AI Guardians Chrome extension.
+This directory contains analysis reports, audit documentation, and executive summaries for the AiGuardian Chrome extension.
 
 ## 📋 Current Contents
 

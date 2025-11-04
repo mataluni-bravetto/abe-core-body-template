@@ -1,5 +1,5 @@
 /**
- * Cache Manager for AI Guardians Chrome Extension
+ * Cache Manager for AiGuardian Chrome Extension
  * 
  * Provides intelligent caching for API responses to improve performance
  * and reduce backend load.

@@ -1,5 +1,5 @@
 /**
- * String Optimizer for AI Guardians Chrome Extension
+ * String Optimizer for AiGuardian Chrome Extension
  * 
  * Provides optimized string operations to improve performance
  * and reduce memory usage.

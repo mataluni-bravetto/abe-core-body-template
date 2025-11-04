@@ -1,6 +1,6 @@
 # 🔧 Technical Documentation
 
-This directory contains detailed technical documentation, error handling guides, and technical debt analysis for the AI Guardians Chrome extension.
+This directory contains detailed technical documentation, error handling guides, and technical debt analysis for the AiGuardian Chrome extension.
 
 ## 📋 Contents
 
@@ -58,4 +58,4 @@ This technical documentation provides:
 
 ---
 
-*This documentation ensures the AI Guardians Chrome extension maintains high technical quality, reliability, and maintainability standards.*"
+*This documentation ensures the AiGuardian Chrome extension maintains high technical quality, reliability, and maintainability standards.*"

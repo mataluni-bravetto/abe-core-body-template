@@ -65,10 +65,10 @@
 ### **✅ Production-Ready Extension**
 
 #### **Manifest.json Analysis**
-- **Name**: "AI Guardians" ✅ (Brand-aligned)
+- **Name**: "AiGuardian" ✅ (Brand-aligned)
 - **Version**: "1.0.0" ✅ (Production ready)
 - **Description**: AI-powered text analysis with bias detection ✅ (ICP-aligned)
-- **Author**: "AI Guardians" ✅ (Brand-aligned)
+- **Author**: "AiGuardian" ✅ (Brand-aligned)
 - **Homepage**: "https://aiguardians.com" ✅ (Brand URL)
 
 #### **Icon Configuration**

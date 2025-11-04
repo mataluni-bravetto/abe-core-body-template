@@ -12,14 +12,20 @@
 (function() {
   'use strict';
 
-  // Constants are available via importScripts in service worker context
-  // For content script, we'll define them locally
+  // NOTE: Constants duplication is necessary here because content scripts run in isolated
+  // contexts and cannot directly import from constants.js. These values must be kept
+  // in sync with src/constants.js. If you update constants.js, update these values too.
+  // 
+  // Content scripts cannot use importScripts() - they run in the page context, not worker context.
+  // Alternative: Could sync via chrome.storage, but adds latency and complexity.
+  // 
+  // Source of truth: src/constants.js
   const TEXT_ANALYSIS = {
-    MIN_SELECTION_LENGTH: 10,
-    MAX_SELECTION_LENGTH: 5000,
-    MAX_TEXT_LENGTH: 10000,
-    DEBOUNCE_DELAY: 300,
-    BADGE_DISPLAY_TIME: 3000
+    MIN_SELECTION_LENGTH: 10,        // Must match constants.js TEXT_ANALYSIS.MIN_SELECTION_LENGTH
+    MAX_SELECTION_LENGTH: 5000,      // Must match constants.js TEXT_ANALYSIS.MAX_SELECTION_LENGTH
+    MAX_TEXT_LENGTH: 10000,          // Must match constants.js TEXT_ANALYSIS.MAX_TEXT_LENGTH
+    DEBOUNCE_DELAY: 300,              // Must match constants.js TEXT_ANALYSIS.DEBOUNCE_DELAY
+    BADGE_DISPLAY_TIME: 3000          // Must match constants.js TEXT_ANALYSIS.BADGE_DISPLAY_TIME
   };
   
   const ERROR_MESSAGES = {

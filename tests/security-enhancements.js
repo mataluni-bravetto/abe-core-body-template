@@ -1,5 +1,5 @@
 /**
- * Security Enhancements for AI Guardians Chrome Extension
+ * Security Enhancements for AiGuardian Chrome Extension
  * 
  * This script applies additional security measures to address
  * identified vulnerabilities and improve overall security.

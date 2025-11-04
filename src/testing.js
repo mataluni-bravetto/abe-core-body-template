@@ -1,8 +1,8 @@
 /**
- * AI Guardians Chrome Extension - Comprehensive Testing Suite
+ * AiGuardian Chrome Extension - Comprehensive Testing Suite
  * 
  * This module provides comprehensive testing, tracing, and validation
- * for the AI Guardians Chrome extension.
+ * for the AiGuardian Chrome extension.
  */
 
 class AIGuardiansTester {
@@ -18,7 +18,7 @@ class AIGuardiansTester {
    * Initialize the testing framework
    */
   async initializeTester() {
-    Logger.info('[TESTER] Initializing AI Guardians Testing Suite');
+    Logger.info('[TESTER] Initializing AiGuardian Testing Suite');
     
     // Set up test environment
     await this.setupTestEnvironment();

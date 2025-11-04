@@ -1,7 +1,7 @@
 /**
  * Chrome Extension Best Practices Verification
  * 
- * This script verifies that the AI Guardians Chrome extension follows
+ * This script verifies that the AiGuardian Chrome extension follows
  * all Chrome developer best practices and DevTools Protocol guidelines.
  */
 

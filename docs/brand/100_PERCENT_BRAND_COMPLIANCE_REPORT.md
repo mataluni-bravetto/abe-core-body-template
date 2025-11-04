@@ -117,7 +117,7 @@ The AI Guardian Chrome Extension now has **complete brand compliance** across al
 - ✅ **Brand Description**: ICP-aligned extension description
 - ✅ **Brand Title**: "Finally, AI tools for engineers who don't believe the hype"
 - ✅ **Brand Icons**: All extension icons use AI Guardian branding
-- ✅ **Brand Author**: "AI Guardians" consistent branding
+- ✅ **Brand Author**: "AiGuardian" consistent branding
 
 ---
 

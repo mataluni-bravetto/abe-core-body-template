@@ -1,5 +1,5 @@
 /**
- * AI Guardians Extension - Backend Integration Test
+ * AiGuardian Extension - Backend Integration Test
  * 
  * This script simulates the complete integration between the Chrome extension
  * and the backend API to verify end-to-end functionality.
@@ -16,7 +16,7 @@ class IntegrationTester {
    * Run complete integration test
    */
   async runIntegrationTest() {
-    console.log('🚀 Starting AI Guardians Extension Integration Test');
+    console.log('🚀 Starting AiGuardian Extension Integration Test');
     console.log('=' .repeat(60));
     
     const tests = [

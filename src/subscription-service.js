@@ -13,6 +13,9 @@ class SubscriptionService {
       lastCheck: null,
       cacheTTL: 5 * 60 * 1000 // 5 minutes cache
     };
+    // Track pending requests to prevent race conditions
+    this.pendingSubscriptionRequest = null;
+    this.pendingUsageRequest = null;
   }
 
   /**
@@ -28,6 +31,30 @@ class SubscriptionService {
       return this.cache.subscription;
     }
 
+    // Return existing pending request if any (prevents race conditions)
+    if (this.pendingSubscriptionRequest) {
+      Logger.info('[Subscription] Reusing pending subscription request');
+      return await this.pendingSubscriptionRequest;
+    }
+
+    // Create new request and store it
+    this.pendingSubscriptionRequest = this.fetchSubscription();
+    
+    try {
+      const result = await this.pendingSubscriptionRequest;
+      return result;
+    } finally {
+      // Clear pending request when done
+      this.pendingSubscriptionRequest = null;
+    }
+  }
+
+  /**
+   * Internal method to fetch subscription from API
+   * @private
+   * @returns {Promise<Object>} Subscription object
+   */
+  async fetchSubscription() {
     try {
       const url = `${this.gateway.config.gatewayUrl}/api/v1/subscriptions/current`;
       
@@ -78,6 +105,38 @@ class SubscriptionService {
    * @returns {Promise<Object>} Usage object
    */
   async getUsage() {
+    // Check cache first
+    if (this.cache.usage && 
+        this.cache.lastCheck && 
+        Date.now() - this.cache.lastCheck < this.cache.cacheTTL) {
+      Logger.info('[Subscription] Using cached usage data');
+      return this.cache.usage;
+    }
+
+    // Return existing pending request if any (prevents race conditions)
+    if (this.pendingUsageRequest) {
+      Logger.info('[Subscription] Reusing pending usage request');
+      return await this.pendingUsageRequest;
+    }
+
+    // Create new request and store it
+    this.pendingUsageRequest = this.fetchUsage();
+    
+    try {
+      const result = await this.pendingUsageRequest;
+      return result;
+    } finally {
+      // Clear pending request when done
+      this.pendingUsageRequest = null;
+    }
+  }
+
+  /**
+   * Internal method to fetch usage from API
+   * @private
+   * @returns {Promise<Object>} Usage object
+   */
+  async fetchUsage() {
     try {
       const url = `${this.gateway.config.gatewayUrl}/api/v1/subscriptions/usage`;
       

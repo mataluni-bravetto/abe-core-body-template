@@ -339,28 +339,31 @@ class AiGuardianGateway {
    * Initialize central logging bridge
    */
   async initializeCentralLogging() {
+    // Define log method first to avoid circular reference
+    const logMethod = async (level, message, metadata = {}) => {
+      try {
+        // Send to central logging service
+        await this.sendToGateway('logging', {
+          level,
+          message,
+          metadata: {
+            ...metadata,
+            timestamp: new Date().toISOString(),
+            extension_version: chrome.runtime.getManifest().version,
+            user_agent: navigator.userAgent
+          }
+        });
+      } catch (err) {
+        Logger.error('[Central Logger] Failed to send log:', err);
+      }
+    };
+    
+    // Create logger object with all methods
     this.centralLogger = {
-      log: async (level, message, metadata = {}) => {
-        try {
-          // Send to central logging service
-          await this.sendToGateway('logging', {
-            level,
-            message,
-            metadata: {
-              ...metadata,
-              timestamp: new Date().toISOString(),
-              extension_version: chrome.runtime.getManifest().version,
-              user_agent: navigator.userAgent
-            }
-          });
-        } catch (err) {
-          Logger.error('[Central Logger] Failed to send log:', err);
-        }
-      },
-      
-      info: (message, metadata) => this.centralLogger.log('info', message, metadata),
-      warn: (message, metadata) => this.centralLogger.log('warn', message, metadata),
-      error: (message, metadata) => this.centralLogger.log('error', message, metadata)
+      log: logMethod,
+      info: (message, metadata) => logMethod('info', message, metadata),
+      warn: (message, metadata) => logMethod('warn', message, metadata),
+      error: (message, metadata) => logMethod('error', message, metadata)
     };
   }
 
@@ -542,11 +545,18 @@ class AiGuardianGateway {
     const startTime = Date.now();
 
     try {
-      await this.centralLogger?.info('Starting text analysis', {
-        analysis_id: analysisId,
-        text_length: text.length,
-        options
-      });
+      // Log start with explicit error handling
+      if (this.centralLogger) {
+        try {
+          await this.centralLogger.info('Starting text analysis', {
+            analysis_id: analysisId,
+            text_length: text.length,
+            options
+          });
+        } catch (logError) {
+          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+        }
+      }
 
       // Send analysis request to unified gateway endpoint
       // Backend handles all guard orchestration
@@ -567,18 +577,32 @@ class AiGuardianGateway {
         }
       });
 
-      await this.centralLogger?.info('Text analysis completed', {
-        analysis_id: analysisId,
-        duration: Date.now() - startTime
-      });
+      // Log completion with explicit error handling
+      if (this.centralLogger) {
+        try {
+          await this.centralLogger.info('Text analysis completed', {
+            analysis_id: analysisId,
+            duration: Date.now() - startTime
+          });
+        } catch (logError) {
+          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+        }
+      }
 
       return result;
     } catch (err) {
-      await this.centralLogger?.error('Text analysis failed', {
-        analysis_id: analysisId,
-        duration: Date.now() - startTime,
-        error: err.message
-      });
+      // Log error with explicit error handling
+      if (this.centralLogger) {
+        try {
+          await this.centralLogger.error('Text analysis failed', {
+            analysis_id: analysisId,
+            duration: Date.now() - startTime,
+            error: err.message
+          });
+        } catch (logError) {
+          Logger.warn('[Gateway] Central logging failed during error reporting:', logError);
+        }
+      }
 
       throw err;
     }
@@ -642,7 +666,14 @@ class AiGuardianGateway {
       }, resolve);
     });
 
-    await this.centralLogger?.info('Configuration updated', { gateway_url: this.config.gatewayUrl });
+    // Log configuration update with explicit error handling
+    if (this.centralLogger) {
+      try {
+        await this.centralLogger.info('Configuration updated', { gateway_url: this.config.gatewayUrl });
+      } catch (logError) {
+        Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+      }
+    }
   }
 
   /**

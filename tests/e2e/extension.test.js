@@ -7,7 +7,7 @@ jest.setTimeout(30000);
 // Path to the extension's root directory where manifest.json is located
 const extensionPath = path.resolve(__dirname, '../../');
 
-describe('AI Guardians Chrome Extension E2E Tests', () => {
+describe('AiGuardian Chrome Extension E2E Tests', () => {
   let browser;
   let page;
   let popupUrl;

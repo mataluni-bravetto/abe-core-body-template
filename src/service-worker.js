@@ -1,14 +1,14 @@
 /**
- * Background Service Worker for AI Guardians Chrome Extension
+ * Background Service Worker for AiGuardian Chrome Extension
  * 
  * TRACER BULLETS FOR NEXT DEVELOPER:
- * - Configure your AI Guardians gateway endpoint
+ * - Configure your AiGuardian gateway endpoint
  * - Implement authentication with your guard services
  * - Add custom guard types and analysis pipelines
  * - Integrate with your central logging and monitoring
  */
 
-// Import the AI Guardians Gateway and dependencies
+// Import the AiGuardian Gateway and dependencies
 importScripts('src/constants.js');
 importScripts('src/logging.js');
 importScripts('src/string-optimizer.js');
@@ -61,7 +61,7 @@ try {
   })();
 
   /**
-   * TRACER BULLET: Initialize default settings for AI Guardians
+   * TRACER BULLET: Initialize default settings for AiGuardian
    */
   async function initializeDefaultSettings() {
     // Constants are now available via importScripts
@@ -98,7 +98,7 @@ try {
       // Create analyze text menu
       chrome.contextMenus.create({
         id: 'analyze-text',
-        title: 'Analyze with AiGuardians',
+        title: 'Analyze with AiGuardian',
         contexts: ['selection']
       }, () => {
         if (chrome.runtime.lastError) {
@@ -298,7 +298,7 @@ try {
     try {
       switch (request.type) {
         case "ANALYZE_TEXT":
-          // TRACER BULLET: Use AI Guardians Gateway for analysis
+          // TRACER BULLET: Use AiGuardian Gateway for analysis
           handleTextAnalysis(request.payload, sendResponse);
           return true; // Keep message channel open for async response
           

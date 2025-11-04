@@ -1,5 +1,5 @@
 /**
- * AI Guardians Chrome Extension - Test Runner
+ * AiGuardian Chrome Extension - Test Runner
  * 
  * This script runs comprehensive tests on the Chrome extension
  * with tracing, logging, and data validation.
@@ -19,7 +19,7 @@ class ExtensionTestRunner {
    * Run all extension tests
    */
   async runTests() {
-    console.log('🚀 Starting AI Guardians Extension Test Suite');
+    console.log('🚀 Starting AiGuardian Extension Test Suite');
     console.log('=' .repeat(60));
     
     const tests = [

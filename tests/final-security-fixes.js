@@ -1,5 +1,5 @@
 /**
- * Final Security Fixes for AI Guardians Chrome Extension
+ * Final Security Fixes for AiGuardian Chrome Extension
  * 
  * This script addresses the remaining security vulnerabilities
  * identified in the security audit.
