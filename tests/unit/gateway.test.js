@@ -10,7 +10,7 @@ const { test, assert, assertEqual, assertNotEqual, assertTrue, assertFalse, asse
  * Test Gateway Class
  */
 test('Gateway constructor initializes correctly', () => {
-  const gateway = new AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
   
   assertTrue(gateway.config, 'Config should be initialized');
   assertTrue(gateway.config.gatewayUrl, 'Gateway URL should be set');
@@ -19,7 +19,7 @@ test('Gateway constructor initializes correctly', () => {
 });
 
 test('Gateway sanitizes request data correctly', () => {
-  const gateway = new window.AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
 
   const maliciousData = {
     text: '<script>alert("xss")</script>Hello World',
@@ -35,7 +35,7 @@ test('Gateway sanitizes request data correctly', () => {
 });
 
 test('Gateway validates requests correctly', () => {
-  const gateway = new window.AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
 
   // Valid request - should not throw
   const validResult = gateway.validateRequest('analyze', { text: 'test' });
@@ -53,7 +53,7 @@ test('Gateway validates requests correctly', () => {
 });
 
 test('Gateway handles errors correctly', () => {
-  const gateway = new AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
   
   const error = new Error('Test error');
   const context = { endpoint: 'test', payload: {} };
@@ -66,7 +66,7 @@ test('Gateway handles errors correctly', () => {
 });
 
 test('Gateway generates unique request IDs', () => {
-  const gateway = new AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
   
   const id1 = gateway.generateRequestId();
   const id2 = gateway.generateRequestId();
@@ -77,7 +77,7 @@ test('Gateway generates unique request IDs', () => {
 });
 
 test('Gateway sanitizes payload for logging', () => {
-  const gateway = new AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
   
   const payload = {
     text: 'Test text',

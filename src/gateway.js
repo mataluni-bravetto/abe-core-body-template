@@ -232,6 +232,7 @@ class AiGuardianGateway {
     this.logger = this.initializeLogger();
     this.centralLogger = null;
     this.cacheManager = new CacheManager();
+    this.subscriptionService = null; // Will be initialized after gateway is ready
 
     this.initializeGateway();
   }
@@ -303,6 +304,12 @@ class AiGuardianGateway {
       // Initialize central logging
       await this.initializeCentralLogging();
 
+      // Initialize subscription service (after config is loaded)
+      if (typeof SubscriptionService !== 'undefined') {
+        this.subscriptionService = new SubscriptionService(this);
+        Logger.info('[Gateway] Subscription service initialized');
+      }
+
       Logger.info('[Gateway] Initialized unified gateway connection');
     } catch (err) {
       Logger.error('[Gateway] Initialization failed', err);
@@ -372,6 +379,25 @@ class AiGuardianGateway {
       throw error;
     }
 
+    // Check subscription status before making request (only for analyze endpoint)
+    if (endpoint === 'analyze' && this.subscriptionService && this.config.apiKey) {
+      try {
+        const subscriptionCheck = await this.subscriptionService.canMakeRequest();
+        
+        if (!subscriptionCheck.allowed) {
+          Logger.error('[Gateway] Request blocked by subscription check:', subscriptionCheck.reason);
+          throw new Error(subscriptionCheck.message);
+        }
+
+        if (subscriptionCheck.warning) {
+          Logger.warn('[Gateway] Subscription warning:', subscriptionCheck.message);
+        }
+      } catch (subscriptionError) {
+        // If subscription check fails, log but allow request (fail open)
+        Logger.warn('[Gateway] Subscription check failed, allowing request:', subscriptionError);
+      }
+    }
+
     const startTime = Date.now();
     const requestId = this.generateRequestId();
     
@@ -392,11 +418,11 @@ class AiGuardianGateway {
     
     // Map extension endpoints to backend API endpoints
     const endpointMapping = {
-      'analyze': 'gateway/unified',
+      'analyze': 'api/v1/guards/process',
       'health': 'health/live',
       'logging': 'api/v1/logging',
-      'guards': 'api/v1/guards',
-      'config': 'api/v1/config'
+      'guards': 'api/v1/guards/services',
+      'config': 'api/v1/config/config'
     };
     
     const mappedEndpoint = endpointMapping[endpoint] || endpoint;
@@ -525,11 +551,19 @@ class AiGuardianGateway {
       // Send analysis request to unified gateway endpoint
       // Backend handles all guard orchestration
       const result = await this.sendToGateway('analyze', {
-        analysis_id: analysisId,
-        text,
-        options: {
-          ...options,
-          timestamp: new Date().toISOString()
+        service_type: options.service_type || 'tokenguard',
+        payload: {
+          text: text,
+          contentType: options.contentType || 'text',
+          scanLevel: options.scanLevel || 'standard',
+          context: options.context || 'webpage-content'
+        },
+        client_type: 'chrome',
+        client_version: chrome.runtime.getManifest().version,
+        request_metadata: {
+          analysis_id: analysisId,
+          timestamp: new Date().toISOString(),
+          ...options
         }
       });
 

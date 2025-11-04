@@ -23,6 +23,7 @@
         "<all_urls>"
       ],
       "js": [
+        "src/logging.js",
         "src/content.js"
       ]
     }

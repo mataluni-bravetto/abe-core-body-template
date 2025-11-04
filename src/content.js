@@ -65,12 +65,12 @@
 
     // Validate selection length
     if (selectionText.length < CONFIG.minSelectionLength) {
-      console.log("[CS] Selection too short:", selectionText.length);
+      Logger.info("[CS] Selection too short:", selectionText.length);
       return;
     }
     
     if (selectionText.length > CONFIG.maxSelectionLength) {
-      console.log("[CS] Selection too long:", selectionText.length);
+      Logger.warn("[CS] Selection too long:", selectionText.length);
       showBadge(ERROR_MESSAGES.SELECTION_TOO_LONG, "warning");
       return;
     }
@@ -199,7 +199,7 @@
       
       activeHighlights.push(highlightSpan);
     } catch (e) {
-      console.error("[CS] Failed to highlight text:", e);
+      Logger.error("[CS] Failed to highlight text:", e);
     }
   }
 
@@ -472,9 +472,9 @@
       // Cleanup
       document.body.removeChild(textarea);
       
-      console.log("[CS] Text copied to clipboard");
+      Logger.info("[CS] Text copied to clipboard");
     } catch (err) {
-      console.error("[CS] Failed to copy to clipboard:", err);
+      Logger.error("[CS] Failed to copy to clipboard:", err);
     }
   }
 
@@ -584,7 +584,7 @@
       document.body.appendChild(overlay);
       document.body.appendChild(modal);
       
-      console.log("[CS] History modal displayed");
+      Logger.info("[CS] History modal displayed");
     });
   }
 
@@ -592,7 +592,7 @@
   window.addEventListener('beforeunload', cleanup);
   eventListeners.push({ element: window, event: 'beforeunload', handler: cleanup });
 
-  console.log("[CS] AiGuardian content script loaded");
+  Logger.info("[CS] AiGuardian content script loaded");
 
 })();
 

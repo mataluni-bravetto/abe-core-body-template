@@ -23,6 +23,7 @@ class IntegrationTester {
       { name: 'Extension Initialization', fn: this.testExtensionInitialization },
       { name: 'Gateway Connection', fn: this.testGatewayConnection },
       { name: 'Authentication Flow', fn: this.testAuthenticationFlow },
+      { name: 'Subscription Verification', fn: this.testSubscriptionVerification },
       { name: 'Text Analysis Pipeline', fn: this.testTextAnalysisPipeline },
       { name: 'Guard Service Integration', fn: this.testGuardServiceIntegration },
       { name: 'Error Handling & Recovery', fn: this.testErrorHandling },
@@ -194,6 +195,94 @@ class IntegrationTester {
       tokenType: authResponse.token_type,
       expiresIn: authResponse.expires_in,
       hasRefreshToken: !!authResponse.refresh_token
+    };
+  }
+
+  /**
+   * Test subscription verification
+   */
+  async testSubscriptionVerification() {
+    // Simulate subscription status check
+    const subscriptionCheck = {
+      endpoint: 'https://api.aiguardian.ai/api/v1/subscriptions/current',
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer test-api-key',
+        'Content-Type': 'application/json',
+        'X-Extension-Version': '0.1.0'
+      }
+    };
+
+    // Simulate subscription response
+    const subscriptionResponse = {
+      tier: 'pro',
+      status: 'active',
+      billing_period: 'monthly',
+      current_period_start: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      current_period_end: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      cancel_at_period_end: false
+    };
+
+    // Simulate usage check
+    const usageCheck = {
+      endpoint: 'https://api.aiguardian.ai/api/v1/subscriptions/usage',
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer test-api-key',
+        'Content-Type': 'application/json',
+        'X-Extension-Version': '0.1.0'
+      }
+    };
+
+    const usageResponse = {
+      requests_made: 750,
+      requests_limit: 1000,
+      usage_percentage: 75.0,
+      remaining_requests: 250,
+      period_start: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      period_end: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
+    };
+
+    // Verify subscription response structure
+    if (!subscriptionResponse.tier) {
+      throw new Error('Subscription response missing tier');
+    }
+
+    if (!subscriptionResponse.status) {
+      throw new Error('Subscription response missing status');
+    }
+
+    // Verify usage response structure
+    if (typeof usageResponse.requests_made !== 'number') {
+      throw new Error('Usage response missing or invalid requests_made');
+    }
+
+    if (typeof usageResponse.usage_percentage !== 'number') {
+      throw new Error('Usage response missing or invalid usage_percentage');
+    }
+
+    // Test subscription validation logic
+    const canMakeRequest = subscriptionResponse.status === 'active' && 
+                          (usageResponse.remaining_requests === null || usageResponse.remaining_requests > 0);
+
+    if (!canMakeRequest && subscriptionResponse.status === 'active') {
+      throw new Error('Subscription validation failed: active subscription should allow requests');
+    }
+
+    // Test usage limit warning threshold (80%)
+    const usageWarning = usageResponse.usage_percentage >= 80;
+    const usageExceeded = usageResponse.requests_limit !== null && 
+                         usageResponse.remaining_requests <= 0;
+
+    return {
+      subscriptionTier: subscriptionResponse.tier,
+      subscriptionStatus: subscriptionResponse.status,
+      canMakeRequest: canMakeRequest,
+      usagePercentage: usageResponse.usage_percentage,
+      remainingRequests: usageResponse.remaining_requests,
+      usageWarning: usageWarning,
+      usageExceeded: usageExceeded,
+      validationPassed: true
     };
   }
 

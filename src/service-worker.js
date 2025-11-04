@@ -13,6 +13,7 @@ importScripts('src/constants.js');
 importScripts('src/logging.js');
 importScripts('src/string-optimizer.js');
 importScripts('src/cache-manager.js');
+importScripts('src/subscription-service.js');
 importScripts('src/gateway.js');
 
 let gateway = null;
@@ -354,6 +355,16 @@ try {
             sendResponse({ success: false, error: err.message });
           }
           return true;
+
+        case "GET_SUBSCRIPTION_STATUS":
+          // TRACER BULLET: Get subscription status
+          handleSubscriptionStatusRequest(sendResponse);
+          return true;
+
+        case "CLEAR_SUBSCRIPTION_CACHE":
+          // TRACER BULLET: Clear subscription cache
+          handleClearSubscriptionCache(sendResponse);
+          return true;
           
         default:
           Logger.warn("[BG] Unknown message type:", request.type);
@@ -372,20 +383,36 @@ try {
     try {
       Logger.info("[BG] Text analysis request received:", text?.substring(0, 50) + "...");
       
-      // TRACER BULLET: Mock analysis for immediate functionality
-      const mockAnalysis = generateMockAnalysis(text);
-      Logger.info("[BG] Mock analysis generated:", mockAnalysis);
-      
-      // Save to analysis history
-      saveToHistory(text, mockAnalysis);
-      
-      // Save as last analysis for copy feature
-      chrome.storage.local.set({ last_analysis: mockAnalysis });
-      
-      // Simulate network delay for realism
-      setTimeout(() => {
-        sendResponse(mockAnalysis);
-      }, 500 + Math.random() * 1000); // 500-1500ms delay
+      // TRACER BULLET: Use AI Guardians Gateway for analysis
+      try {
+        const analysisResult = await gateway.analyzeText(text);
+        Logger.info("[BG] Analysis result received:", analysisResult);
+
+        // Save to analysis history
+        saveToHistory(text, analysisResult);
+
+        // Save as last analysis for copy feature
+        chrome.storage.local.set({ last_analysis: analysisResult });
+
+        sendResponse(analysisResult);
+      } catch (error) {
+        Logger.warn("[BG] Gateway analysis failed, falling back to mock analysis:", error);
+        
+        // Fallback to mock analysis if gateway fails
+        const mockAnalysis = generateMockAnalysis(text);
+        Logger.info("[BG] Mock analysis generated as fallback:", mockAnalysis);
+        
+        // Save to analysis history
+        saveToHistory(text, mockAnalysis);
+        
+        // Save as last analysis for copy feature
+        chrome.storage.local.set({ last_analysis: mockAnalysis });
+        
+        // Simulate network delay for realism
+        setTimeout(() => {
+          sendResponse(mockAnalysis);
+        }, 500 + Math.random() * 1000); // 500-1500ms delay
+      }
       
     } catch (err) {
       Logger.error("[BG] Analysis failed:", err);
@@ -419,6 +446,66 @@ try {
       
       chrome.storage.sync.set({ analysis_history: history });
     });
+  }
+
+  /**
+   * TRACER BULLET: Handle subscription status request
+   */
+  async function handleSubscriptionStatusRequest(sendResponse) {
+    try {
+      if (!gateway || !gateway.subscriptionService) {
+        sendResponse({ 
+          success: false, 
+          error: "Subscription service not initialized" 
+        });
+        return;
+      }
+
+      const subscription = await gateway.subscriptionService.getCurrentSubscription();
+      let usage = null;
+
+      try {
+        usage = await gateway.subscriptionService.getUsage();
+      } catch (usageError) {
+        Logger.warn("[BG] Failed to get usage, continuing without it:", usageError);
+      }
+
+      sendResponse({
+        success: true,
+        subscription: subscription,
+        usage: usage
+      });
+    } catch (err) {
+      Logger.error("[BG] Failed to get subscription status:", err);
+      sendResponse({ 
+        success: false, 
+        error: err.message 
+      });
+    }
+  }
+
+  /**
+   * TRACER BULLET: Clear subscription cache
+   */
+  function handleClearSubscriptionCache(sendResponse) {
+    try {
+      if (gateway && gateway.subscriptionService) {
+        gateway.subscriptionService.clearCache();
+        Logger.info("[BG] Subscription cache cleared");
+        sendResponse({ success: true, message: "Cache cleared" });
+      } else {
+        sendResponse({ 
+          success: false, 
+          error: "Subscription service not initialized" 
+        });
+      }
+    } catch (err) {
+      Logger.error("[BG] Failed to clear subscription cache:", err);
+      sendResponse({ 
+        success: false, 
+        error: err.message 
+      });
+    }
   }
 
   /**

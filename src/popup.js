@@ -13,6 +13,7 @@
     setupEventListeners();
     loadSystemStatus();
     loadGuardServices();
+    loadSubscriptionStatus();
   } catch (err) {
     Logger.error('Popup init error', err);
   }
@@ -184,6 +185,60 @@
       testContextMenuBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: testContextMenuBtn, event: 'click', handler: clickHandler });
     }
+
+    // Refresh subscription button
+    const refreshSubscriptionBtn = document.getElementById('refreshSubscriptionBtn');
+    if (refreshSubscriptionBtn) {
+      const clickHandler = async () => {
+        try {
+          refreshSubscriptionBtn.textContent = '⏳ Refreshing...';
+          refreshSubscriptionBtn.disabled = true;
+          
+          // Clear subscription cache in background
+          await sendMessageToBackground('CLEAR_SUBSCRIPTION_CACHE');
+          
+          // Reload subscription status
+          await loadSubscriptionStatus();
+          
+          showSuccess('✅ Subscription status refreshed');
+        } catch (err) {
+          Logger.error('Failed to refresh subscription', err);
+          showError('❌ Failed to refresh subscription');
+        } finally {
+          refreshSubscriptionBtn.textContent = '🔄 Refresh Status';
+          refreshSubscriptionBtn.disabled = false;
+        }
+      };
+
+      refreshSubscriptionBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: refreshSubscriptionBtn, event: 'click', handler: clickHandler });
+    }
+
+    // Upgrade button
+    const upgradeBtn = document.getElementById('upgradeBtn');
+    if (upgradeBtn) {
+      const clickHandler = async () => {
+        try {
+          // Open upgrade page in new tab
+          const data = await new Promise((resolve) => {
+            chrome.storage.sync.get(['gateway_url'], resolve);
+          });
+          
+          const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
+          const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
+          const upgradeUrl = `${baseUrl}/subscribe` || 'https://dashboard.aiguardian.ai/subscribe';
+          
+          chrome.tabs.create({ url: upgradeUrl });
+          window.close();
+        } catch (err) {
+          Logger.error('Failed to open upgrade page', err);
+          showError('❌ Failed to open upgrade page');
+        }
+      };
+
+      upgradeBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: upgradeBtn, event: 'click', handler: clickHandler });
+    }
   }
 
   /**
@@ -254,6 +309,107 @@
       serviceStatus.className = 'guard-status';
     } else {
       serviceStatus.className = 'guard-status disabled';
+    }
+  }
+
+  /**
+   * Load subscription status
+   */
+  async function loadSubscriptionStatus() {
+    try {
+      // Check if API key is configured
+      const data = await new Promise((resolve) => {
+        chrome.storage.sync.get(['gateway_url', 'api_key'], resolve);
+      });
+
+      if (!data.api_key || !data.gateway_url) {
+        // Hide subscription section if no API key
+        const section = document.getElementById('subscriptionSection');
+        if (section) section.style.display = 'none';
+        return;
+      }
+
+      // Send message to background to get subscription
+      const response = await sendMessageToBackground('GET_SUBSCRIPTION_STATUS');
+      
+      if (response && response.success && response.subscription) {
+        updateSubscriptionStatus(response.subscription, response.usage);
+      } else {
+        // Hide subscription section if unable to load
+        const section = document.getElementById('subscriptionSection');
+        if (section) section.style.display = 'none';
+      }
+    } catch (err) {
+      Logger.error('Failed to load subscription status', err);
+      // Hide subscription section on error
+      const section = document.getElementById('subscriptionSection');
+      if (section) section.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update subscription status display
+   */
+  function updateSubscriptionStatus(subscription, usage) {
+    const section = document.getElementById('subscriptionSection');
+    const tierEl = document.getElementById('subscriptionTier');
+    const usageEl = document.getElementById('subscriptionUsage');
+    const statusBadge = document.getElementById('subscriptionStatusBadge');
+    const upgradeBtn = document.getElementById('upgradeBtn');
+    const refreshBtn = document.getElementById('refreshSubscriptionBtn');
+
+    if (!section) return;
+
+    // Show subscription section
+    section.style.display = 'block';
+
+    // Update tier
+    if (tierEl) {
+      const tierName = subscription.tier ? subscription.tier.toUpperCase() : 'FREE';
+      tierEl.textContent = tierName;
+    }
+
+    // Update status badge
+    if (statusBadge) {
+      const status = subscription.status || 'active';
+      statusBadge.textContent = status === 'active' ? '✓ Active' : status;
+      statusBadge.className = `subscription-status-badge ${status === 'active' ? 'active' : 'inactive'}`;
+    }
+
+    // Update usage
+    if (usageEl && usage) {
+      if (usage.requests_limit !== null && usage.requests_limit !== undefined) {
+        const percentage = usage.usage_percentage || 0;
+        const remaining = usage.remaining_requests !== null ? usage.remaining_requests : 'unlimited';
+        usageEl.textContent = `${percentage.toFixed(1)}% used (${remaining} remaining)`;
+        
+        // Add warning class if > 80%
+        if (percentage >= 80) {
+          usageEl.className = 'subscription-usage warning';
+        } else {
+          usageEl.className = 'subscription-usage';
+        }
+      } else {
+        usageEl.textContent = 'Unlimited';
+        usageEl.className = 'subscription-usage';
+      }
+    } else if (usageEl) {
+      usageEl.textContent = 'Usage data unavailable';
+      usageEl.className = 'subscription-usage';
+    }
+
+    // Show upgrade button for free tier
+    if (upgradeBtn) {
+      if (subscription.tier === 'free') {
+        upgradeBtn.style.display = 'inline-block';
+      } else {
+        upgradeBtn.style.display = 'none';
+      }
+    }
+
+    // Show refresh button
+    if (refreshBtn) {
+      refreshBtn.style.display = 'inline-block';
     }
   }
 
