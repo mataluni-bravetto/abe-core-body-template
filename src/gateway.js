@@ -232,6 +232,7 @@ class AiGuardianGateway {
     this.logger = this.initializeLogger();
     this.centralLogger = null;
     this.cacheManager = new CacheManager();
+    this.subscriptionService = null; // Will be initialized after gateway is ready
 
     this.initializeGateway();
   }
@@ -303,6 +304,12 @@ class AiGuardianGateway {
       // Initialize central logging
       await this.initializeCentralLogging();
 
+      // Initialize subscription service (after config is loaded)
+      if (typeof SubscriptionService !== 'undefined') {
+        this.subscriptionService = new SubscriptionService(this);
+        Logger.info('[Gateway] Subscription service initialized');
+      }
+
       Logger.info('[Gateway] Initialized unified gateway connection');
     } catch (err) {
       Logger.error('[Gateway] Initialization failed', err);
@@ -332,28 +339,31 @@ class AiGuardianGateway {
    * Initialize central logging bridge
    */
   async initializeCentralLogging() {
+    // Define log method first to avoid circular reference
+    const logMethod = async (level, message, metadata = {}) => {
+      try {
+        // Send to central logging service
+        await this.sendToGateway('logging', {
+          level,
+          message,
+          metadata: {
+            ...metadata,
+            timestamp: new Date().toISOString(),
+            extension_version: chrome.runtime.getManifest().version,
+            user_agent: navigator.userAgent
+          }
+        });
+      } catch (err) {
+        Logger.error('[Central Logger] Failed to send log:', err);
+      }
+    };
+    
+    // Create logger object with all methods
     this.centralLogger = {
-      log: async (level, message, metadata = {}) => {
-        try {
-          // Send to central logging service
-          await this.sendToGateway('logging', {
-            level,
-            message,
-            metadata: {
-              ...metadata,
-              timestamp: new Date().toISOString(),
-              extension_version: chrome.runtime.getManifest().version,
-              user_agent: navigator.userAgent
-            }
-          });
-        } catch (err) {
-          Logger.error('[Central Logger] Failed to send log:', err);
-        }
-      },
-      
-      info: (message, metadata) => this.centralLogger.log('info', message, metadata),
-      warn: (message, metadata) => this.centralLogger.log('warn', message, metadata),
-      error: (message, metadata) => this.centralLogger.log('error', message, metadata)
+      log: logMethod,
+      info: (message, metadata) => logMethod('info', message, metadata),
+      warn: (message, metadata) => logMethod('warn', message, metadata),
+      error: (message, metadata) => logMethod('error', message, metadata)
     };
   }
 
@@ -370,6 +380,25 @@ class AiGuardianGateway {
       console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
       this.handleError(error, { endpoint, payload });
       throw error;
+    }
+
+    // Check subscription status before making request (only for analyze endpoint)
+    if (endpoint === 'analyze' && this.subscriptionService && this.config.apiKey) {
+      try {
+        const subscriptionCheck = await this.subscriptionService.canMakeRequest();
+        
+        if (!subscriptionCheck.allowed) {
+          Logger.error('[Gateway] Request blocked by subscription check:', subscriptionCheck.reason);
+          throw new Error(subscriptionCheck.message);
+        }
+
+        if (subscriptionCheck.warning) {
+          Logger.warn('[Gateway] Subscription warning:', subscriptionCheck.message);
+        }
+      } catch (subscriptionError) {
+        // If subscription check fails, log but allow request (fail open)
+        Logger.warn('[Gateway] Subscription check failed, allowing request:', subscriptionError);
+      }
     }
 
     const startTime = Date.now();
@@ -393,10 +422,10 @@ class AiGuardianGateway {
     // Map extension endpoints to backend API endpoints
     const endpointMapping = {
       'analyze': 'api/v1/guards/process',
-      'health': 'api/v1/health',
+      'health': 'health/live',
       'logging': 'api/v1/logging',
-      'guards': 'api/v1/guards/list',
-      'config': 'api/v1/config'
+      'guards': 'api/v1/guards/services',
+      'config': 'api/v1/config/config'
     };
     
     const mappedEndpoint = endpointMapping[endpoint] || endpoint;
@@ -516,35 +545,64 @@ class AiGuardianGateway {
     const startTime = Date.now();
 
     try {
-      await this.centralLogger?.info('Starting text analysis', {
-        analysis_id: analysisId,
-        text_length: text.length,
-        options
-      });
+      // Log start with explicit error handling
+      if (this.centralLogger) {
+        try {
+          await this.centralLogger.info('Starting text analysis', {
+            analysis_id: analysisId,
+            text_length: text.length,
+            options
+          });
+        } catch (logError) {
+          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+        }
+      }
 
       // Send analysis request to unified gateway endpoint
       // Backend handles all guard orchestration
       const result = await this.sendToGateway('analyze', {
-        analysis_id: analysisId,
-        text,
-        options: {
-          ...options,
-          timestamp: new Date().toISOString()
+        service_type: options.service_type || 'tokenguard',
+        payload: {
+          text: text,
+          contentType: options.contentType || 'text',
+          scanLevel: options.scanLevel || 'standard',
+          context: options.context || 'webpage-content'
+        },
+        client_type: 'chrome',
+        client_version: chrome.runtime.getManifest().version,
+        request_metadata: {
+          analysis_id: analysisId,
+          timestamp: new Date().toISOString(),
+          ...options
         }
       });
 
-      await this.centralLogger?.info('Text analysis completed', {
-        analysis_id: analysisId,
-        duration: Date.now() - startTime
-      });
+      // Log completion with explicit error handling
+      if (this.centralLogger) {
+        try {
+          await this.centralLogger.info('Text analysis completed', {
+            analysis_id: analysisId,
+            duration: Date.now() - startTime
+          });
+        } catch (logError) {
+          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+        }
+      }
 
       return result;
     } catch (err) {
-      await this.centralLogger?.error('Text analysis failed', {
-        analysis_id: analysisId,
-        duration: Date.now() - startTime,
-        error: err.message
-      });
+      // Log error with explicit error handling
+      if (this.centralLogger) {
+        try {
+          await this.centralLogger.error('Text analysis failed', {
+            analysis_id: analysisId,
+            duration: Date.now() - startTime,
+            error: err.message
+          });
+        } catch (logError) {
+          Logger.warn('[Gateway] Central logging failed during error reporting:', logError);
+        }
+      }
 
       throw err;
     }
@@ -608,7 +666,14 @@ class AiGuardianGateway {
       }, resolve);
     });
 
-    await this.centralLogger?.info('Configuration updated', { gateway_url: this.config.gatewayUrl });
+    // Log configuration update with explicit error handling
+    if (this.centralLogger) {
+      try {
+        await this.centralLogger.info('Configuration updated', { gateway_url: this.config.gatewayUrl });
+      } catch (logError) {
+        Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+      }
+    }
   }
 
   /**

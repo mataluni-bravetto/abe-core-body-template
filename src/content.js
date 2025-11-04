@@ -12,14 +12,20 @@
 (function() {
   'use strict';
 
-  // Constants are available via importScripts in service worker context
-  // For content script, we'll define them locally
+  // NOTE: Constants duplication is necessary here because content scripts run in isolated
+  // contexts and cannot directly import from constants.js. These values must be kept
+  // in sync with src/constants.js. If you update constants.js, update these values too.
+  // 
+  // Content scripts cannot use importScripts() - they run in the page context, not worker context.
+  // Alternative: Could sync via chrome.storage, but adds latency and complexity.
+  // 
+  // Source of truth: src/constants.js
   const TEXT_ANALYSIS = {
-    MIN_SELECTION_LENGTH: 10,
-    MAX_SELECTION_LENGTH: 5000,
-    MAX_TEXT_LENGTH: 10000,
-    DEBOUNCE_DELAY: 300,
-    BADGE_DISPLAY_TIME: 3000
+    MIN_SELECTION_LENGTH: 10,        // Must match constants.js TEXT_ANALYSIS.MIN_SELECTION_LENGTH
+    MAX_SELECTION_LENGTH: 5000,      // Must match constants.js TEXT_ANALYSIS.MAX_SELECTION_LENGTH
+    MAX_TEXT_LENGTH: 10000,          // Must match constants.js TEXT_ANALYSIS.MAX_TEXT_LENGTH
+    DEBOUNCE_DELAY: 300,              // Must match constants.js TEXT_ANALYSIS.DEBOUNCE_DELAY
+    BADGE_DISPLAY_TIME: 3000          // Must match constants.js TEXT_ANALYSIS.BADGE_DISPLAY_TIME
   };
   
   const ERROR_MESSAGES = {
@@ -65,12 +71,12 @@
 
     // Validate selection length
     if (selectionText.length < CONFIG.minSelectionLength) {
-      console.log("[CS] Selection too short:", selectionText.length);
+      Logger.info("[CS] Selection too short:", selectionText.length);
       return;
     }
     
     if (selectionText.length > CONFIG.maxSelectionLength) {
-      console.log("[CS] Selection too long:", selectionText.length);
+      Logger.warn("[CS] Selection too long:", selectionText.length);
       showBadge(ERROR_MESSAGES.SELECTION_TOO_LONG, "warning");
       return;
     }
@@ -199,7 +205,7 @@
       
       activeHighlights.push(highlightSpan);
     } catch (e) {
-      console.error("[CS] Failed to highlight text:", e);
+      Logger.error("[CS] Failed to highlight text:", e);
     }
   }
 
@@ -472,9 +478,9 @@
       // Cleanup
       document.body.removeChild(textarea);
       
-      console.log("[CS] Text copied to clipboard");
+      Logger.info("[CS] Text copied to clipboard");
     } catch (err) {
-      console.error("[CS] Failed to copy to clipboard:", err);
+      Logger.error("[CS] Failed to copy to clipboard:", err);
     }
   }
 
@@ -584,7 +590,7 @@
       document.body.appendChild(overlay);
       document.body.appendChild(modal);
       
-      console.log("[CS] History modal displayed");
+      Logger.info("[CS] History modal displayed");
     });
   }
 
@@ -592,7 +598,7 @@
   window.addEventListener('beforeunload', cleanup);
   eventListeners.push({ element: window, event: 'beforeunload', handler: cleanup });
 
-  console.log("[CS] AiGuardian content script loaded");
+  Logger.info("[CS] AiGuardian content script loaded");
 
 })();
 

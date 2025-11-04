@@ -10,7 +10,7 @@
   <!-- Header -->
   <div class="header">
     <div class="logo">
-      <img src="../AiGuardian Assets/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo">
+      <img src="../assets/brand/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo">
     </div>
     <h1>AiGuardian</h1>
     <p>Finally, AI tools for engineers who don't believe the hype</p>
@@ -51,6 +51,20 @@
           <div class="guard-status" id="serviceStatus"></div>
         </div>
       </div>
+    </div>
+
+    <!-- Subscription Status -->
+    <div class="subscription-section" id="subscriptionSection" style="display: none;">
+      <div class="subscription-header">
+        <span class="subscription-title">💳 Subscription</span>
+        <div class="subscription-status-badge" id="subscriptionStatusBadge"></div>
+      </div>
+      <div class="subscription-details" id="subscriptionDetails">
+        <div class="subscription-tier" id="subscriptionTier">Free</div>
+        <div class="subscription-usage" id="subscriptionUsage">Loading...</div>
+      </div>
+      <button class="btn btn-secondary btn-small" id="refreshSubscriptionBtn" style="display: none;">🔄 Refresh Status</button>
+      <button class="btn btn-primary btn-small" id="upgradeBtn" style="display: none;">⬆️ Upgrade</button>
     </div>
 
     <!-- Action Buttons -->

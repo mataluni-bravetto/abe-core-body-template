@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>AiGuardian Configuration</title>
-    <link rel="stylesheet" href="../AiGuardian Assets/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css">
+    <link rel="stylesheet" href="../assets/brand/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css">
     <style>
       body{
         font:14px 'ClashGrotesk-Variable', 'ClashGrotesk', system-ui, sans-serif; 
@@ -107,7 +107,7 @@
   </head>
   <body>
     <div style="display: flex; align-items: center; margin-bottom: 24px;">
-      <img src="../AiGuardian Assets/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo" style="width: 48px; height: 48px; margin-right: 16px;">
+      <img src="../assets/brand/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo" style="width: 48px; height: 48px; margin-right: 16px;">
       <div>
         <h1 style="margin: 0; color: #33B8FF;">AiGuardian Configuration</h1>
         <p style="margin: 4px 0 0 0; color: rgba(249, 249, 249, 0.8); font-size: 14px;">Finally, AI tools for engineers who don't believe the hype</p>
@@ -129,6 +129,29 @@
       
       <button id="test_connection">Test Connection</button>
       <span id="connection_status" class="status disconnected">Disconnected</span>
+    </div>
+
+    <!-- Subscription Information -->
+    <div class="section" id="subscriptionSection" style="display: none;">
+      <h3>💳 Subscription</h3>
+      <div class="guard-service">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 18px; font-weight: 700; color: #33B8FF; text-transform: uppercase;" id="subscriptionTier">Free</div>
+            <div style="font-size: 12px; color: rgba(249, 249, 249, 0.8); margin-top: 4px;" id="subscriptionStatus">Status: Loading...</div>
+          </div>
+          <div id="subscriptionStatusBadge" class="status connected" style="font-size: 11px;">Active</div>
+        </div>
+        <div style="margin: 12px 0;">
+          <div style="font-size: 13px; color: rgba(249, 249, 249, 0.9); margin-bottom: 4px;">Usage Statistics</div>
+          <div style="font-size: 12px; color: rgba(249, 249, 249, 0.8);" id="subscriptionUsage">Loading...</div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <button id="refresh_subscription" class="secondary">🔄 Refresh</button>
+          <button id="manage_subscription" class="secondary">⚙️ Manage</button>
+          <button id="upgrade_subscription" class="secondary" style="display: none;">⬆️ Upgrade</button>
+        </div>
+      </div>
     </div>
 
     <!-- AiGuardian Service Configuration -->
