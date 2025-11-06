@@ -41,7 +41,6 @@ class AiGuardianGateway {
       /<link[^>]*>/gi,
       /<style[^>]*>.*?<\/style>/gi,
       /expression\s*\(/gi,
-      /vbscript:/gi,
       /data:text\/javascript/gi
     ];
 
@@ -420,12 +419,15 @@ class AiGuardianGateway {
     }
     
     // Map extension endpoints to backend API endpoints
+    // ALIGNED WITH BACKEND: AIGuards-Backend codeguardians-gateway
+    // All guard services now use unified /api/v1/guards/process endpoint
     const endpointMapping = {
-      'analyze': 'api/v1/guards/process',
-      'health': 'health/live',
-      'logging': 'api/v1/logging',
-      'guards': 'api/v1/guards/services',
-      'config': 'api/v1/config/config'
+      'analyze': 'api/v1/guards/process',      // Unified guard processing endpoint
+      'health': 'health/live',                  // Liveness probe
+      'health-ready': 'health/ready',           // Readiness probe
+      'guards': 'api/v1/guards/services',       // Service discovery endpoint
+      'logging': 'api/v1/logging',              // Central logging (if implemented)
+      'config': 'api/v1/config'                 // Configuration endpoint
     };
     
     const mappedEndpoint = endpointMapping[endpoint] || endpoint;
@@ -560,21 +562,19 @@ class AiGuardianGateway {
 
       // Send analysis request to unified gateway endpoint
       // Backend handles all guard orchestration
+      // PAYLOAD FORMAT ALIGNED WITH BACKEND: GuardProcessRequest schema
       const result = await this.sendToGateway('analyze', {
-        service_type: options.service_type || 'tokenguard',
+        service_type: options.service_type || 'biasguard',  // Default to BiasGuard for content analysis
         payload: {
           text: text,
           contentType: options.contentType || 'text',
           scanLevel: options.scanLevel || 'standard',
           context: options.context || 'webpage-content'
         },
-        client_type: 'chrome',
-        client_version: chrome.runtime.getManifest().version,
-        request_metadata: {
-          analysis_id: analysisId,
-          timestamp: new Date().toISOString(),
-          ...options
-        }
+        user_id: options.user_id || null,           // Optional: Clerk user ID for authenticated requests
+        session_id: analysisId,                      // Unique session identifier
+        client_type: 'chrome',                       // Client identifier for backend routing
+        client_version: chrome.runtime.getManifest().version
       });
 
       // Log completion with explicit error handling
