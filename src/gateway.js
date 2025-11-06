@@ -370,12 +370,21 @@ class AiGuardianGateway {
    * Send request to central gateway with enhanced tracing
    */
   async sendToGateway(endpoint, payload) {
+    try {
+      this.validateRequest(endpoint, payload);
+    } catch (error) {
+      this.handleError(error, { endpoint, payload });
+      throw error;
+    }
+    // Sanitize payload data
+    payload = this.sanitizeRequestData(payload);
     // Sanitize payload data
     payload = this.sanitizeRequestData(payload);
     
     try {
       this.validateRequest(endpoint, payload);
     } catch (error) {
+      console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
       console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
       this.handleError(error, { endpoint, payload });
       throw error;
@@ -556,7 +565,7 @@ class AiGuardianGateway {
             options
           });
         } catch (logError) {
-          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+          // Silent fail for logging - don't break analysis
         }
       }
 
@@ -585,7 +594,7 @@ class AiGuardianGateway {
             duration: Date.now() - startTime
           });
         } catch (logError) {
-          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+          // Silent fail for logging - don't break analysis
         }
       }
 
@@ -600,7 +609,7 @@ class AiGuardianGateway {
             error: err.message
           });
         } catch (logError) {
-          Logger.warn('[Gateway] Central logging failed during error reporting:', logError);
+          // Silent fail for logging - don't break error handling
         }
       }
 
@@ -671,7 +680,7 @@ class AiGuardianGateway {
       try {
         await this.centralLogger.info('Configuration updated', { gateway_url: this.config.gatewayUrl });
       } catch (logError) {
-        Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+        // Silent fail for logging - don't break configuration
       }
     }
   }

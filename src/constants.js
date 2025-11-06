@@ -75,7 +75,7 @@ const SUCCESS_MESSAGES = {
  */
 const DEFAULT_CONFIG = {
   // Backend API Gateway URL - Production endpoint
-  GATEWAY_URL: 'https://api.aiguardian.ai',
+  GATEWAY_URL: 'https://api.internal.aiguardian.ai',
   // For local development, use: 'http://localhost:8000'
   
   API_KEY: '', // User must configure via extension options

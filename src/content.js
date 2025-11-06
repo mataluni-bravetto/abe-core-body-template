@@ -89,13 +89,13 @@
       { type: "ANALYZE_TEXT", payload: selectionText },
       (response) => {
         if (chrome.runtime.lastError) {
-          console.error("[CS] Runtime error:", chrome.runtime.lastError);
+          Logger.error("[CS] Runtime error:", chrome.runtime.lastError);
           showBadge(ERROR_MESSAGES.ANALYSIS_FAILED, "error");
           return;
         }
 
         if (!response || !response.success) {
-          console.error("[CS] Analysis failed:", response?.error);
+          Logger.error("[CS] Analysis failed:", response?.error);
           showBadge(ERROR_MESSAGES.ANALYSIS_FAILED, "error");
           return;
         }
@@ -205,7 +205,7 @@
       
       activeHighlights.push(highlightSpan);
     } catch (e) {
-      Logger.error("[CS] Failed to highlight text:", e);
+      Logger.error("[CS] Failed to highlight text:", e.message);
     }
   }
 
@@ -264,7 +264,16 @@
    * TRACER BULLET: Detailed analysis modal (placeholder)
    */
   function showDetailedAnalysis(response) {
-    console.log("[CS] Detailed analysis:", response);
+    Logger.info("[CS] Showing detailed analysis");
+    // TODO: Replace alert with proper modal dialog
+    showModalAnalysis(response);
+  }
+
+  /**
+   * Show analysis results in a proper modal (placeholder for future enhancement)
+   */
+  function showModalAnalysis(response) {
+    // Temporary alert - replace with proper modal in future update
     alert(`Detailed Analysis:\nScore: ${Math.round(response.score * 100)}%\nType: ${response.analysis?.bias_type || 'Unknown'}`);
   }
 
