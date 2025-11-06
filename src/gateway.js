@@ -458,7 +458,9 @@ class AiGuardianGateway {
         'Authorization': 'Bearer ' + this.config.apiKey,
         'X-Extension-Version': chrome.runtime.getManifest().version,
         'X-Request-ID': requestId,
-        'X-Timestamp': new Date().toISOString()
+        'X-Timestamp': new Date().toISOString(),
+        'X-Internal-Auth': 'gateway-internal-' + this.config.apiKey.substring(0, 16),
+        'X-Service-Token': this.generateServiceToken(endpoint)
       },
       body: JSON.stringify(payload)
     };
@@ -776,6 +778,26 @@ class AiGuardianGateway {
   // Utility methods
   generateRequestId() {
     return `ext_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Generate internal service authentication token
+   */
+  generateServiceToken(endpoint) {
+    const timestamp = Date.now();
+    const service = endpoint.replace('api/v1/guards/', '');
+    const secret = this.config.apiKey || 'default-secret';
+
+    // Simple HMAC-like token generation for internal auth
+    const tokenString = `${service}:${timestamp}:${secret}`;
+    let hash = 0;
+    for (let i = 0; i < tokenString.length; i++) {
+      const char = tokenString.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+
+    return `${service}_${timestamp}_${Math.abs(hash).toString(16)}`;
   }
 
   delay(ms) {
