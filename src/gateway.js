@@ -791,10 +791,26 @@ class AiGuardianGateway {
   }
 
   /**
-   * Request internal authentication token from gateway
+   * Request internal authentication token from gateway (Clerk-integrated)
    */
   async getInternalAuthToken(service) {
     try {
+      // If we have a Clerk session token, request internal auth through Clerk
+      const clerkToken = await this.getClerkSessionToken();
+      if (clerkToken) {
+        const response = await this.sendToGateway('auth/clerk/internal-token', {
+          service: service,
+          client_type: 'chrome',
+          client_version: chrome.runtime.getManifest().version,
+          clerk_token: clerkToken
+        });
+
+        if (response && response.token) {
+          return response.token;
+        }
+      }
+
+      // Fallback: try the generic endpoint
       const response = await this.sendToGateway('auth/internal-token', {
         service: service,
         client_type: 'chrome',
@@ -805,12 +821,29 @@ class AiGuardianGateway {
         return response.token;
       }
 
-      // Fallback: generate simple token if backend doesn't support this endpoint
-      Logger.warn('[Gateway] Backend does not support internal token endpoint, using fallback');
+      // Final fallback: generate simple token
+      Logger.warn('[Gateway] Backend does not support Clerk or internal token endpoints, using fallback');
       return this.generateFallbackToken(service);
     } catch (error) {
-      Logger.warn('[Gateway] Failed to get internal token, using fallback:', error);
+      Logger.warn('[Gateway] Failed to get Clerk/internal token, using fallback:', error);
       return this.generateFallbackToken(service);
+    }
+  }
+
+  /**
+   * Get Clerk session token (if available)
+   */
+  async getClerkSessionToken() {
+    try {
+      // Check if Clerk is available and user is authenticated
+      if (typeof window !== 'undefined' && window.Clerk) {
+        const token = await window.Clerk.session.getToken();
+        return token;
+      }
+      return null;
+    } catch (error) {
+      Logger.debug('[Gateway] Clerk not available or no session:', error.message);
+      return null;
     }
   }
 
