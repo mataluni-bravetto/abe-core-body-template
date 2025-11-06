@@ -791,18 +791,19 @@ class AiGuardianGateway {
   }
 
   /**
-   * Request internal authentication token from gateway (Clerk-integrated)
+   * Request internal authentication token from gateway (webhook-based Clerk)
    */
   async getInternalAuthToken(service) {
     try {
-      // If we have a Clerk session token, request internal auth through Clerk
+      // If we have a Clerk session token, request internal auth through webhook-based system
       const clerkToken = await this.getClerkSessionToken();
       if (clerkToken) {
-        const response = await this.sendToGateway('auth/clerk/internal-token', {
+        // Send Clerk token to backend - backend should validate via webhook system
+        const response = await this.sendToGateway('auth/validate-session', {
           service: service,
           client_type: 'chrome',
           client_version: chrome.runtime.getManifest().version,
-          clerk_token: clerkToken
+          clerk_session_token: clerkToken
         });
 
         if (response && response.token) {
@@ -822,10 +823,10 @@ class AiGuardianGateway {
       }
 
       // Final fallback: generate simple token
-      Logger.warn('[Gateway] Backend does not support Clerk or internal token endpoints, using fallback');
+      Logger.warn('[Gateway] Backend does not support webhook-based auth, using fallback');
       return this.generateFallbackToken(service);
     } catch (error) {
-      Logger.warn('[Gateway] Failed to get Clerk/internal token, using fallback:', error);
+      Logger.warn('[Gateway] Failed to get webhook-based token, using fallback:', error);
       return this.generateFallbackToken(service);
     }
   }
