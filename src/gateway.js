@@ -451,6 +451,16 @@ class AiGuardianGateway {
       payload: this.sanitizePayload(payload)
     });
     
+    // Get internal auth token from backend
+    let internalToken;
+    try {
+      const service = endpoint.replace('api/v1/guards/', '');
+      internalToken = await this.getInternalAuthToken(service);
+    } catch (error) {
+      Logger.warn('[Gateway] Failed to get internal token:', error);
+      internalToken = 'fallback-token';
+    }
+
     const requestOptions = {
       method: 'POST',
       headers: {
@@ -460,7 +470,7 @@ class AiGuardianGateway {
         'X-Request-ID': requestId,
         'X-Timestamp': new Date().toISOString(),
         'X-Internal-Auth': 'gateway-internal-' + this.config.apiKey.substring(0, 16),
-        'X-Service-Token': this.generateServiceToken(endpoint)
+        'X-Service-Token': internalToken
       },
       body: JSON.stringify(payload)
     };
@@ -781,14 +791,37 @@ class AiGuardianGateway {
   }
 
   /**
-   * Generate internal service authentication token
+   * Request internal authentication token from gateway
    */
-  generateServiceToken(endpoint) {
+  async getInternalAuthToken(service) {
+    try {
+      const response = await this.sendToGateway('auth/internal-token', {
+        service: service,
+        client_type: 'chrome',
+        client_version: chrome.runtime.getManifest().version
+      });
+
+      if (response && response.token) {
+        return response.token;
+      }
+
+      // Fallback: generate simple token if backend doesn't support this endpoint
+      Logger.warn('[Gateway] Backend does not support internal token endpoint, using fallback');
+      return this.generateFallbackToken(service);
+    } catch (error) {
+      Logger.warn('[Gateway] Failed to get internal token, using fallback:', error);
+      return this.generateFallbackToken(service);
+    }
+  }
+
+  /**
+   * Fallback token generation for backends that don't support internal auth
+   */
+  generateFallbackToken(service) {
     const timestamp = Date.now();
-    const service = endpoint.replace('api/v1/guards/', '');
     const secret = this.config.apiKey || 'default-secret';
 
-    // Simple HMAC-like token generation for internal auth
+    // Simple token generation as fallback
     const tokenString = `${service}:${timestamp}:${secret}`;
     let hash = 0;
     for (let i = 0; i < tokenString.length; i++) {
