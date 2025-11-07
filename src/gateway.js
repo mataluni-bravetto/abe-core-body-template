@@ -577,7 +577,7 @@ class AiGuardianGateway {
             options
           });
         } catch (logError) {
-          // Silent fail for logging - don't break analysis
+          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
         }
       }
 
@@ -606,7 +606,7 @@ class AiGuardianGateway {
             duration: Date.now() - startTime
           });
         } catch (logError) {
-          // Silent fail for logging - don't break analysis
+          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
         }
       }
 
@@ -621,7 +621,7 @@ class AiGuardianGateway {
             error: err.message
           });
         } catch (logError) {
-          // Silent fail for logging - don't break error handling
+          Logger.warn('[Gateway] Central logging failed during error reporting:', logError);
         }
       }
 
@@ -692,7 +692,7 @@ class AiGuardianGateway {
       try {
         await this.centralLogger.info('Configuration updated', { gateway_url: this.config.gatewayUrl });
       } catch (logError) {
-        // Silent fail for logging - don't break configuration
+        Logger.warn('[Gateway] Central logging failed, continuing:', logError);
       }
     }
   }
