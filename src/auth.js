@@ -69,12 +69,95 @@ class AiGuardianAuth {
   }
 
   /**
-   * Get authentication settings from storage
+   * Fetch public configuration from backend API
+   * Gets Clerk publishable key from AWS Secrets Manager via backend
+   */
+  async fetchPublicConfig() {
+    try {
+      // Get gateway URL from settings
+      const gatewayUrl = await this.getGatewayUrl();
+      if (!gatewayUrl) {
+        Logger.debug('[Auth] No gateway URL configured, skipping public config fetch');
+        return null;
+      }
+
+      const configUrl = `${gatewayUrl}/api/v1/config/public`;
+      
+      Logger.info('[Auth] Fetching public config from backend:', configUrl);
+      
+      const response = await fetch(configUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Extension-Version': chrome.runtime.getManifest().version
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const config = await response.json();
+      
+      if (config.clerk_publishable_key) {
+        Logger.info('[Auth] Successfully fetched Clerk publishable key from backend');
+        // Cache the key in storage for offline use
+        await this.cacheClerkKey(config.clerk_publishable_key);
+        return config;
+      }
+      
+      return null;
+    } catch (error) {
+      Logger.warn('[Auth] Failed to fetch public config from backend:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Get gateway URL from storage
+   */
+  async getGatewayUrl() {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(['gateway_url'], (data) => {
+        resolve(data.gateway_url || null);
+      });
+    });
+  }
+
+  /**
+   * Cache Clerk publishable key in storage
+   */
+  async cacheClerkKey(key) {
+    return new Promise((resolve) => {
+      chrome.storage.sync.set({ 
+        clerk_publishable_key: key,
+        clerk_key_source: 'backend_api',
+        clerk_key_cached_at: Date.now()
+      }, resolve);
+    });
+  }
+
+  /**
+   * Get authentication settings from storage or backend API
+   * Tries backend API first, falls back to manual configuration
    */
   async getSettings() {
+    // First, try to fetch from backend API (if gateway URL is configured)
+    const publicConfig = await this.fetchPublicConfig();
+    if (publicConfig && publicConfig.clerk_publishable_key) {
+      return {
+        clerk_publishable_key: publicConfig.clerk_publishable_key,
+        source: 'backend_api'
+      };
+    }
+
+    // Fallback to manual configuration from storage
     return new Promise((resolve) => {
       chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
-        resolve(data);
+        resolve({
+          clerk_publishable_key: data.clerk_publishable_key || null,
+          source: 'manual_config'
+        });
       });
     });
   }

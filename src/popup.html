@@ -45,15 +45,15 @@
     </div>
 
     <!-- Analysis Section -->
-    <div class="analysis-section">
+    <div class="analysis-section" id="analysisSection" style="display: none;">
       <div class="analysis-title">🔍 Trust & Transparency</div>
       <div class="analysis-result" id="analysisResult">
         <div class="bias-score">
           <span class="score-label">Confidence Score</span>
-          <span class="score-value low" id="biasScore">0.3</span>
+          <span class="score-value low" id="biasScore">—</span>
         </div>
-        <div class="bias-type" id="biasType">I'm not sure - needs human review</div>
-        <div class="confidence">Uncertainty: <span id="confidence">15%</span></div>
+        <div class="bias-type" id="biasType">Select text and analyze to see results</div>
+        <div class="confidence">Uncertainty: <span id="confidence">—</span></div>
       </div>
     </div>
 
@@ -85,16 +85,6 @@
     <!-- Action Buttons -->
     <div class="action-buttons">
       <button class="btn btn-primary" id="analyzeBtn">🔍 Show Me the Proof</button>
-      <button class="btn btn-secondary" id="optionsBtn">⚙️ Configure Service</button>
-      <button class="btn btn-secondary btn-small" id="testConnectionBtn">📊 Audit Trail</button>
-    </div>
-
-    <!-- Additional Features -->
-    <div class="action-buttons">
-      <button class="btn btn-secondary btn-small" id="clearHighlightsBtn">🧹 Clear Highlights</button>
-      <button class="btn btn-secondary btn-small" id="showHistoryBtn">📜 Show History</button>
-      <button class="btn btn-secondary btn-small" id="copyAnalysisBtn">📋 Copy Analysis</button>
-      <button class="btn btn-secondary btn-small" id="testContextMenuBtn">🖱️ Test Context Menu</button>
     </div>
   </div>
 

@@ -421,30 +421,18 @@ try {
 
         sendResponse(analysisResult);
       } catch (error) {
-        Logger.warn("[BG] Gateway analysis failed, falling back to mock analysis:", error);
-        
-        // Fallback to mock analysis if gateway fails
-        const mockAnalysis = generateMockAnalysis(text);
-        Logger.info("[BG] Mock analysis generated as fallback:", mockAnalysis);
-        
-        // Save to analysis history
-        saveToHistory(text, mockAnalysis);
-        
-        // Save as last analysis for copy feature
-        chrome.storage.local.set({ last_analysis: mockAnalysis });
-        
-        // Simulate network delay for realism
-        setTimeout(() => {
-          sendResponse(mockAnalysis);
-        }, 500 + Math.random() * 1000); // 500-1500ms delay
+        Logger.error("[BG] Gateway analysis failed:", error);
+        sendResponse({ 
+          success: false, 
+          error: error.message || "Analysis failed. Please ensure you are authenticated and the backend is available."
+        });
       }
       
     } catch (err) {
       Logger.error("[BG] Analysis failed:", err);
       sendResponse({ 
         success: false, 
-        error: err.message,
-        fallback_score: Math.random() * 0.8 + 0.1 // Fallback for development
+        error: err.message || "Analysis failed. Please try again."
       });
     }
   }
@@ -533,80 +521,6 @@ try {
     }
   }
 
-  /**
-   * TRACER BULLET: Generate mock analysis for immediate functionality
-   * This provides realistic bias analysis without requiring backend integration
-   */
-  function generateMockAnalysis(text) {
-    const textLower = text.toLowerCase();
-    
-    // Analyze text for bias indicators
-    let biasScore = 0.2; // Start with low bias
-    let biasType = 'neutral';
-    let confidence = 0.9;
-    
-    // Check for emotional language
-    const emotionalWords = ['amazing', 'terrible', 'incredible', 'awful', 'fantastic', 'horrible', 'love', 'hate', 'best', 'worst'];
-    const emotionalCount = emotionalWords.filter(word => textLower.includes(word)).length;
-    if (emotionalCount > 0) {
-      biasScore += 0.3;
-      biasType = 'emotional';
-    }
-    
-    // Check for subjective statements
-    const subjectiveWords = ['obviously', 'clearly', 'undoubtedly', 'certainly', 'definitely', 'absolutely'];
-    const subjectiveCount = subjectiveWords.filter(word => textLower.includes(word)).length;
-    if (subjectiveCount > 0) {
-      biasScore += 0.2;
-      biasType = 'subjective';
-    }
-    
-    // Check for loaded language
-    const loadedWords = ['always', 'never', 'all', 'none', 'everyone', 'nobody', 'perfect', 'flawless'];
-    const loadedCount = loadedWords.filter(word => textLower.includes(word)).length;
-    if (loadedCount > 0) {
-      biasScore += 0.25;
-      biasType = 'loaded_language';
-    }
-    
-    // Check for technical content (lower bias)
-    const technicalWords = ['function', 'algorithm', 'data', 'analysis', 'method', 'process', 'system'];
-    const technicalCount = technicalWords.filter(word => textLower.includes(word)).length;
-    if (technicalCount > 2) {
-      biasScore -= 0.1;
-      biasType = 'technical';
-    }
-    
-    // Check for question marks (uncertainty)
-    if (text.includes('?')) {
-      biasScore -= 0.1;
-      confidence -= 0.1;
-    }
-    
-    // Ensure score is between 0 and 1
-    biasScore = Math.max(0, Math.min(1, biasScore));
-    confidence = Math.max(0.5, Math.min(1, confidence));
-    
-    // Add some randomness for variety
-    biasScore += (Math.random() - 0.5) * 0.1;
-    biasScore = Math.max(0, Math.min(1, biasScore));
-    
-    return {
-      success: true,
-      score: biasScore,
-      analysis: {
-        bias_type: biasType,
-        confidence: confidence,
-        word_count: text.split(' ').length,
-        emotional_indicators: emotionalCount,
-        subjective_indicators: subjectiveCount,
-        loaded_language_indicators: loadedCount,
-        technical_indicators: technicalCount
-      },
-      timestamp: new Date().toISOString(),
-      trace_bullet: true // Indicate this is mock data
-    };
-  }
 
   /**
    * Handle guard status requests - Simplified for unified gateway

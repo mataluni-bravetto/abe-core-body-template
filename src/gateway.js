@@ -757,39 +757,20 @@ class AiGuardianGateway {
       return { isValid: false, errors };
     }
     
-    // For mock API testing, we'll transform the response
+    // Validate response structure based on endpoint
     if (endpoint === 'analyze') {
-      // Transform mock response to expected format
-      if (Array.isArray(response)) {
-        // Mock API returns array, transform to expected format
-        const mockResult = {
-          analysis_id: this.generateRequestId(),
-          overall_score: Math.random() * 0.8 + 0.1, // Random score between 0.1-0.9
-          bias_type: 'mock_analysis',
-          confidence: 0.85,
-          guards: {
-            biasguard: {
-              score: Math.random() * 0.8 + 0.1,
-              enabled: true,
-              threshold: 0.5
-            },
-            trustguard: {
-              score: Math.random() * 0.8 + 0.1,
-              enabled: true,
-              threshold: 0.7
-            }
-          },
-          suggestions: ['This is a mock analysis result'],
-          timestamp: new Date().toISOString()
-        };
-        return { isValid: true, errors: [], transformedResponse: mockResult };
+      // Ensure response has required fields from backend
+      if (!response.hasOwnProperty('score') && !response.hasOwnProperty('overall_score')) {
+        errors.push('Response missing score field');
+      }
+      if (!response.hasOwnProperty('analysis') && !response.hasOwnProperty('guards')) {
+        errors.push('Response missing analysis data');
       }
     }
     
-    // For other endpoints, accept any response for testing
     return {
-      isValid: true,
-      errors: []
+      isValid: errors.length === 0,
+      errors: errors
     };
   }
 
