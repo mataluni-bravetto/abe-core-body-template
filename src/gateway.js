@@ -382,7 +382,16 @@ class AiGuardianGateway {
     try {
       this.validateRequest(endpoint, payload);
     } catch (error) {
-      console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
+      Logger.error('[Gateway] Request validation failed', {
+        context: {
+          file: 'src/gateway.js',
+          endpoint,
+          error: {
+            message: error.message,
+            stack: error.stack
+          }
+        }
+      });
       this.handleError(error, { endpoint, payload });
       throw error;
     }
