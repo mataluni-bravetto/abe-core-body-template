@@ -2,6 +2,17 @@
 import React from 'react';
 import { Logo } from './Icons';
 
+/**
+ * Header Component
+ * 
+ * TODO: Integrate Clerk authentication for Sign In and Sign Up buttons
+ * - Install @clerk/clerk-react package
+ * - Wrap App with ClerkProvider
+ * - Replace placeholder links with Clerk's SignInButton and SignUpButton components
+ * - Configure Clerk publishable key from environment variables
+ * 
+ * Current implementation uses placeholder links that need to be replaced with Clerk components.
+ */
 const Header: React.FC = () => {
   const navItems = ["Products", "Solutions", "Pricing", "Docs", "Company"];
 
@@ -30,7 +41,9 @@ const Header: React.FC = () => {
           </div>
           <div className="hidden md:block">
              <div className="flex items-center space-x-2">
+                {/* TODO: Replace with Clerk SignInButton */}
                 <a href="#" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Sign In</a>
+                {/* TODO: Replace with Clerk SignUpButton */}
                 <a href="#" className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">Start Free</a>
              </div>
           </div>
