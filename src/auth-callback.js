@@ -61,11 +61,32 @@ class AuthCallbackHandler {
       const clerk = new Clerk(publishableKey);
       await clerk.load();
 
+      // Wait for Clerk to be ready and check authentication
+      
       // Check if user is authenticated after redirect
-      const user = clerk.user;
+      let user = null;
+      try {
+        user = clerk.user;
+      } catch (e) {
+        // Try waiting a bit more for Clerk to initialize
+        await new Promise(resolve => setTimeout(resolve, 500));
+        user = clerk.user;
+      }
+
       if (user) {
+        // Get session token before storing
+        let token = null;
+        try {
+          const session = await clerk.session;
+          if (session) {
+            token = await session.getToken();
+          }
+        } catch (e) {
+          Logger.warn('[AuthCallback] Could not get token:', e);
+        }
+
         // Store authentication state in extension storage
-        await this.storeAuthState(user);
+        await this.storeAuthState(user, token);
         
         this.updateStatus('Authentication successful! Redirecting...');
 
@@ -115,18 +136,25 @@ class AuthCallbackHandler {
   /**
    * Store authentication state in extension storage
    */
-  async storeAuthState(user) {
+  async storeAuthState(user, token = null) {
     return new Promise((resolve) => {
-      chrome.storage.local.set({
+      const dataToStore = {
         clerk_user: {
           id: user.id,
-          email: user.primaryEmailAddress?.emailAddress,
+          email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress,
           firstName: user.firstName,
           lastName: user.lastName,
           username: user.username,
           imageUrl: user.imageUrl || user.profileImageUrl
         }
-      }, resolve);
+      };
+
+      // Store token if available
+      if (token) {
+        dataToStore.clerk_token = token;
+      }
+
+      chrome.storage.local.set(dataToStore, resolve);
     });
   }
 

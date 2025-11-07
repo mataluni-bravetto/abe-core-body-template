@@ -821,18 +821,37 @@ class AiGuardianGateway {
   /**
    * Get Clerk session token (if available)
    * This is the primary authentication method - Clerk handles all user authentication
+   * 
+   * In service worker context, retrieves token from chrome.storage.local
+   * In popup/options context, can also get from Clerk SDK if available
    */
   async getClerkSessionToken() {
     try {
-      // Check if Clerk is available in the current context
-      // In service worker context, we need to get token from auth module
+      // First, try to get token from storage (works in all contexts)
+      const storedToken = await this.getStoredClerkToken();
+      if (storedToken) {
+        return storedToken;
+      }
+
+      // If in window context and Clerk is available, try to get fresh token
       if (typeof window !== 'undefined' && window.Clerk) {
-        const token = await window.Clerk.session.getToken();
-        return token;
+        try {
+          const clerk = window.Clerk;
+          await clerk.load();
+          const session = await clerk.session;
+          if (session) {
+            const token = await session.getToken();
+            // Store token for future use
+            if (token) {
+              await this.storeClerkToken(token);
+            }
+            return token;
+          }
+        } catch (e) {
+          Logger.debug('[Gateway] Could not get token from Clerk SDK:', e.message);
+        }
       }
       
-      // In service worker context, check if auth module is available
-      // The auth module should be initialized in popup/options pages
       return null;
     } catch (error) {
       Logger.debug('[Gateway] Clerk token not available:', error.message);
@@ -840,6 +859,25 @@ class AiGuardianGateway {
     }
   }
 
+  /**
+   * Get stored Clerk token from chrome.storage.local
+   */
+  async getStoredClerkToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['clerk_token'], (data) => {
+        resolve(data.clerk_token || null);
+      });
+    });
+  }
+
+  /**
+   * Store Clerk token in chrome.storage.local
+   */
+  async storeClerkToken(token) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ clerk_token: token }, resolve);
+    });
+  }
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
