@@ -131,6 +131,22 @@
       <span id="connection_status" class="status disconnected">Disconnected</span>
     </div>
 
+    <!-- Authentication Configuration -->
+    <div class="section">
+      <h3>🔐 Authentication</h3>
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+        Configure Clerk authentication for user sign-in and sign-up functionality.
+        <br><br>
+        <strong>Note:</strong> Payment and subscription management is handled through Stripe on the landing page. 
+        Users who sign up through the landing page will automatically be recognized here.
+      </p>
+      <label>Clerk Publishable Key</label>
+      <input id="clerk_publishable_key" type="password" placeholder="pk_test_..." />
+      <p style="color: rgba(249, 249, 249, 0.6); font-size: 12px; margin: 8px 0;">
+        Get your publishable key from <a href="https://dashboard.clerk.com" target="_blank" style="color: #33B8FF; text-decoration: none;">Clerk Dashboard</a>
+      </p>
+    </div>
+
     <!-- Subscription Information -->
     <div class="section" id="subscriptionSection" style="display: none;">
       <h3>💳 Subscription</h3>

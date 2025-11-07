@@ -16,6 +16,21 @@
     <p>Finally, AI tools for engineers who don't believe the hype</p>
   </div>
 
+  <!-- Authentication Section -->
+  <div class="auth-section" id="authSection">
+    <div class="user-profile" id="userProfile" style="display: none;">
+      <div class="user-avatar" id="userAvatar"></div>
+      <div class="user-info">
+        <div class="user-name" id="userName"></div>
+        <button class="btn btn-secondary btn-small" id="signOutBtn">Sign Out</button>
+      </div>
+    </div>
+    <div class="auth-buttons" id="authButtons">
+      <button class="btn btn-primary" id="signInBtn">🔐 Sign In</button>
+      <button class="btn btn-secondary" id="signUpBtn">📝 Sign Up</button>
+    </div>
+  </div>
+
   <!-- Main Content -->
   <div class="main-content">
     <!-- Status Section -->
@@ -95,6 +110,7 @@
 
   <!-- Scripts -->
   <script src="logging.js"></script>
+  <script src="auth.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

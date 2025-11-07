@@ -2,6 +2,11 @@
  * Subscription Service for AiGuardian Chrome Extension
  * 
  * Handles subscription status verification and usage limit checking
+ *
+ * IMPORTANT: Payment processing is handled through Stripe on the landing page.
+ * This service only reads subscription status from the backend API, which
+ * receives subscription data from Stripe webhooks. Users who purchase through
+ * the landing page will have their subscription status automatically reflected here.
  */
 
 class SubscriptionService {

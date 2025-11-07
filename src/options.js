@@ -43,6 +43,7 @@
       { id: 'test_connection', event: 'click', handler: testGatewayConnection },
       { id: 'gateway_url', event: 'change', handler: updateGatewayUrl },
       { id: 'api_key', event: 'change', handler: updateApiKey },
+      { id: 'clerk_publishable_key', event: 'change', handler: updateClerkPublishableKey },
       { id: 'guard_services', event: 'change', handler: handleGuardServiceChange },
       { id: 'analysis_pipeline', event: 'change', handler: updateAnalysisPipeline },
       { id: 'analysis_timeout', event: 'change', handler: updateAnalysisTimeout },
@@ -87,6 +88,7 @@
     chrome.storage.sync.get([
       'gateway_url',
       'api_key',
+      'clerk_publishable_key',
       'guard_services',
       'analysis_pipeline',
       'analysis_timeout',
@@ -95,6 +97,7 @@
       // Load gateway configuration
       document.getElementById('gateway_url').value = data.gateway_url || '';
       document.getElementById('api_key').value = data.api_key || '';
+      document.getElementById('clerk_publishable_key').value = data.clerk_publishable_key || '';
 
       // Load analysis pipeline
       document.getElementById('analysis_pipeline').value = data.analysis_pipeline || 'default';
@@ -227,6 +230,15 @@
   }
 
   /**
+   * TRACER BULLET: Update Clerk publishable key
+   */
+  function updateClerkPublishableKey() {
+    const clerkKey = document.getElementById('clerk_publishable_key').value;
+    chrome.storage.sync.set({ clerk_publishable_key: clerkKey });
+    Logger.info('Clerk publishable key updated');
+  }
+
+  /**
    * TRACER BULLET: Handle guard service changes
    */
   function handleGuardServiceChange(event) {
@@ -353,6 +365,7 @@
     const config = {
       gateway_url: document.getElementById('gateway_url').value,
       api_key: document.getElementById('api_key').value,
+      clerk_publishable_key: document.getElementById('clerk_publishable_key').value,
       analysis_pipeline: document.getElementById('analysis_pipeline').value,
       analysis_timeout: parseInt(document.getElementById('analysis_timeout').value),
       logging_config: {
@@ -615,6 +628,7 @@
 
   /**
    * TRACER BULLET: Upgrade subscription
+   * Note: Payment is handled through Stripe on the landing page, not in the extension
    */
   async function upgradeSubscription() {
     try {

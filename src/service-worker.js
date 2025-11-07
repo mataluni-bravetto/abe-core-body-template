@@ -365,7 +365,33 @@ try {
           // TRACER BULLET: Clear subscription cache
           handleClearSubscriptionCache(sendResponse);
           return true;
-          
+
+        case "GET_CLERK_KEY":
+          // Get Clerk publishable key
+          chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
+            sendResponse({ success: true, key: data.clerk_publishable_key });
+          });
+          return true;
+
+        case "AUTH_CALLBACK_SUCCESS":
+          // Handle successful authentication callback
+          Logger.info("[BG] Authentication callback successful");
+          // Store user data if provided
+          if (request.user) {
+            chrome.storage.local.set({
+              clerk_user: {
+                id: request.user.id,
+                email: request.user.primaryEmailAddress?.emailAddress,
+                firstName: request.user.firstName,
+                lastName: request.user.lastName,
+                username: request.user.username,
+                imageUrl: request.user.imageUrl || request.user.profileImageUrl
+              }
+            });
+          }
+          sendResponse({ success: true });
+          return true;
+
         default:
           Logger.warn("[BG] Unknown message type:", request.type);
           sendResponse({ success: false, error: "Unknown message type" });
