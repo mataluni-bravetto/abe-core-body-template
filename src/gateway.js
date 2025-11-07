@@ -378,13 +378,10 @@ class AiGuardianGateway {
     }
     // Sanitize payload data
     payload = this.sanitizeRequestData(payload);
-    // Sanitize payload data
-    payload = this.sanitizeRequestData(payload);
     
     try {
       this.validateRequest(endpoint, payload);
     } catch (error) {
-      console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
       console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
       this.handleError(error, { endpoint, payload });
       throw error;
