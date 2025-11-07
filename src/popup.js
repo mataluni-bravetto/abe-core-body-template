@@ -316,7 +316,7 @@
           const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
           const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
           // Redirect to landing page where Stripe payment processing occurs
-          const upgradeUrl = `${baseUrl}/subscribe` || 'https://dashboard.aiguardian.ai/subscribe';
+          const upgradeUrl = `${baseUrl}/subscribe` || 'https://aiguardian.ai/subscribe';
 
           chrome.tabs.create({ url: upgradeUrl });
           window.close();

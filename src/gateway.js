@@ -382,7 +382,16 @@ class AiGuardianGateway {
     try {
       this.validateRequest(endpoint, payload);
     } catch (error) {
-      console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
+      Logger.error('[Gateway] Request validation failed', {
+        context: {
+          file: 'src/gateway.js',
+          endpoint,
+          error: {
+            message: error.message,
+            stack: error.stack
+          }
+        }
+      });
       this.handleError(error, { endpoint, payload });
       throw error;
     }
@@ -448,27 +457,32 @@ class AiGuardianGateway {
       payload: this.sanitizePayload(payload)
     });
     
-    // Get internal auth token from backend
-    let internalToken;
+    // Get Clerk session token for authenticated requests
+    let clerkToken = null;
     try {
-      const service = endpoint.replace('api/v1/guards/', '');
-      internalToken = await this.getInternalAuthToken(service);
+      clerkToken = await this.getClerkSessionToken();
     } catch (error) {
-      Logger.warn('[Gateway] Failed to get internal token:', error);
-      internalToken = 'fallback-token';
+      Logger.debug('[Gateway] Clerk token not available:', error.message);
+    }
+
+    // Build headers with Clerk token if available, otherwise use API key
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Extension-Version': chrome.runtime.getManifest().version,
+      'X-Request-ID': requestId,
+      'X-Timestamp': new Date().toISOString()
+    };
+
+    // Use Clerk token for authentication if available, otherwise fall back to API key
+    if (clerkToken) {
+      headers['Authorization'] = 'Bearer ' + clerkToken;
+    } else if (this.config.apiKey) {
+      headers['Authorization'] = 'Bearer ' + this.config.apiKey;
     }
 
     const requestOptions = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + this.config.apiKey,
-        'X-Extension-Version': chrome.runtime.getManifest().version,
-        'X-Request-ID': requestId,
-        'X-Timestamp': new Date().toISOString(),
-        'X-Internal-Auth': 'gateway-internal-' + this.config.apiKey.substring(0, 16),
-        'X-Service-Token': internalToken
-      },
+      headers: headers,
       body: JSON.stringify(payload)
     };
 
@@ -578,6 +592,23 @@ class AiGuardianGateway {
         }
       }
 
+      // Get Clerk user ID if available (from stored user data)
+      let userId = options.user_id || null;
+      if (!userId) {
+        try {
+          const storedUser = await new Promise((resolve) => {
+            chrome.storage.local.get(['clerk_user'], (data) => {
+              resolve(data.clerk_user || null);
+            });
+          });
+          if (storedUser && storedUser.id) {
+            userId = storedUser.id;
+          }
+        } catch (error) {
+          Logger.debug('[Gateway] Could not get user ID:', error.message);
+        }
+      }
+
       // Send analysis request to unified gateway endpoint
       // Backend handles all guard orchestration
       // PAYLOAD FORMAT ALIGNED WITH BACKEND: GuardProcessRequest schema
@@ -589,9 +620,9 @@ class AiGuardianGateway {
           scanLevel: options.scanLevel || 'standard',
           context: options.context || 'webpage-content'
         },
-        user_id: options.user_id || null,           // Optional: Clerk user ID for authenticated requests
-        session_id: analysisId,                      // Unique session identifier
-        client_type: 'chrome',                       // Client identifier for backend routing
+        user_id: userId,                                      // Clerk user ID for authenticated requests
+        session_id: analysisId,                               // Unique session identifier
+        client_type: 'chrome',                                // Client identifier for backend routing
         client_version: chrome.runtime.getManifest().version
       });
 
@@ -788,80 +819,64 @@ class AiGuardianGateway {
   }
 
   /**
-   * Request internal authentication token from gateway (webhook-based Clerk)
-   */
-  async getInternalAuthToken(service) {
-    try {
-      // If we have a Clerk session token, request internal auth through webhook-based system
-      const clerkToken = await this.getClerkSessionToken();
-      if (clerkToken) {
-        // Send Clerk token to backend - backend should validate via webhook system
-        const response = await this.sendToGateway('auth/validate-session', {
-          service: service,
-          client_type: 'chrome',
-          client_version: chrome.runtime.getManifest().version,
-          clerk_session_token: clerkToken
-        });
-
-        if (response && response.token) {
-          return response.token;
-        }
-      }
-
-      // Fallback: try the generic endpoint
-      const response = await this.sendToGateway('auth/internal-token', {
-        service: service,
-        client_type: 'chrome',
-        client_version: chrome.runtime.getManifest().version
-      });
-
-      if (response && response.token) {
-        return response.token;
-      }
-
-      // Final fallback: generate simple token
-      Logger.warn('[Gateway] Backend does not support webhook-based auth, using fallback');
-      return this.generateFallbackToken(service);
-    } catch (error) {
-      Logger.warn('[Gateway] Failed to get webhook-based token, using fallback:', error);
-      return this.generateFallbackToken(service);
-    }
-  }
-
-  /**
    * Get Clerk session token (if available)
+   * This is the primary authentication method - Clerk handles all user authentication
+   * 
+   * In service worker context, retrieves token from chrome.storage.local
+   * In popup/options context, can also get from Clerk SDK if available
    */
   async getClerkSessionToken() {
     try {
-      // Check if Clerk is available and user is authenticated
-      if (typeof window !== 'undefined' && window.Clerk) {
-        const token = await window.Clerk.session.getToken();
-        return token;
+      // First, try to get token from storage (works in all contexts)
+      const storedToken = await this.getStoredClerkToken();
+      if (storedToken) {
+        return storedToken;
       }
+
+      // If in window context and Clerk is available, try to get fresh token
+      if (typeof window !== 'undefined' && window.Clerk) {
+        try {
+          const clerk = window.Clerk;
+          await clerk.load();
+          const session = await clerk.session;
+          if (session) {
+            const token = await session.getToken();
+            // Store token for future use
+            if (token) {
+              await this.storeClerkToken(token);
+            }
+            return token;
+          }
+        } catch (e) {
+          Logger.debug('[Gateway] Could not get token from Clerk SDK:', e.message);
+        }
+      }
+      
       return null;
     } catch (error) {
-      Logger.debug('[Gateway] Clerk not available or no session:', error.message);
+      Logger.debug('[Gateway] Clerk token not available:', error.message);
       return null;
     }
   }
 
   /**
-   * Fallback token generation for backends that don't support internal auth
+   * Get stored Clerk token from chrome.storage.local
    */
-  generateFallbackToken(service) {
-    const timestamp = Date.now();
-    const secret = this.config.apiKey || 'default-secret';
+  async getStoredClerkToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['clerk_token'], (data) => {
+        resolve(data.clerk_token || null);
+      });
+    });
+  }
 
-    // Simple token generation as fallback
-    const tokenString = `${service}:${timestamp}:${secret}`;
-    let hash = 0;
-    for (let i = 0; i < tokenString.length; i++) {
-      const char = tokenString.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-
-    return `${service}_${timestamp}_${Math.abs(hash).toString(16)}`;
+  /**
+   * Store Clerk token in chrome.storage.local
+   */
+  async storeClerkToken(token) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ clerk_token: token }, resolve);
+    });
   }
 
   delay(ms) {

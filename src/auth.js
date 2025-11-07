@@ -204,7 +204,7 @@ class AiGuardianAuth {
    */
   async clearStoredUser() {
     return new Promise((resolve) => {
-      chrome.storage.local.remove(['clerk_user'], resolve);
+      chrome.storage.local.remove(['clerk_user', 'clerk_token'], resolve);
     });
   }
 
@@ -253,16 +253,63 @@ class AiGuardianAuth {
 
   /**
    * Get authentication token for API calls
+   * Stores token in chrome.storage.local for service worker access
    */
   async getToken() {
-    if (!this.isInitialized || !this.clerk) return null;
+    if (!this.isInitialized || !this.clerk) {
+      // Try to get stored token as fallback
+      return await this.getStoredToken();
+    }
 
     try {
-      return await this.clerk.session?.getToken();
+      // Get token from Clerk session
+      const session = await this.clerk.session;
+      if (!session) {
+        return await this.getStoredToken();
+      }
+
+      const token = await session.getToken();
+      
+      // Store token for service worker access
+      if (token) {
+        await this.storeToken(token);
+      }
+      
+      return token;
     } catch (error) {
       Logger.error('[Auth] Error getting token:', error);
-      return null;
+      // Fallback to stored token
+      return await this.getStoredToken();
     }
+  }
+
+  /**
+   * Store Clerk token in extension storage
+   */
+  async storeToken(token) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ clerk_token: token }, resolve);
+    });
+  }
+
+  /**
+   * Get stored Clerk token from extension storage
+   */
+  async getStoredToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['clerk_token'], (data) => {
+        resolve(data.clerk_token || null);
+      });
+    });
+  }
+
+  /**
+   * Clear stored Clerk token
+   */
+  async clearStoredToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.remove(['clerk_token'], resolve);
+    });
   }
 
   /**
