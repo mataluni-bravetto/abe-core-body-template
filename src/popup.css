@@ -494,3 +494,96 @@ body {
   margin-top: 8px;
   width: 100%;
 }
+
+/* Authentication Section */
+.auth-section {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.auth-section:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+  transform: translateY(-1px);
+}
+
+/* User Profile */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #33B8FF 0%, #1C64D9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #F9F9F9;
+  box-shadow: 0 2px 8px rgba(51, 184, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #F9F9F9;
+  line-height: 1.2;
+}
+
+.user-info .btn {
+  align-self: flex-start;
+  padding: 4px 8px;
+  font-size: 11px;
+  min-height: 24px;
+}
+
+/* Authentication Buttons */
+.auth-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.auth-buttons .btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 36px;
+  transition: all 0.2s ease;
+}
+
+.auth-buttons .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(51, 184, 255, 0.4);
+}
+
+/* Auth Section Spacing */
+.auth-section + .main-content {
+  padding-top: 0;
+}

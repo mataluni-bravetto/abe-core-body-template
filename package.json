@@ -25,6 +25,9 @@
     "jest": "^30.2.0",
     "puppeteer": "^24.26.1"
   },
+  "dependencies": {
+    "@clerk/clerk-js": "^4.70.0"
+  },
   "keywords": [
     "ai",
     "content-analysis",

@@ -9,7 +9,8 @@
     "storage",
     "alarms",
     "contextMenus",
-    "clipboardWrite"
+    "clipboardWrite",
+    "identity"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -76,7 +77,12 @@
     }
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self' 'unsafe-inline' https://*.clerk.com https://*.clerk.accounts.dev; object-src 'self'; base-uri 'self'; form-action 'self' https://*.clerk.com https://*.clerk.accounts.dev; connect-src 'self' https://*.clerk.com https://*.clerk.accounts.dev wss://*.clerk.com;"
   },
-  "web_accessible_resources": []
+  "web_accessible_resources": [
+    {
+      "resources": ["src/clerk-callback.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
