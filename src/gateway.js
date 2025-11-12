@@ -136,10 +136,14 @@ class AiGuardianGateway {
         if (!payload || typeof payload !== 'object') {
           throw new Error('Invalid payload: must be an object');
         }
-        if (!payload.text || typeof payload.text !== 'string') {
-          throw new Error('Invalid payload: text field is required');
+        // Check for nested payload structure: payload.payload.text
+        if (!payload.payload || typeof payload.payload !== 'object') {
+          throw new Error('Invalid payload: payload field must be an object');
         }
-        if (payload.text.length > 10000) {
+        if (!payload.payload.text || typeof payload.payload.text !== 'string') {
+          throw new Error('Invalid payload: text field is required in payload');
+        }
+        if (payload.payload.text.length > TEXT_ANALYSIS.MAX_TEXT_LENGTH) {
           throw new Error('Invalid payload: text too long');
         }
         break;
