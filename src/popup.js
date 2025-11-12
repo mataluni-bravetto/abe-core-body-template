@@ -25,14 +25,149 @@
    */
   function initializePopup() {
     Logger.info('Initializing AiGuardian popup');
-    
-    // Load current settings
-    chrome.storage.sync.get(['gateway_url', 'api_key'], (data) => {
-      Logger.info('Current settings loaded:', {
-        gateway_configured: !!data.gateway_url,
-        api_key_configured: !!data.api_key
+  }
+
+  /**
+   * Initialize authentication
+   */
+  async function initializeAuth() {
+    try {
+      auth = new AiGuardianAuth();
+      const initialized = await auth.initialize();
+
+      if (initialized) {
+        await updateAuthUI();
+      } else {
+        Logger.warn('[Popup] Authentication not configured');
+        showAuthNotConfigured();
+      }
+
+      // Listen for auth callback success
+      chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.type === 'AUTH_CALLBACK_SUCCESS') {
+          // Reload auth state when callback succeeds
+          if (auth) {
+            auth.checkUserSession().then(() => {
+              updateAuthUI();
+            });
+          }
+        }
       });
-    });
+    } catch (err) {
+      Logger.error('Auth initialization error', err);
+      showAuthNotConfigured();
+    }
+  }
+
+  /**
+   * Generate user initials from display name
+   * Handles edge cases: null, empty string, whitespace-only, single character
+   * @param {string|null} displayName - User display name
+   * @returns {string} User initials (max 2 characters) or fallback 'U'
+   */
+  function generateUserInitials(displayName) {
+    // Handle null, undefined, or empty string
+    if (!displayName || typeof displayName !== 'string') {
+      return 'U';
+    }
+
+    // Trim whitespace and validate non-empty
+    const trimmed = displayName.trim();
+    if (trimmed.length === 0) {
+      return 'U';
+    }
+
+    // Split by spaces and filter out empty parts
+    const nameParts = trimmed.split(' ').filter(part => part.length > 0);
+    
+    // If no valid parts, return first character of trimmed string
+    if (nameParts.length === 0) {
+      return trimmed[0].toUpperCase();
+    }
+
+    // Generate initials from valid name parts (max 2 characters)
+    const initials = nameParts
+      .slice(0, 2) // Take first two parts only
+      .map(part => part[0]) // Get first character of each part
+      .filter(char => char) // Filter out any undefined/null characters
+      .join('')
+      .toUpperCase();
+
+    // Fallback if initials are empty (shouldn't happen, but defensive)
+    return initials.length > 0 ? initials : 'U';
+  }
+
+  /**
+   * Update authentication UI based on user state
+   */
+  async function updateAuthUI() {
+    if (!auth) return;
+
+    const userProfile = document.getElementById('userProfile');
+    const authButtons = document.getElementById('authButtons');
+    const userAvatar = document.getElementById('userAvatar');
+    const userName = document.getElementById('userName');
+    const mainContent = document.querySelector('.main-content');
+    const analysisSection = document.getElementById('analysisSection');
+
+    if (auth.isAuthenticated()) {
+      // Show user profile
+      const user = auth.getCurrentUser();
+      const avatarUrl = auth.getUserAvatar();
+      const displayName = auth.getUserDisplayName();
+
+      if (userAvatar) {
+        if (avatarUrl) {
+          userAvatar.innerHTML = `<img src="${avatarUrl}" alt="User Avatar">`;
+        } else {
+          // Show initials as fallback
+          const initials = generateUserInitials(displayName);
+          userAvatar.textContent = initials;
+        }
+      }
+
+      if (userName) {
+        userName.textContent = displayName;
+      }
+
+      userProfile.style.display = 'flex';
+      authButtons.style.display = 'none';
+      
+      // Show main content and analysis section when authenticated
+      if (mainContent) {
+        mainContent.style.display = 'block';
+      }
+      if (analysisSection) {
+        analysisSection.style.display = 'block';
+      }
+    } else {
+      // Show auth buttons
+      userProfile.style.display = 'none';
+      authButtons.style.display = 'flex';
+      
+      // Hide main content and analysis section when not authenticated
+      if (mainContent) {
+        mainContent.style.display = 'none';
+      }
+      if (analysisSection) {
+        analysisSection.style.display = 'none';
+      }
+    }
+  }
+
+  /**
+   * Show authentication not configured message
+   */
+  function showAuthNotConfigured() {
+    const authSection = document.getElementById('authSection');
+    if (authSection) {
+      authSection.innerHTML = `
+        <div style="text-align: center; color: rgba(249, 249, 249, 0.7); font-size: 12px;">
+          Authentication not configured.<br>
+          Add Clerk publishable key in settings.
+        </div>
+      `;
+    }
   }
 
   /**
@@ -126,23 +261,6 @@
    * Set up event listeners with proper cleanup tracking
    */
   function setupEventListeners() {
-    // Options button
-    const optionsBtn = document.getElementById('optionsBtn');
-    if (optionsBtn) {
-      const clickHandler = async () => {
-        try {
-          await chrome.runtime.openOptionsPage();
-          Logger.info('Opened options page');
-          window.close();
-        } catch (err) {
-          Logger.error('Failed to open options', err);
-        }
-      };
-      
-      optionsBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: optionsBtn, event: 'click', handler: clickHandler });
-    }
-
     // Analyze button
     const analyzeBtn = document.getElementById('analyzeBtn');
     if (analyzeBtn) {
@@ -156,21 +274,6 @@
       
       analyzeBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: analyzeBtn, event: 'click', handler: clickHandler });
-    }
-
-    // Test connection button
-    const testBtn = document.getElementById('testConnectionBtn');
-    if (testBtn) {
-      const clickHandler = async () => {
-        try {
-          await testConnection();
-        } catch (err) {
-          Logger.error('Failed to test connection', err);
-        }
-      };
-      
-      testBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: testBtn, event: 'click', handler: clickHandler });
     }
 
     // Settings link in footer
@@ -190,90 +293,6 @@
       eventListeners.push({ element: settingsLink, event: 'click', handler: clickHandler });
     }
 
-    // Clear highlights button
-    const clearHighlightsBtn = document.getElementById('clearHighlightsBtn');
-    if (clearHighlightsBtn) {
-      const clickHandler = async () => {
-        try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          await chrome.tabs.sendMessage(tab.id, { type: 'CLEAR_HIGHLIGHTS' });
-          showSuccess('✅ Highlights cleared');
-        } catch (err) {
-          Logger.error('Failed to clear highlights', err);
-          showError('❌ Failed to clear highlights');
-        }
-      };
-
-      clearHighlightsBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: clearHighlightsBtn, event: 'click', handler: clickHandler });
-    }
-
-    // Show history button
-    const showHistoryBtn = document.getElementById('showHistoryBtn');
-    if (showHistoryBtn) {
-      const clickHandler = async () => {
-        try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          await chrome.tabs.sendMessage(tab.id, { type: 'SHOW_HISTORY' });
-          window.close();
-        } catch (err) {
-          Logger.error('Failed to show history', err);
-          showError('❌ Failed to show history');
-        }
-      };
-
-      showHistoryBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: showHistoryBtn, event: 'click', handler: clickHandler });
-    }
-
-    // Copy analysis button
-    const copyAnalysisBtn = document.getElementById('copyAnalysisBtn');
-    if (copyAnalysisBtn) {
-      const clickHandler = async () => {
-        try {
-          const data = await chrome.storage.local.get(['last_analysis']);
-          if (data.last_analysis) {
-            const analysisText = JSON.stringify(data.last_analysis, null, 2);
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            await chrome.tabs.sendMessage(tab.id, {
-              type: 'COPY_TO_CLIPBOARD',
-              payload: analysisText
-            });
-            showSuccess('✅ Analysis copied to clipboard');
-          } else {
-            showError('⚠️ No analysis to copy. Analyze some text first!');
-          }
-        } catch (err) {
-          Logger.error('Failed to copy analysis', err);
-          showError('❌ Failed to copy analysis');
-        }
-      };
-
-      copyAnalysisBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: copyAnalysisBtn, event: 'click', handler: clickHandler });
-    }
-
-    // Test context menu button
-    const testContextMenuBtn = document.getElementById('testContextMenuBtn');
-    if (testContextMenuBtn) {
-      const clickHandler = async () => {
-        try {
-          // Send message to background to recreate context menus
-          const response = await sendMessageToBackground('RECREATE_CONTEXT_MENUS');
-          if (response.success) {
-            showSuccess('✅ Context menus recreated! Try right-clicking on selected text.');
-          } else {
-            showError('❌ Failed to recreate context menus');
-          }
-        } catch (err) {
-          Logger.error('Failed to recreate context menus', err);
-          showError('❌ Error recreating context menus');
-        }
-      };
-
-      testContextMenuBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: testContextMenuBtn, event: 'click', handler: clickHandler });
-    }
 
     // Refresh subscription button
     const refreshSubscriptionBtn = document.getElementById('refreshSubscriptionBtn');
@@ -571,8 +590,27 @@
 
   /**
    * Trigger analysis of selected text
+   * Requires authentication
    */
   async function triggerAnalysis() {
+    // Check authentication first
+    if (!auth || !auth.isAuthenticated()) {
+      showError('🔐 Please sign in to use AiGuardian');
+      // Prompt sign in
+      try {
+        if (auth) {
+          await auth.signIn();
+          window.close();
+        } else {
+          showError('❌ Authentication not configured');
+        }
+      } catch (err) {
+        Logger.error('Failed to sign in', err);
+        showError('❌ Failed to sign in');
+      }
+      return;
+    }
+
     const analyzeBtn = document.getElementById('analyzeBtn');
     const originalText = analyzeBtn ? analyzeBtn.textContent : '';
     
@@ -610,6 +648,7 @@
 
   /**
    * Update analysis result display
+   * All values come from backend - no fallbacks or mocks
    */
   function updateAnalysisResult(result) {
     const biasScore = document.getElementById('biasScore');
@@ -631,45 +670,17 @@
     }
     
     if (biasType && result.analysis) {
-      biasType.textContent = result.analysis.bias_type || 'Unknown';
+      biasType.textContent = result.analysis.bias_type || result.analysis.type || 'Unknown';
     }
     
-    if (confidence && result.analysis) {
-      const confValue = Math.round((result.analysis.confidence || 0.85) * 100);
+    if (confidence && result.analysis && result.analysis.confidence !== undefined) {
+      const confValue = Math.round(result.analysis.confidence * 100);
       confidence.textContent = `${confValue}%`;
+    } else if (confidence) {
+      confidence.textContent = '—';
     }
   }
 
-  /**
-   * Test gateway connection
-   */
-  async function testConnection() {
-    const testBtn = document.getElementById('testConnectionBtn');
-    const originalText = testBtn ? testBtn.textContent : '';
-    
-    if (testBtn) {
-      testBtn.textContent = '⏳ Testing...';
-      testBtn.disabled = true;
-    }
-    
-    try {
-      const response = await sendMessageToBackground('TEST_GATEWAY_CONNECTION');
-      if (response.success) {
-        showSuccess(`✅ Connection successful (${response.responseTime}ms)`);
-        loadSystemStatus(); // Refresh status
-      } else {
-        showError('❌ Connection failed - check your settings');
-      }
-    } catch (err) {
-      Logger.error('Connection test failed', err);
-      showError('❌ Connection test failed');
-    } finally {
-      if (testBtn) {
-        testBtn.textContent = originalText;
-        testBtn.disabled = false;
-      }
-    }
-  }
 
   /**
    * Send message to background script

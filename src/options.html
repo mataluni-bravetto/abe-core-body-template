@@ -117,17 +117,25 @@
       </div>
     </div>
     
-    <!-- Gateway Configuration -->
+    <!-- Authentication Configuration -->
     <div class="section">
-      <h3>Central Gateway</h3>
-      <label>Gateway URL</label>
-      <input id="gateway_url" type="url" placeholder="https://your-ai-guardians-gateway.com/api/v1" />
-      
-      <label>API Key</label>
-      <input id="api_key" type="password" placeholder="Your API key" />
-      
-      <button id="test_connection">Test Connection</button>
-      <span id="connection_status" class="status disconnected">Disconnected</span>
+      <h3>🔐 Authentication</h3>
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+        Your Clerk authentication is automatically configured from the backend.
+        <br><br>
+        <strong>Note:</strong> Payment and subscription management is handled through Stripe on the landing page. 
+        Users who sign up through the landing page will automatically be recognized here.
+      </p>
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="margin: 0;">Clerk Publishable Key</label>
+          <span id="clerk_key_status" class="status disconnected" style="font-size: 11px;">Manual</span>
+        </div>
+        <input id="clerk_publishable_key" type="password" placeholder="Auto-configured from backend" disabled />
+        <p id="clerk_key_info" style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin: 6px 0 0 0;">
+          <span id="clerk_key_source_text">Manually configured</span>
+        </p>
+      </div>
     </div>
 
     <!-- Authentication Configuration -->
@@ -169,77 +177,8 @@
       </div>
     </div>
 
-    <!-- AiGuardian Service Configuration -->
-    <div class="section">
-      <h3>AiGuardian Service</h3>
-      <p style="color: #6B7280; font-size: 13px; margin-bottom: 12px;">
-        Unified AI analysis service with transparent failure logging and confidence scoring.
-      </p>
-      <div class="checkbox-label">
-        <input id="enable_service" type="checkbox" checked disabled />
-        <label for="enable_service">Service Enabled (Always On)</label>
-      </div>
-    </div>
-
-    <!-- Analysis Pipeline -->
-    <div class="section">
-      <h3>Analysis Pipeline</h3>
-      <label>Pipeline Type</label>
-      <select id="analysis_pipeline">
-        <option value="default">Default Pipeline</option>
-        <option value="enhanced">Enhanced Pipeline</option>
-        <option value="custom">Custom Pipeline</option>
-      </select>
-      
-      <label>Analysis Timeout (seconds)</label>
-      <input id="analysis_timeout" type="number" min="1" max="60" value="10" />
-    </div>
-
-    <!-- Logging Configuration -->
-    <div class="section">
-      <h3>Logging & Monitoring</h3>
-      <div class="checkbox-label">
-        <input id="enable_central_logging" type="checkbox" />
-        <label for="enable_central_logging">Enable Central Logging</label>
-      </div>
-      
-      <div class="checkbox-label">
-        <input id="enable_local_logging" type="checkbox" />
-        <label for="enable_local_logging">Enable Local Logging</label>
-      </div>
-      
-      <label>Log Level</label>
-      <select id="log_level">
-        <option value="debug">Debug</option>
-        <option value="info">Info</option>
-        <option value="warn">Warning</option>
-        <option value="error">Error</option>
-      </select>
-    </div>
-
-    <!-- Testing Section -->
-    <div class="section">
-      <h3>Testing & Validation</h3>
-      <button id="run_tests">Run Guard Service Tests</button>
-      <button id="run_performance_tests" class="secondary">Run Performance Tests</button>
-      <button id="run_integration_tests" class="secondary">Run Integration Tests</button>
-      
-      <div id="test_results" class="test-results hidden">
-        <!-- Test results will be displayed here -->
-      </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="section">
-      <h3>Actions</h3>
-      <button id="save_config">Save Configuration</button>
-      <button id="reset_config" class="secondary">Reset to Defaults</button>
-      <button id="export_config" class="secondary">Export Configuration</button>
-      <button id="import_config" class="secondary">Import Configuration</button>
-    </div>
 
     <script src="logging.js"></script>
-    <script src="testing.js"></script>
     <script src="options.js"></script>
   </body>
 </html>
