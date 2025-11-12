@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Guardian Backend Connection Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .test-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .test-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .test-results {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-pass { background: #2ecc71; }
+        .status-fail { background: #e74c3c; }
+        .status-running { background: #f39c12; animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .config-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            margin: 5px 0;
+        }
+
+        .config-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ AI Guardian Backend Connection Test</h1>
+
+        <div class="config-section">
+            <h2>🔧 Configuration</h2>
+            <label>Gateway URL:</label>
+            <input type="text" id="gateway_url" class="config-input" value="https://api.internal.aiguardian.ai" placeholder="Enter gateway URL">
+
+            <label>API Key (optional):</label>
+            <input type="password" id="api_key" class="config-input" placeholder="Enter API key if required">
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 Basic Connectivity Tests</h2>
+            <button class="test-button" onclick="testGatewayConnection()">Test Gateway Connection</button>
+            <button class="test-button" onclick="testHealthEndpoint()">Test Health Endpoint</button>
+            <button class="test-button" onclick="testConfigEndpoint()">Test Config Endpoint</button>
+
+            <div id="basic-results" class="test-results" style="display: none;">
+                <h3>Basic Test Results:</h3>
+                <div id="basic-content"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🛡️ Guard Service Tests</h2>
+            <button class="test-button" onclick="testGuardServices()">Test Guard Services</button>
+            <button class="test-button" onclick="runTextAnalysis()">Run Text Analysis Test</button>
+
+            <div id="guard-results" class="test-results" style="display: none;">
+                <h3>Guard Service Results:</h3>
+                <div id="guard-content"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Performance & Integration Tests</h2>
+            <button class="test-button" onclick="runFullTestSuite()">Run Full Test Suite</button>
+            <button class="test-button" onclick="runPerformanceTest()">Performance Test</button>
+
+            <div id="performance-results" class="test-results" style="display: none;">
+                <h3>Performance Results:</h3>
+                <div id="performance-content"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📈 Test Metrics</h2>
+            <div class="metrics-grid" id="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value" id="total-tests">0</div>
+                    <div class="metric-label">Total Tests Run</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="passed-tests">0</div>
+                    <div class="metric-label">Tests Passed</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="failed-tests">0</div>
+                    <div class="metric-label">Tests Failed</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="avg-response">0ms</div>
+                    <div class="metric-label">Avg Response Time</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 Test Log</h2>
+            <button class="test-button" onclick="clearTestLog()">Clear Log</button>
+            <button class="test-button" onclick="exportTestResults()">Export Results</button>
+
+            <div id="test-log" class="test-results">
+                <div class="log-entry">Backend connection test initialized</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/constants.js"></script>
+    <script src="src/logging.js"></script>
+    <script src="src/testing.js"></script>
+
+    <script>
+        // Backend Connection Tester
+        class BackendTester {
+            constructor() {
+                this.testResults = [];
+                this.metrics = {
+                    totalTests: 0,
+                    passedTests: 0,
+                    failedTests: 0,
+                    totalResponseTime: 0,
+                    averageResponseTime: 0
+                };
+
+                this.gatewayUrl = 'https://api.internal.aiguardian.ai';
+                this.apiKey = '';
+
+                this.initializeTester();
+            }
+
+            initializeTester() {
+                this.log('Backend tester initialized', 'success');
+                this.updateMetrics();
+
+                // Load configuration from inputs
+                this.loadConfiguration();
+            }
+
+            loadConfiguration() {
+                const gatewayInput = document.getElementById('gateway_url');
+                const apiKeyInput = document.getElementById('api_key');
+
+                gatewayInput.addEventListener('change', () => {
+                    this.gatewayUrl = gatewayInput.value;
+                    this.log(`Gateway URL updated: ${this.gatewayUrl}`, 'info');
+                });
+
+                apiKeyInput.addEventListener('change', () => {
+                    this.apiKey = apiKeyInput.value;
+                    this.log('API key updated', 'info');
+                });
+
+                this.gatewayUrl = gatewayInput.value;
+                this.apiKey = apiKeyInput.value;
+            }
+
+            log(message, type = 'info') {
+                const timestamp = new Date().toISOString();
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry`;
+                logEntry.innerHTML = `[${timestamp.split('T')[1].split('.')[0]}] ${message}`;
+                document.getElementById('test-log').appendChild(logEntry);
+
+                // Scroll to bottom
+                const logContainer = document.getElementById('test-log');
+                logContainer.scrollTop = logContainer.scrollHeight;
+
+                console.log(`[${type.toUpperCase()}] ${message}`);
+            }
+
+            updateMetrics() {
+                document.getElementById('total-tests').textContent = this.metrics.totalTests;
+                document.getElementById('passed-tests').textContent = this.metrics.passedTests;
+                document.getElementById('failed-tests').textContent = this.metrics.failedTests;
+                document.getElementById('avg-response').textContent =
+                    this.metrics.totalTests > 0 ?
+                    Math.round(this.metrics.totalResponseTime / this.metrics.totalTests) + 'ms' : '0ms';
+            }
+
+            async sendRequest(endpoint, payload = null, method = 'GET') {
+                const startTime = Date.now();
+                const url = this.gatewayUrl + endpoint;
+
+                this.log(`Sending ${method} request to: ${url}`, 'info');
+
+                try {
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'X-Extension-Version': '1.0.0'
+                    };
+
+                    if (this.apiKey) {
+                        headers['Authorization'] = `Bearer ${this.apiKey}`;
+                    }
+
+                    const requestOptions = {
+                        method: method,
+                        headers: headers
+                    };
+
+                    if (payload && method !== 'GET') {
+                        requestOptions.body = JSON.stringify(payload);
+                    }
+
+                    const response = await fetch(url, requestOptions);
+                    const responseTime = Date.now() - startTime;
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+
+                    this.log(`✅ ${endpoint} - ${responseTime}ms`, 'success');
+
+                    return {
+                        success: true,
+                        data: result,
+                        responseTime,
+                        status: response.status
+                    };
+
+                } catch (error) {
+                    const responseTime = Date.now() - startTime;
+                    this.log(`❌ ${endpoint} failed: ${error.message} (${responseTime}ms)`, 'error');
+
+                    return {
+                        success: false,
+                        error: error.message,
+                        responseTime
+                    };
+                }
+            }
+
+            async testGatewayConnection() {
+                this.log('Testing basic gateway connection...', 'info');
+
+                const result = await this.sendRequest('/health/live');
+
+                if (result.success) {
+                    this.log('✅ Gateway connection successful!', 'success');
+                    document.getElementById('basic-results').style.display = 'block';
+                    document.getElementById('basic-content').innerHTML =
+                        `<pre>✅ Gateway Connection: ${result.responseTime}ms\n${JSON.stringify(result.data, null, 2)}</pre>`;
+                } else {
+                    this.log('❌ Gateway connection failed', 'error');
+                    document.getElementById('basic-results').style.display = 'block';
+                    document.getElementById('basic-content').innerHTML =
+                        `<pre>❌ Gateway Connection Failed: ${result.error}</pre>`;
+                }
+
+                this.recordTestResult('gateway_connection', result);
+                return result.success;
+            }
+
+            async testHealthEndpoint() {
+                this.log('Testing health endpoint...', 'info');
+
+                const result = await this.sendRequest('/api/v1/health');
+
+                if (result.success) {
+                    this.log('✅ Health endpoint working!', 'success');
+                } else {
+                    this.log('❌ Health endpoint failed', 'error');
+                }
+
+                this.recordTestResult('health_endpoint', result);
+                return result.success;
+            }
+
+            async testConfigEndpoint() {
+                this.log('Testing config endpoint...', 'info');
+
+                const result = await this.sendRequest('/api/v1/config/public');
+
+                if (result.success) {
+                    this.log('✅ Config endpoint working!', 'success');
+                    if (result.data && result.data.clerk_publishable_key) {
+                        this.log('✅ Clerk key available from backend', 'success');
+                    }
+                } else {
+                    this.log('❌ Config endpoint failed', 'error');
+                }
+
+                this.recordTestResult('config_endpoint', result);
+                return result.success;
+            }
+
+            async testGuardServices() {
+                this.log('Testing guard services endpoint...', 'info');
+
+                const result = await this.sendRequest('/api/v1/guards/services');
+
+                if (result.success) {
+                    this.log('✅ Guard services available!', 'success');
+                    document.getElementById('guard-results').style.display = 'block';
+                    document.getElementById('guard-content').innerHTML =
+                        `<pre>✅ Guard Services: ${result.responseTime}ms\n${JSON.stringify(result.data, null, 2)}</pre>`;
+                } else {
+                    this.log('❌ Guard services failed', 'error');
+                    document.getElementById('guard-results').style.display = 'block';
+                    document.getElementById('guard-content').innerHTML =
+                        `<pre>❌ Guard Services Failed: ${result.error}</pre>`;
+                }
+
+                this.recordTestResult('guard_services', result);
+                return result.success;
+            }
+
+            async runTextAnalysis() {
+                this.log('Running text analysis test...', 'info');
+
+                const testText = "This is a test text for bias detection and content analysis.";
+                const payload = {
+                    service_type: 'biasguard',
+                    payload: {
+                        text: testText,
+                        contentType: 'text',
+                        scanLevel: 'standard',
+                        context: 'webpage-content'
+                    },
+                    user_id: null,
+                    session_id: 'test-session-' + Date.now(),
+                    client_type: 'chrome',
+                    client_version: '1.0.0'
+                };
+
+                const result = await this.sendRequest('/api/v1/guards/process', payload, 'POST');
+
+                if (result.success) {
+                    this.log('✅ Text analysis successful!', 'success');
+                    document.getElementById('guard-results').style.display = 'block';
+                    document.getElementById('guard-content').innerHTML +=
+                        `<pre>✅ Text Analysis: ${result.responseTime}ms\n${JSON.stringify(result.data, null, 2)}</pre>`;
+                } else {
+                    this.log('❌ Text analysis failed', 'error');
+                    document.getElementById('guard-results').style.display = 'block';
+                    document.getElementById('guard-content').innerHTML +=
+                        `<pre>❌ Text Analysis Failed: ${result.error}</pre>`;
+                }
+
+                this.recordTestResult('text_analysis', result);
+                return result.success;
+            }
+
+            async runFullTestSuite() {
+                this.log('Starting full test suite...', 'info');
+
+                const tests = [
+                    this.testGatewayConnection.bind(this),
+                    this.testHealthEndpoint.bind(this),
+                    this.testConfigEndpoint.bind(this),
+                    this.testGuardServices.bind(this),
+                    this.runTextAnalysis.bind(this)
+                ];
+
+                let passed = 0;
+                let failed = 0;
+
+                for (const test of tests) {
+                    try {
+                        const result = await test();
+                        if (result) passed++;
+                        else failed++;
+                    } catch (error) {
+                        this.log(`Test error: ${error.message}`, 'error');
+                        failed++;
+                    }
+                }
+
+                this.log(`Test suite complete: ${passed} passed, ${failed} failed`, passed === tests.length ? 'success' : 'error');
+
+                document.getElementById('performance-results').style.display = 'block';
+                document.getElementById('performance-content').innerHTML =
+                    `<pre>Test Suite Results:\n✅ Passed: ${passed}\n❌ Failed: ${failed}\n📊 Success Rate: ${Math.round((passed / tests.length) * 100)}%</pre>`;
+            }
+
+            async runPerformanceTest() {
+                this.log('Running performance test...', 'info');
+
+                const iterations = 5;
+                const results = [];
+
+                for (let i = 0; i < iterations; i++) {
+                    const start = Date.now();
+                    const result = await this.sendRequest('/health/live');
+                    const duration = Date.now() - start;
+                    results.push(duration);
+
+                    if (result.success) {
+                        this.log(`Performance test ${i + 1}: ${duration}ms`, 'info');
+                    } else {
+                        this.log(`Performance test ${i + 1} failed: ${result.error}`, 'error');
+                    }
+                }
+
+                const avg = results.reduce((a, b) => a + b, 0) / results.length;
+                const min = Math.min(...results);
+                const max = Math.max(...results);
+
+                this.log(`Performance test complete - Avg: ${Math.round(avg)}ms, Min: ${min}ms, Max: ${max}ms`, 'success');
+
+                document.getElementById('performance-results').style.display = 'block';
+                document.getElementById('performance-content').innerHTML =
+                    `<pre>Performance Test Results (${iterations} iterations):\n📊 Average: ${Math.round(avg)}ms\n⚡ Fastest: ${min}ms\n🐌 Slowest: ${max}ms\n📈 Results: [${results.join(', ')}]</pre>`;
+            }
+
+            recordTestResult(testName, result) {
+                this.metrics.totalTests++;
+                this.metrics.totalResponseTime += result.responseTime;
+
+                if (result.success) {
+                    this.metrics.passedTests++;
+                } else {
+                    this.metrics.failedTests++;
+                }
+
+                this.updateMetrics();
+
+                this.testResults.push({
+                    name: testName,
+                    success: result.success,
+                    responseTime: result.responseTime,
+                    timestamp: new Date().toISOString(),
+                    error: result.error || null
+                });
+            }
+
+            exportTestResults() {
+                const results = {
+                    timestamp: new Date().toISOString(),
+                    configuration: {
+                        gatewayUrl: this.gatewayUrl,
+                        hasApiKey: !!this.apiKey
+                    },
+                    metrics: this.metrics,
+                    testResults: this.testResults
+                };
+
+                const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ai-guardian-backend-test-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                this.log('Test results exported', 'success');
+            }
+        }
+
+        function clearTestLog() {
+            document.getElementById('test-log').innerHTML = '';
+            tester.log('Test log cleared', 'info');
+        }
+
+        // Initialize tester
+        const tester = new BackendTester();
+
+        // Global functions for buttons
+        async function testGatewayConnection() {
+            await tester.testGatewayConnection();
+        }
+
+        async function testHealthEndpoint() {
+            await tester.testHealthEndpoint();
+        }
+
+        async function testConfigEndpoint() {
+            await tester.testConfigEndpoint();
+        }
+
+        async function testGuardServices() {
+            await tester.testGuardServices();
+        }
+
+        async function runTextAnalysis() {
+            await tester.runTextAnalysis();
+        }
+
+        async function runFullTestSuite() {
+            await tester.runFullTestSuite();
+        }
+
+        async function runPerformanceTest() {
+            await tester.runPerformanceTest();
+        }
+
+        function clearTestLog() {
+            clearTestLog();
+        }
+
+        function exportTestResults() {
+            tester.exportTestResults();
+        }
+    </script>
+</body>
+</html>

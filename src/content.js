@@ -77,7 +77,7 @@
     
     if (selectionText.length > CONFIG.maxSelectionLength) {
       Logger.warn("[CS] Selection too long:", selectionText.length);
-      showBadge(ERROR_MESSAGES.SELECTION_TOO_LONG, "warning");
+      showErrorBadge("Text too long for analysis. Select less than 5000 characters.", "warning");
       return;
     }
 
@@ -90,13 +90,13 @@
       (response) => {
         if (chrome.runtime.lastError) {
           Logger.error("[CS] Runtime error:", chrome.runtime.lastError);
-          showBadge(ERROR_MESSAGES.ANALYSIS_FAILED, "error");
+          showErrorBadge("Analysis failed. Please try again or check your connection.", "error");
           return;
         }
 
         if (!response || !response.success) {
           Logger.error("[CS] Analysis failed:", response?.error);
-          showBadge(ERROR_MESSAGES.ANALYSIS_FAILED, "error");
+          showErrorBadge("Analysis failed. Please try again or check your connection.", "error");
           return;
         }
 
@@ -216,6 +216,13 @@
     if (score < 30) return '#4CAF50'; // Green - low bias
     if (score < 60) return '#FF9800'; // Orange - medium bias
     return '#F44336'; // Red - high bias
+  }
+
+  /**
+   * Show user-friendly error badges
+   */
+  function showErrorBadge(message, type = "error") {
+    showBadge(message, type);
   }
 
   /**
@@ -437,7 +444,7 @@
 
       case 'CLEAR_HIGHLIGHTS':
         clearHighlights();
-        showBadge("Highlights cleared", "info");
+        showBadge("Text highlights removed", "info");
         sendResponse({ success: true });
         return true;
 
@@ -455,7 +462,7 @@
         // Copy text to clipboard
         if (request.payload) {
           copyToClipboard(request.payload);
-          showBadge("Copied to clipboard", "info");
+          showBadge("Analysis copied to clipboard", "info");
         }
         sendResponse({ success: true });
         return true;
@@ -501,7 +508,7 @@
       const history = data.analysis_history || [];
       
       if (history.length === 0) {
-        showBadge("No analysis history", "info");
+        showBadge("No analysis history yet. Try analyzing some text first.", "info");
         return;
       }
       

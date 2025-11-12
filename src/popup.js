@@ -8,16 +8,21 @@
   let eventListeners = [];
   let currentStatus = 'loading';
   let auth = null;
+  let errorHandler = null;
 
   try {
     initializePopup();
+    initializeErrorHandler();
     setupEventListeners();
     initializeAuth();
+    initializeOnboarding();
     loadSystemStatus();
     loadGuardServices();
     loadSubscriptionStatus();
   } catch (err) {
     Logger.error('Popup init error', err);
+    // Fallback error display if error handler not initialized
+    showFallbackError('Extension failed to load properly. Please refresh and try again.');
   }
 
   /**
@@ -25,6 +30,45 @@
    */
   function initializePopup() {
     Logger.info('Initializing AiGuardian popup');
+  }
+
+  /**
+   * Initialize error handler
+   */
+  function initializeErrorHandler() {
+    errorHandler = new AiGuardianErrorHandler();
+    Logger.info('Error handler initialized');
+  }
+
+  /**
+   * Fallback error display when error handler is not available
+   */
+  function showFallbackError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.insertBefore(errorDiv, mainContent.firstChild);
+      setTimeout(() => {
+        if (errorDiv.parentNode) {
+          errorDiv.parentNode.removeChild(errorDiv);
+        }
+      }, 5000);
+    }
+  }
+
+  /**
+   * Initialize onboarding for first-time users
+   */
+  async function initializeOnboarding() {
+    try {
+      const onboarding = new AiGuardianOnboarding();
+      await onboarding.initialize();
+    } catch (err) {
+      Logger.error('Onboarding init error', err);
+    }
   }
 
   /**
@@ -39,7 +83,7 @@
         await updateAuthUI();
       } else {
         Logger.warn('[Popup] Authentication not configured');
-        showAuthNotConfigured();
+        errorHandler.showError('AUTH_NOT_CONFIGURED');
       }
 
       // Listen for auth callback success
@@ -53,10 +97,10 @@
           }
         }
       });
-    } catch (err) {
-      Logger.error('Auth initialization error', err);
-      showAuthNotConfigured();
-    }
+        } catch (err) {
+          Logger.error('Auth initialization error', err);
+          errorHandler.showError('AUTH_NOT_CONFIGURED');
+        }
   }
 
   /**
@@ -171,93 +215,6 @@
   }
 
   /**
-   * Initialize authentication
-   */
-  async function initializeAuth() {
-    try {
-      auth = new AiGuardianAuth();
-      const initialized = await auth.initialize();
-
-      if (initialized) {
-        await updateAuthUI();
-      } else {
-        Logger.warn('[Popup] Authentication not configured');
-        showAuthNotConfigured();
-      }
-
-      // Listen for auth callback success
-      chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.type === 'AUTH_CALLBACK_SUCCESS') {
-          // Reload auth state when callback succeeds
-          if (auth) {
-            auth.checkUserSession().then(() => {
-              updateAuthUI();
-            });
-          }
-        }
-      });
-    } catch (err) {
-      Logger.error('Auth initialization error', err);
-      showAuthNotConfigured();
-    }
-  }
-
-  /**
-   * Update authentication UI based on user state
-   */
-  async function updateAuthUI() {
-    if (!auth) return;
-
-    const userProfile = document.getElementById('userProfile');
-    const authButtons = document.getElementById('authButtons');
-    const userAvatar = document.getElementById('userAvatar');
-    const userName = document.getElementById('userName');
-
-    if (auth.isAuthenticated()) {
-      // Show user profile
-      const user = auth.getCurrentUser();
-      const avatarUrl = auth.getUserAvatar();
-      const displayName = auth.getUserDisplayName();
-
-      if (userAvatar) {
-        if (avatarUrl) {
-          userAvatar.innerHTML = `<img src="${avatarUrl}" alt="User Avatar">`;
-        } else {
-          // Show initials as fallback
-          const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase();
-          userAvatar.textContent = initials;
-        }
-      }
-
-      if (userName) {
-        userName.textContent = displayName;
-      }
-
-      userProfile.style.display = 'flex';
-      authButtons.style.display = 'none';
-    } else {
-      // Show auth buttons
-      userProfile.style.display = 'none';
-      authButtons.style.display = 'flex';
-    }
-  }
-
-  /**
-   * Show authentication not configured message
-   */
-  function showAuthNotConfigured() {
-    const authSection = document.getElementById('authSection');
-    if (authSection) {
-      authSection.innerHTML = `
-        <div style="text-align: center; color: rgba(249, 249, 249, 0.7); font-size: 12px;">
-          Authentication not configured.<br>
-          Add Clerk publishable key in settings.
-        </div>
-      `;
-    }
-  }
-
-  /**
    * Set up event listeners with proper cleanup tracking
    */
   function setupEventListeners() {
@@ -311,7 +268,7 @@
           showSuccess('✅ Subscription status refreshed');
         } catch (err) {
           Logger.error('Failed to refresh subscription', err);
-          showError('❌ Failed to refresh subscription');
+          errorHandler.showError('CONNECTION_FAILED');
         } finally {
           refreshSubscriptionBtn.textContent = '🔄 Refresh Status';
           refreshSubscriptionBtn.disabled = false;
@@ -341,7 +298,7 @@
           window.close();
         } catch (err) {
           Logger.error('Failed to open upgrade page', err);
-          showError('❌ Failed to open upgrade page');
+          errorHandler.showError('NETWORK_ERROR');
         }
       };
 
@@ -359,11 +316,11 @@
             // Close popup after redirecting to auth
             window.close();
           } else {
-            showError('❌ Authentication not configured');
+            errorHandler.showError('AUTH_NOT_CONFIGURED');
           }
         } catch (err) {
           Logger.error('Failed to sign in', err);
-          showError('❌ Failed to sign in');
+          errorHandler.showError('AUTH_SIGN_IN_FAILED');
         }
       };
 
@@ -381,11 +338,11 @@
             // Close popup after redirecting to auth
             window.close();
           } else {
-            showError('❌ Authentication not configured');
+            errorHandler.showError('AUTH_NOT_CONFIGURED');
           }
         } catch (err) {
           Logger.error('Failed to sign up', err);
-          showError('❌ Failed to sign up');
+          errorHandler.showError('AUTH_SIGN_UP_FAILED');
         }
       };
 
@@ -403,11 +360,11 @@
             await updateAuthUI();
             showSuccess('✅ Signed out successfully');
           } else {
-            showError('❌ Authentication not configured');
+            errorHandler.showError('AUTH_NOT_CONFIGURED');
           }
         } catch (err) {
           Logger.error('Failed to sign out', err);
-          showError('❌ Failed to sign out');
+          errorHandler.showError('AUTH_SIGN_IN_FAILED'); // Using same error type since it's auth-related
         }
       };
 
@@ -595,18 +552,18 @@
   async function triggerAnalysis() {
     // Check authentication first
     if (!auth || !auth.isAuthenticated()) {
-      showError('🔐 Please sign in to use AiGuardian');
+      errorHandler.showError('AUTH_REQUIRED');
       // Prompt sign in
       try {
         if (auth) {
           await auth.signIn();
           window.close();
         } else {
-          showError('❌ Authentication not configured');
+          errorHandler.showError('AUTH_NOT_CONFIGURED');
         }
       } catch (err) {
         Logger.error('Failed to sign in', err);
-        showError('❌ Failed to sign in');
+        errorHandler.showError('AUTH_SIGN_IN_FAILED');
       }
       return;
     }
@@ -633,11 +590,11 @@
         showSuccess('✅ Analysis complete!');
         Logger.info('Analysis completed successfully');
       } else {
-        showError('⚠️ No text selected. Please select text on the page first.');
+        errorHandler.showError('ANALYSIS_NO_SELECTION');
       }
     } catch (err) {
       Logger.error('Failed to trigger analysis', err);
-      showError('❌ Failed to analyze text. Make sure text is selected on the page.');
+      errorHandler.showErrorFromException(err);
     } finally {
       if (analyzeBtn) {
         analyzeBtn.textContent = originalText;
@@ -694,24 +651,16 @@
   }
 
   /**
-   * Show error message
+   * Legacy showError function - redirects to new error handler
+   * @deprecated Use errorHandler.showError() instead
    */
   function showError(message) {
-    // Create temporary error message
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
-    
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-      mainContent.insertBefore(errorDiv, mainContent.firstChild);
-      
-      // Remove after 3 seconds
-      setTimeout(() => {
-        if (errorDiv.parentNode) {
-          errorDiv.parentNode.removeChild(errorDiv);
-        }
-      }, 3000);
+    // For backward compatibility, map to new error handler
+    if (errorHandler) {
+      return errorHandler.showLegacyError(message);
+    } else {
+      // Fallback if error handler not initialized
+      showFallbackError(message);
     }
   }
 
