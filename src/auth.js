@@ -107,14 +107,14 @@ class AiGuardianAuth {
    */
   async fetchPublicConfig() {
     try {
-      // Get gateway URL from settings
+      // Get gateway URL from settings (will use default if not configured)
       const gatewayUrl = await this.getGatewayUrl();
       if (!gatewayUrl) {
-        Logger.debug('[Auth] No gateway URL configured, skipping public config fetch');
+        Logger.debug('[Auth] No gateway URL available, skipping public config fetch');
         return null;
       }
 
-      const configUrl = `${gatewayUrl}/api/v1/config/public`;
+      const configUrl = `${gatewayUrl.replace(/\/$/, '')}/api/v1/config/public`;
       
       Logger.info('[Auth] Fetching public config from backend:', configUrl);
       
@@ -123,36 +123,49 @@ class AiGuardianAuth {
         headers: {
           'Content-Type': 'application/json',
           'X-Extension-Version': chrome.runtime.getManifest().version
-        }
+        },
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : null
       });
 
       if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        Logger.warn(`[Auth] Backend returned ${response.status}: ${errorText}`);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const config = await response.json();
       
       if (config.clerk_publishable_key) {
-        Logger.info('[Auth] Successfully fetched Clerk publishable key from backend');
+        Logger.info(`[Auth] Successfully fetched Clerk publishable key from backend (source: ${config.source || 'unknown'})`);
         // Cache the key in storage for offline use
         await this.cacheClerkKey(config.clerk_publishable_key);
         return config;
       }
       
+      Logger.warn('[Auth] Backend config response missing clerk_publishable_key');
       return null;
     } catch (error) {
-      Logger.warn('[Auth] Failed to fetch public config from backend:', error.message);
+      // Don't log as error if it's just a network issue - backend might not be available yet
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        Logger.debug('[Auth] Backend config fetch timed out or was aborted');
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        Logger.debug('[Auth] Backend not reachable, will try manual config or retry later');
+      } else {
+        Logger.warn('[Auth] Failed to fetch public config from backend:', error.message);
+      }
       return null;
     }
   }
 
   /**
-   * Get gateway URL from storage
+   * Get gateway URL from storage or use default
    */
   async getGatewayUrl() {
     return new Promise((resolve) => {
       chrome.storage.sync.get(['gateway_url'], (data) => {
-        resolve(data.gateway_url || null);
+        // Use configured URL or fall back to default production URL
+        resolve(data.gateway_url || DEFAULT_CONFIG.GATEWAY_URL || 'https://api.aiguardian.ai');
       });
     });
   }

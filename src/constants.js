@@ -75,8 +75,10 @@ const SUCCESS_MESSAGES = {
  */
 const DEFAULT_CONFIG = {
   // Backend API Gateway URL - Production endpoint
-  GATEWAY_URL: 'https://api.internal.aiguardian.ai',
-  // For local development, use: 'http://localhost:8000'
+  // Extension will try to fetch Clerk key from backend automatically
+  GATEWAY_URL: 'https://api.aiguardian.ai',
+  // For internal/testing: 'https://api.internal.aiguardian.ai'
+  // For local development: 'http://localhost:8000'
   
   API_KEY: '', // User must configure via extension options
   SERVICE_ENABLED: true,
