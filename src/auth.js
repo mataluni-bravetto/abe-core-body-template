@@ -87,10 +87,15 @@ class AiGuardianAuth {
       this.isInitialized = true;
       Logger.info('[Auth] Clerk authentication initialized successfully');
 
-      // Check if user is already signed in
+      // Check if user is already signed in (don't fail initialization if this errors)
       Logger.info('[Auth] Checking user session...');
-      await this.checkUserSession();
-      Logger.info('[Auth] User session check completed');
+      try {
+        await this.checkUserSession();
+        Logger.info('[Auth] User session check completed');
+      } catch (sessionError) {
+        // Don't fail initialization if user session check fails - user might not be signed in yet
+        Logger.warn('[Auth] User session check failed (non-critical):', sessionError.message);
+      }
 
       return true;
     } catch (error) {
@@ -428,12 +433,29 @@ class AiGuardianAuth {
     Logger.info('[Auth] clerk exists:', !!this.clerk);
     Logger.info('[Auth] publishableKey:', this.publishableKey ? `${this.publishableKey.substring(0, 20)}...` : 'null');
 
-    if (!this.isInitialized || !this.clerk) {
-      const error = new Error('Clerk authentication not initialized');
-      Logger.error('[Auth] Sign-up failed - not initialized:', {
-        isInitialized: this.isInitialized,
+    // Ensure we have what we need - initialize on demand if needed
+    if (!this.publishableKey) {
+      Logger.info('[Auth] No publishable key, fetching settings...');
+      const settings = await this.getSettings();
+      this.publishableKey = settings.clerk_publishable_key || "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
+    }
+    
+    if (!this.clerk || typeof window.Clerk === 'undefined') {
+      Logger.info('[Auth] Clerk SDK not loaded, loading...');
+      if (typeof window.Clerk === 'undefined') {
+        await this.loadClerkSDK();
+      }
+      this.clerk = window.Clerk;
+      if (this.clerk && !this.clerk.loaded) {
+        await this.clerk.load();
+      }
+    }
+    
+    if (!this.clerk || !this.publishableKey) {
+      const error = new Error('Clerk authentication not available');
+      Logger.error('[Auth] Sign-up failed - missing requirements:', {
         hasClerk: !!this.clerk,
-        publishableKey: this.publishableKey ? 'present' : 'missing'
+        hasPublishableKey: !!this.publishableKey
       });
       throw error;
     }
