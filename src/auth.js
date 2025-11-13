@@ -73,15 +73,28 @@ class AiGuardianAuth {
       // Ensure Clerk is loaded
       Logger.info('[Auth] Checking if Clerk is loaded...', {
         loaded: this.clerk.loaded,
-        hasLoad: typeof this.clerk.load === 'function'
+        hasLoad: typeof this.clerk.load === 'function',
+        clerkKeys: Object.keys(this.clerk).slice(0, 10) // Show first 10 keys for debugging
       });
       
-      if (!this.clerk.loaded) {
-        Logger.info('[Auth] Calling clerk.load()...');
-        await this.clerk.load();
-        Logger.info('[Auth] clerk.load() completed');
+      // Only call load() if it exists and Clerk is not already loaded
+      if (typeof this.clerk.load === 'function') {
+        if (!this.clerk.loaded) {
+          Logger.info('[Auth] Calling clerk.load()...');
+          await this.clerk.load();
+          Logger.info('[Auth] clerk.load() completed');
+        } else {
+          Logger.info('[Auth] Clerk already loaded');
+        }
       } else {
-        Logger.info('[Auth] Clerk already loaded');
+        // Clerk SDK might not have a load() method - check if it's ready another way
+        Logger.info('[Auth] Clerk SDK does not have load() method - assuming ready');
+        // Check if Clerk has a ready state or user property to verify it's working
+        if (typeof this.clerk.user !== 'undefined' || typeof this.clerk.session !== 'undefined') {
+          Logger.info('[Auth] Clerk appears to be ready (has user/session properties)');
+        } else {
+          Logger.warn('[Auth] Clerk SDK loaded but load() method not available - may need different initialization');
+        }
       }
 
       this.isInitialized = true;
@@ -316,13 +329,17 @@ class AiGuardianAuth {
         hasUser: typeof this.clerk.user !== 'undefined'
       });
       
-      // Wait for Clerk to be ready (only if not already loaded)
-      if (!this.clerk.loaded) {
-        Logger.info('[Auth] Calling clerk.load()...');
-        await this.clerk.load();
-        Logger.info('[Auth] clerk.load() completed');
+      // Wait for Clerk to be ready (only if load() method exists and not already loaded)
+      if (typeof this.clerk.load === 'function') {
+        if (!this.clerk.loaded) {
+          Logger.info('[Auth] Calling clerk.load()...');
+          await this.clerk.load();
+          Logger.info('[Auth] clerk.load() completed');
+        } else {
+          Logger.info('[Auth] Clerk already loaded, skipping load()');
+        }
       } else {
-        Logger.info('[Auth] Clerk already loaded, skipping load()');
+        Logger.info('[Auth] Clerk SDK does not have load() method - assuming ready');
       }
       
       Logger.info('[Auth] Clerk state after load:', {
