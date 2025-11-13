@@ -293,22 +293,53 @@ class AiGuardianAuth {
    * Check current user session
    */
   async checkUserSession() {
-    if (!this.isInitialized || !this.clerk) return;
+    Logger.info('[Auth] checkUserSession() called', {
+      isInitialized: this.isInitialized,
+      hasClerk: !!this.clerk
+    });
+    
+    if (!this.isInitialized || !this.clerk) {
+      Logger.warn('[Auth] checkUserSession() skipped - not initialized or no clerk');
+      return;
+    }
 
     try {
-      // Wait for Clerk to be ready
-      await this.clerk.load();
+      Logger.info('[Auth] Waiting for Clerk to be ready...');
+      Logger.info('[Auth] Clerk state before load:', {
+        loaded: this.clerk.loaded,
+        hasLoad: typeof this.clerk.load === 'function',
+        hasUser: typeof this.clerk.user !== 'undefined'
+      });
+      
+      // Wait for Clerk to be ready (only if not already loaded)
+      if (!this.clerk.loaded) {
+        Logger.info('[Auth] Calling clerk.load()...');
+        await this.clerk.load();
+        Logger.info('[Auth] clerk.load() completed');
+      } else {
+        Logger.info('[Auth] Clerk already loaded, skipping load()');
+      }
+      
+      Logger.info('[Auth] Clerk state after load:', {
+        loaded: this.clerk.loaded,
+        hasUser: typeof this.clerk.user !== 'undefined'
+      });
       
       // Try to get user from Clerk instance
       let user = null;
       try {
+        Logger.info('[Auth] Attempting to access clerk.user...');
         user = this.clerk.user;
+        Logger.info('[Auth] clerk.user accessed:', user ? `user found (id: ${user.id})` : 'null');
       } catch (e) {
+        Logger.warn('[Auth] Error accessing clerk.user:', e.message);
         // If Clerk.user throws, try getting from storage
+        Logger.info('[Auth] Falling back to stored user...');
         const stored = await this.getStoredUser();
         if (stored) {
           // Create a user-like object from stored data
           user = stored;
+          Logger.info('[Auth] Using stored user');
         }
       }
       
@@ -320,13 +351,20 @@ class AiGuardianAuth {
         Logger.info('[Auth] No active user session');
       }
     } catch (error) {
-      Logger.error('[Auth] Error checking user session:', error);
+      Logger.error('[Auth] Error checking user session:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      console.error('[Auth] Full error in checkUserSession:', error);
       // Fallback: check stored user
       const stored = await this.getStoredUser();
       if (stored) {
         this.user = stored;
+        Logger.info('[Auth] Using stored user as fallback');
       } else {
         this.user = null;
+        Logger.info('[Auth] No stored user found');
       }
     }
   }
