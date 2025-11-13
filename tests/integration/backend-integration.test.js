@@ -13,7 +13,7 @@ class BackendIntegrationTester {
   constructor(config = {}) {
     this.config = {
       gatewayUrl: config.gatewayUrl || 'https://api.aiguardian.ai',
-      apiKey: config.apiKey || process.env.AIGUARDIAN_API_KEY || '',
+      apiKey: config.apiKey || (typeof process !== 'undefined' && process.env.AIGUARDIAN_API_KEY) || '',
       timeout: config.timeout || 10000,
       retryAttempts: config.retryAttempts || 3,
       ...config
@@ -373,16 +373,32 @@ class BackendIntegrationTester {
     }
     
     const successful = results.filter(r => r.success);
+    
+    // Handle case when all iterations fail
+    if (successful.length === 0) {
+      return {
+        totalIterations: iterations,
+        successfulIterations: 0,
+        averageResponseTime: 0,
+        averageBackendProcessingTime: 0,
+        minResponseTime: 0,
+        maxResponseTime: 0,
+        details: results,
+        warning: 'All performance test iterations failed. No metrics available.'
+      };
+    }
+    
     const avgResponseTime = successful.reduce((sum, r) => sum + r.responseTime, 0) / successful.length;
     const avgProcessingTime = successful.reduce((sum, r) => sum + (r.backendProcessingTime || 0), 0) / successful.length;
+    const responseTimes = successful.map(r => r.responseTime);
     
     return {
       totalIterations: iterations,
       successfulIterations: successful.length,
       averageResponseTime: Math.round(avgResponseTime),
       averageBackendProcessingTime: Math.round(avgProcessingTime),
-      minResponseTime: Math.min(...successful.map(r => r.responseTime)),
-      maxResponseTime: Math.max(...successful.map(r => r.responseTime)),
+      minResponseTime: Math.min(...responseTimes),
+      maxResponseTime: Math.max(...responseTimes),
       details: results
     };
   }
@@ -522,8 +538,8 @@ if (typeof module !== 'undefined' && module.exports) {
 // Auto-run if executed directly in Node.js
 if (typeof require !== 'undefined' && require.main === module) {
   const tester = new BackendIntegrationTester({
-    gatewayUrl: process.env.AIGUARDIAN_GATEWAY_URL || 'https://api.aiguardian.ai',
-    apiKey: process.env.AIGUARDIAN_API_KEY || ''
+    gatewayUrl: (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) || 'https://api.aiguardian.ai',
+    apiKey: (typeof process !== 'undefined' && process.env.AIGUARDIAN_API_KEY) || ''
   });
   
   tester.runAllTests().catch(error => {
