@@ -461,6 +461,18 @@
       debug += `  Clerk User: ${localData.clerk_user ? JSON.stringify(localData.clerk_user, null, 2) : 'NOT SET'}\n`;
       debug += `  Clerk Token: ${localData.clerk_token ? localData.clerk_token.substring(0, 20) + '...' : 'NOT SET'}\n\n`;
       
+      // Test getSettings() directly
+      debug += '=== TESTING getSettings() ===\n';
+      try {
+        const auth = new AiGuardianAuth();
+        const settings = await auth.getSettings();
+        debug += `getSettings() returned:\n`;
+        debug += `  Key: ${settings.clerk_publishable_key ? settings.clerk_publishable_key.substring(0, 20) + '...' : 'null'}\n`;
+        debug += `  Source: ${settings.source || 'unknown'}\n\n`;
+      } catch (e) {
+        debug += `getSettings() ERROR: ${e.message}\n`;
+      }
+
       // Try to initialize auth
       debug += '=== INITIALIZING AUTH ===\n';
       try {
@@ -472,12 +484,20 @@
         debug += `publishableKey: ${auth.publishableKey ? auth.publishableKey.substring(0, 20) + '...' : 'null'}\n`;
         debug += `user: ${auth.user ? JSON.stringify({id: auth.user.id, email: auth.user.emailAddresses?.[0]?.emailAddress}, null, 2) : 'null'}\n`;
         
+        if (!initialized) {
+          debug += `\n⚠️ Auth failed to initialize - checking why...\n`;
+          debug += `  publishableKey from getSettings: ${auth.publishableKey ? 'present' : 'missing'}\n`;
+          debug += `  Clerk SDK loaded: ${typeof window.Clerk !== 'undefined' ? 'yes' : 'no'}\n`;
+        }
+        
         // Test sign-up URL generation
         if (initialized && auth.publishableKey) {
           const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
           const instanceDomain = auth.publishableKey.includes('pk_test_') ? 'accounts.clerk.dev' : 'accounts.clerk.com';
           const signUpUrl = `https://${instanceDomain}/sign-up?__clerk_publishable_key=${encodeURIComponent(auth.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
           debug += `\nSign-Up URL:\n${signUpUrl}\n`;
+        } else if (!auth.publishableKey) {
+          debug += `\n❌ Cannot generate sign-up URL - publishableKey is missing\n`;
         }
       } catch (e) {
         debug += `ERROR: ${e.message}\n`;
