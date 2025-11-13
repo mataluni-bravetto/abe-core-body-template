@@ -5,16 +5,31 @@
  */
 
 (function(){
+  // Only run in popup context, not in options page
+  const isOptionsPage = window.location.pathname.includes('options.html');
+  if (isOptionsPage) {
+    // Don't initialize popup code in options page
+    return;
+  }
+
   let eventListeners = [];
   let currentStatus = 'loading';
-  
+  let auth = null;
+  let errorHandler = null;
+
   try {
     initializePopup();
+    initializeErrorHandler();
     setupEventListeners();
+    initializeAuth();
+    initializeOnboarding();
     loadSystemStatus();
     loadGuardServices();
+    loadSubscriptionStatus();
   } catch (err) {
     Logger.error('Popup init error', err);
+    // Fallback error display if error handler not initialized
+    showFallbackError('Extension failed to load properly. Please refresh and try again.');
   }
 
   /**
@@ -22,37 +37,202 @@
    */
   function initializePopup() {
     Logger.info('Initializing AiGuardian popup');
+  }
+
+  /**
+   * Initialize error handler
+   */
+  function initializeErrorHandler() {
+    errorHandler = new AiGuardianErrorHandler();
+    Logger.info('Error handler initialized');
+  }
+
+  /**
+   * Fallback error display when error handler is not available
+   */
+  function showFallbackError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.insertBefore(errorDiv, mainContent.firstChild);
+      setTimeout(() => {
+        if (errorDiv.parentNode) {
+          errorDiv.parentNode.removeChild(errorDiv);
+        }
+      }, 5000);
+    }
+  }
+
+  /**
+   * Initialize onboarding for first-time users
+   */
+  async function initializeOnboarding() {
+    try {
+      const onboarding = new AiGuardianOnboarding();
+      await onboarding.initialize();
+    } catch (err) {
+      Logger.error('Onboarding init error', err);
+    }
+  }
+
+  /**
+   * Initialize authentication
+   */
+  async function initializeAuth() {
+    try {
+      auth = new AiGuardianAuth();
+      const initialized = await auth.initialize();
+
+      if (initialized) {
+        await updateAuthUI();
+      } else {
+        Logger.warn('[Popup] Authentication not configured');
+        errorHandler.showError('AUTH_NOT_CONFIGURED');
+      }
+
+      // Listen for auth callback success and errors
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+          if (request.type === 'AUTH_CALLBACK_SUCCESS') {
+            // Reload auth state when callback succeeds
+            if (auth) {
+              auth.checkUserSession().then(() => {
+                updateAuthUI();
+              });
+            }
+          } else if (request.type === 'AUTH_ERROR') {
+            // Handle auth errors from background/service worker
+            Logger.error('[Popup] Auth error received:', request.error);
+            errorHandler.showError('AUTH_SIGN_UP_FAILED');
+          }
+        });
+      } else {
+        Logger.warn('[Popup] Chrome runtime API not available - message listener not registered');
+      }
+    } catch (err) {
+      Logger.error('Auth initialization error', err);
+      errorHandler.showError('AUTH_NOT_CONFIGURED');
+    }
+  }
+
+  /**
+   * Generate user initials from display name
+   * Handles edge cases: null, empty string, whitespace-only, single character
+   * @param {string|null} displayName - User display name
+   * @returns {string} User initials (max 2 characters) or fallback 'U'
+   */
+  function generateUserInitials(displayName) {
+    // Handle null, undefined, or empty string
+    if (!displayName || typeof displayName !== 'string') {
+      return 'U';
+    }
+
+    // Trim whitespace and validate non-empty
+    const trimmed = displayName.trim();
+    if (trimmed.length === 0) {
+      return 'U';
+    }
+
+    // Split by spaces and filter out empty parts
+    const nameParts = trimmed.split(' ').filter(part => part.length > 0);
     
-    // Load current settings
-    chrome.storage.sync.get(['gateway_url', 'api_key'], (data) => {
-      Logger.info('Current settings loaded:', {
-        gateway_configured: !!data.gateway_url,
-        api_key_configured: !!data.api_key
-      });
-    });
+    // If no valid parts, return first character of trimmed string
+    if (nameParts.length === 0) {
+      return trimmed[0].toUpperCase();
+    }
+
+    // Generate initials from valid name parts (max 2 characters)
+    const initials = nameParts
+      .slice(0, 2) // Take first two parts only
+      .map(part => part[0]) // Get first character of each part
+      .filter(char => char) // Filter out any undefined/null characters
+      .join('')
+      .toUpperCase();
+
+    // Fallback if initials are empty (shouldn't happen, but defensive)
+    return initials.length > 0 ? initials : 'U';
+  }
+
+  /**
+   * Update authentication UI based on user state
+   */
+  async function updateAuthUI() {
+    if (!auth) return;
+
+    const userProfile = document.getElementById('userProfile');
+    const authButtons = document.getElementById('authButtons');
+    const userAvatar = document.getElementById('userAvatar');
+    const userName = document.getElementById('userName');
+    const mainContent = document.querySelector('.main-content');
+    const analysisSection = document.getElementById('analysisSection');
+
+    if (auth.isAuthenticated()) {
+      // Show user profile
+      const user = auth.getCurrentUser();
+      const avatarUrl = auth.getUserAvatar();
+      const displayName = auth.getUserDisplayName();
+
+      if (userAvatar) {
+        if (avatarUrl) {
+          userAvatar.innerHTML = `<img src="${avatarUrl}" alt="User Avatar">`;
+        } else {
+          // Show initials as fallback
+          const initials = generateUserInitials(displayName);
+          userAvatar.textContent = initials;
+        }
+      }
+
+      if (userName) {
+        userName.textContent = displayName;
+      }
+
+      userProfile.style.display = 'flex';
+      authButtons.style.display = 'none';
+      
+      // Show main content and analysis section when authenticated
+      if (mainContent) {
+        mainContent.style.display = 'block';
+      }
+      if (analysisSection) {
+        analysisSection.style.display = 'block';
+      }
+    } else {
+      // Show auth buttons
+      userProfile.style.display = 'none';
+      authButtons.style.display = 'flex';
+      
+      // Hide main content and analysis section when not authenticated
+      if (mainContent) {
+        mainContent.style.display = 'none';
+      }
+      if (analysisSection) {
+        analysisSection.style.display = 'none';
+      }
+    }
+  }
+
+  /**
+   * Show authentication not configured message
+   */
+  function showAuthNotConfigured() {
+    const authSection = document.getElementById('authSection');
+    if (authSection) {
+      authSection.innerHTML = `
+        <div style="text-align: center; color: rgba(249, 249, 249, 0.7); font-size: 12px;">
+          Authentication not configured.<br>
+          Add Clerk publishable key in settings.
+        </div>
+      `;
+    }
   }
 
   /**
    * Set up event listeners with proper cleanup tracking
    */
   function setupEventListeners() {
-    // Options button
-    const optionsBtn = document.getElementById('optionsBtn');
-    if (optionsBtn) {
-      const clickHandler = async () => {
-        try {
-          await chrome.runtime.openOptionsPage();
-          Logger.info('Opened options page');
-          window.close();
-        } catch (err) {
-          Logger.error('Failed to open options', err);
-        }
-      };
-      
-      optionsBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: optionsBtn, event: 'click', handler: clickHandler });
-    }
-
     // Analyze button
     const analyzeBtn = document.getElementById('analyzeBtn');
     if (analyzeBtn) {
@@ -66,21 +246,6 @@
       
       analyzeBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: analyzeBtn, event: 'click', handler: clickHandler });
-    }
-
-    // Test connection button
-    const testBtn = document.getElementById('testConnectionBtn');
-    if (testBtn) {
-      const clickHandler = async () => {
-        try {
-          await testConnection();
-        } catch (err) {
-          Logger.error('Failed to test connection', err);
-        }
-      };
-      
-      testBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: testBtn, event: 'click', handler: clickHandler });
     }
 
     // Settings link in footer
@@ -100,89 +265,166 @@
       eventListeners.push({ element: settingsLink, event: 'click', handler: clickHandler });
     }
 
-    // Clear highlights button
-    const clearHighlightsBtn = document.getElementById('clearHighlightsBtn');
-    if (clearHighlightsBtn) {
+
+    // Refresh subscription button
+    const refreshSubscriptionBtn = document.getElementById('refreshSubscriptionBtn');
+    if (refreshSubscriptionBtn) {
       const clickHandler = async () => {
         try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          await chrome.tabs.sendMessage(tab.id, { type: 'CLEAR_HIGHLIGHTS' });
-          showSuccess('✅ Highlights cleared');
+          refreshSubscriptionBtn.textContent = '⏳ Refreshing...';
+          refreshSubscriptionBtn.disabled = true;
+          
+          // Clear subscription cache in background
+          await sendMessageToBackground('CLEAR_SUBSCRIPTION_CACHE');
+          
+          // Reload subscription status
+          await loadSubscriptionStatus();
+          
+          showSuccess('✅ Subscription status refreshed');
         } catch (err) {
-          Logger.error('Failed to clear highlights', err);
-          showError('❌ Failed to clear highlights');
+          Logger.error('Failed to refresh subscription', err);
+          errorHandler.showError('CONNECTION_FAILED');
+        } finally {
+          refreshSubscriptionBtn.textContent = '🔄 Refresh Status';
+          refreshSubscriptionBtn.disabled = false;
         }
       };
 
-      clearHighlightsBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: clearHighlightsBtn, event: 'click', handler: clickHandler });
+      refreshSubscriptionBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: refreshSubscriptionBtn, event: 'click', handler: clickHandler });
     }
 
-    // Show history button
-    const showHistoryBtn = document.getElementById('showHistoryBtn');
-    if (showHistoryBtn) {
+    // Upgrade button - redirects to landing page where Stripe payment is handled
+    const upgradeBtn = document.getElementById('upgradeBtn');
+    if (upgradeBtn) {
       const clickHandler = async () => {
         try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          await chrome.tabs.sendMessage(tab.id, { type: 'SHOW_HISTORY' });
+          // Open upgrade page in new tab (Stripe payment handled on landing page)
+          const data = await new Promise((resolve) => {
+            chrome.storage.sync.get(['gateway_url'], resolve);
+          });
+
+          const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
+          const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
+          // Redirect to landing page where Stripe payment processing occurs
+          const upgradeUrl = `${baseUrl}/subscribe` || 'https://aiguardian.ai/subscribe';
+
+          chrome.tabs.create({ url: upgradeUrl });
           window.close();
         } catch (err) {
-          Logger.error('Failed to show history', err);
-          showError('❌ Failed to show history');
+          Logger.error('Failed to open upgrade page', err);
+          errorHandler.showError('NETWORK_ERROR');
         }
       };
 
-      showHistoryBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: showHistoryBtn, event: 'click', handler: clickHandler });
+      upgradeBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: upgradeBtn, event: 'click', handler: clickHandler });
     }
 
-    // Copy analysis button
-    const copyAnalysisBtn = document.getElementById('copyAnalysisBtn');
-    if (copyAnalysisBtn) {
+    // Sign In button
+    const signInBtn = document.getElementById('signInBtn');
+    if (signInBtn) {
       const clickHandler = async () => {
         try {
-          const data = await chrome.storage.local.get(['last_analysis']);
-          if (data.last_analysis) {
-            const analysisText = JSON.stringify(data.last_analysis, null, 2);
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            await chrome.tabs.sendMessage(tab.id, {
-              type: 'COPY_TO_CLIPBOARD',
-              payload: analysisText
-            });
-            showSuccess('✅ Analysis copied to clipboard');
+          if (auth) {
+            await auth.signIn();
+            // Close popup after redirecting to auth
+            window.close();
           } else {
-            showError('⚠️ No analysis to copy. Analyze some text first!');
+            errorHandler.showError('AUTH_NOT_CONFIGURED');
           }
         } catch (err) {
-          Logger.error('Failed to copy analysis', err);
-          showError('❌ Failed to copy analysis');
+          Logger.error('Failed to sign in', err);
+          errorHandler.showError('AUTH_SIGN_IN_FAILED');
         }
       };
 
-      copyAnalysisBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: copyAnalysisBtn, event: 'click', handler: clickHandler });
+      signInBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: signInBtn, event: 'click', handler: clickHandler });
     }
 
-    // Test context menu button
-    const testContextMenuBtn = document.getElementById('testContextMenuBtn');
-    if (testContextMenuBtn) {
+    // Sign Up button
+    const signUpBtn = document.getElementById('signUpBtn');
+    if (signUpBtn) {
       const clickHandler = async () => {
+        Logger.info('[Popup] Sign Up button clicked');
+        Logger.info('[Popup] Auth object exists:', !!auth);
+        
         try {
-          // Send message to background to recreate context menus
-          const response = await sendMessageToBackground('RECREATE_CONTEXT_MENUS');
-          if (response.success) {
-            showSuccess('✅ Context menus recreated! Try right-clicking on selected text.');
-          } else {
-            showError('❌ Failed to recreate context menus');
+          // Wait a moment for auth to initialize if it's still initializing
+          if (!auth) {
+            Logger.warn('[Popup] Auth not initialized yet, waiting...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (!auth) {
+              Logger.error('[Popup] Auth object still null after wait');
+              errorHandler.showError('AUTH_NOT_CONFIGURED');
+              return;
+            }
           }
+
+          // Double-check auth is initialized
+          if (!auth.isInitialized) {
+            Logger.warn('[Popup] Auth not initialized, attempting to initialize...');
+            const initialized = await auth.initialize();
+            if (!initialized) {
+              Logger.error('[Popup] Failed to initialize auth');
+              errorHandler.showError('AUTH_NOT_CONFIGURED');
+              return;
+            }
+          }
+          
+          Logger.info('[Popup] Auth initialized, calling auth.signUp()');
+          Logger.info('[Popup] Auth state:', {
+            isInitialized: auth.isInitialized,
+            hasClerk: !!auth.clerk,
+            hasPublishableKey: !!auth.publishableKey
+          });
+          
+          await auth.signUp();
+          Logger.info('[Popup] auth.signUp() completed successfully');
+          
+          // Small delay before closing to ensure tab opens
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Close popup after redirecting to auth
+          window.close();
         } catch (err) {
-          Logger.error('Failed to recreate context menus', err);
-          showError('❌ Error recreating context menus');
+          Logger.error('[Popup] Sign-up failed with error:', {
+            message: err.message,
+            stack: err.stack,
+            name: err.name,
+            error: err
+          });
+          console.error('[Popup] Full error object:', err);
+          console.error('[Popup] Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+          errorHandler.showError('AUTH_SIGN_UP_FAILED');
         }
       };
 
-      testContextMenuBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: testContextMenuBtn, event: 'click', handler: clickHandler });
+      signUpBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: signUpBtn, event: 'click', handler: clickHandler });
+    }
+
+    // Sign Out button
+    const signOutBtn = document.getElementById('signOutBtn');
+    if (signOutBtn) {
+      const clickHandler = async () => {
+        try {
+          if (auth) {
+            await auth.signOut();
+            await updateAuthUI();
+            showSuccess('✅ Signed out successfully');
+          } else {
+            errorHandler.showError('AUTH_NOT_CONFIGURED');
+          }
+        } catch (err) {
+          Logger.error('Failed to sign out', err);
+          errorHandler.showError('AUTH_SIGN_IN_FAILED'); // Using same error type since it's auth-related
+        }
+      };
+
+      signOutBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: signOutBtn, event: 'click', handler: clickHandler });
     }
   }
 
@@ -258,9 +500,137 @@
   }
 
   /**
+   * Load subscription status
+   */
+  async function loadSubscriptionStatus() {
+    try {
+      // Check if user is authenticated via Clerk and gateway is configured
+      const data = await new Promise((resolve) => {
+        chrome.storage.sync.get(['gateway_url'], (syncData) => {
+          chrome.storage.local.get(['clerk_user', 'clerk_token'], (localData) => {
+            resolve({
+              gateway_url: syncData.gateway_url,
+              clerk_user: localData.clerk_user,
+              clerk_token: localData.clerk_token
+            });
+          });
+        });
+      });
+
+      if (!data.clerk_user || !data.gateway_url) {
+        // Hide subscription section if user is not authenticated or gateway not configured
+        const section = document.getElementById('subscriptionSection');
+        if (section) section.style.display = 'none';
+        return;
+      }
+
+      // Send message to background to get subscription
+      const response = await sendMessageToBackground('GET_SUBSCRIPTION_STATUS');
+      
+      if (response && response.success && response.subscription) {
+        updateSubscriptionStatus(response.subscription, response.usage);
+      } else {
+        // Hide subscription section if unable to load
+        const section = document.getElementById('subscriptionSection');
+        if (section) section.style.display = 'none';
+      }
+    } catch (err) {
+      Logger.error('Failed to load subscription status', err);
+      // Hide subscription section on error
+      const section = document.getElementById('subscriptionSection');
+      if (section) section.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update subscription status display
+   */
+  function updateSubscriptionStatus(subscription, usage) {
+    const section = document.getElementById('subscriptionSection');
+    const tierEl = document.getElementById('subscriptionTier');
+    const usageEl = document.getElementById('subscriptionUsage');
+    const statusBadge = document.getElementById('subscriptionStatusBadge');
+    const upgradeBtn = document.getElementById('upgradeBtn');
+    const refreshBtn = document.getElementById('refreshSubscriptionBtn');
+
+    if (!section) return;
+
+    // Show subscription section
+    section.style.display = 'block';
+
+    // Update tier
+    if (tierEl) {
+      const tierName = subscription.tier ? subscription.tier.toUpperCase() : 'FREE';
+      tierEl.textContent = tierName;
+    }
+
+    // Update status badge
+    if (statusBadge) {
+      const status = subscription.status || 'active';
+      statusBadge.textContent = status === 'active' ? '✓ Active' : status;
+      statusBadge.className = `subscription-status-badge ${status === 'active' ? 'active' : 'inactive'}`;
+    }
+
+    // Update usage
+    if (usageEl && usage) {
+      if (usage.requests_limit !== null && usage.requests_limit !== undefined) {
+        const percentage = usage.usage_percentage || 0;
+        const remaining = usage.remaining_requests !== null ? usage.remaining_requests : 'unlimited';
+        usageEl.textContent = `${percentage.toFixed(1)}% used (${remaining} remaining)`;
+        
+        // Add warning class if > 80%
+        if (percentage >= 80) {
+          usageEl.className = 'subscription-usage warning';
+        } else {
+          usageEl.className = 'subscription-usage';
+        }
+      } else {
+        usageEl.textContent = 'Unlimited';
+        usageEl.className = 'subscription-usage';
+      }
+    } else if (usageEl) {
+      usageEl.textContent = 'Usage data unavailable';
+      usageEl.className = 'subscription-usage';
+    }
+
+    // Show upgrade button for free tier
+    if (upgradeBtn) {
+      if (subscription.tier === 'free') {
+        upgradeBtn.style.display = 'inline-block';
+      } else {
+        upgradeBtn.style.display = 'none';
+      }
+    }
+
+    // Show refresh button
+    if (refreshBtn) {
+      refreshBtn.style.display = 'inline-block';
+    }
+  }
+
+  /**
    * Trigger analysis of selected text
+   * Requires authentication
    */
   async function triggerAnalysis() {
+    // Check authentication first
+    if (!auth || !auth.isAuthenticated()) {
+      errorHandler.showError('AUTH_REQUIRED');
+      // Prompt sign in
+      try {
+        if (auth) {
+          await auth.signIn();
+          window.close();
+        } else {
+          errorHandler.showError('AUTH_NOT_CONFIGURED');
+        }
+      } catch (err) {
+        Logger.error('Failed to sign in', err);
+        errorHandler.showError('AUTH_SIGN_IN_FAILED');
+      }
+      return;
+    }
+
     const analyzeBtn = document.getElementById('analyzeBtn');
     const originalText = analyzeBtn ? analyzeBtn.textContent : '';
     
@@ -283,11 +653,11 @@
         showSuccess('✅ Analysis complete!');
         Logger.info('Analysis completed successfully');
       } else {
-        showError('⚠️ No text selected. Please select text on the page first.');
+        errorHandler.showError('ANALYSIS_NO_SELECTION');
       }
     } catch (err) {
       Logger.error('Failed to trigger analysis', err);
-      showError('❌ Failed to analyze text. Make sure text is selected on the page.');
+      errorHandler.showErrorFromException(err);
     } finally {
       if (analyzeBtn) {
         analyzeBtn.textContent = originalText;
@@ -298,6 +668,7 @@
 
   /**
    * Update analysis result display
+   * All values come from backend - no fallbacks or mocks
    */
   function updateAnalysisResult(result) {
     const biasScore = document.getElementById('biasScore');
@@ -319,45 +690,17 @@
     }
     
     if (biasType && result.analysis) {
-      biasType.textContent = result.analysis.bias_type || 'Unknown';
+      biasType.textContent = result.analysis.bias_type || result.analysis.type || 'Unknown';
     }
     
-    if (confidence && result.analysis) {
-      const confValue = Math.round((result.analysis.confidence || 0.85) * 100);
+    if (confidence && result.analysis && result.analysis.confidence !== undefined) {
+      const confValue = Math.round(result.analysis.confidence * 100);
       confidence.textContent = `${confValue}%`;
+    } else if (confidence) {
+      confidence.textContent = '—';
     }
   }
 
-  /**
-   * Test gateway connection
-   */
-  async function testConnection() {
-    const testBtn = document.getElementById('testConnectionBtn');
-    const originalText = testBtn ? testBtn.textContent : '';
-    
-    if (testBtn) {
-      testBtn.textContent = '⏳ Testing...';
-      testBtn.disabled = true;
-    }
-    
-    try {
-      const response = await sendMessageToBackground('TEST_GATEWAY_CONNECTION');
-      if (response.success) {
-        showSuccess(`✅ Connection successful (${response.responseTime}ms)`);
-        loadSystemStatus(); // Refresh status
-      } else {
-        showError('❌ Connection failed - check your settings');
-      }
-    } catch (err) {
-      Logger.error('Connection test failed', err);
-      showError('❌ Connection test failed');
-    } finally {
-      if (testBtn) {
-        testBtn.textContent = originalText;
-        testBtn.disabled = false;
-      }
-    }
-  }
 
   /**
    * Send message to background script
@@ -371,24 +714,16 @@
   }
 
   /**
-   * Show error message
+   * Legacy showError function - redirects to new error handler
+   * @deprecated Use errorHandler.showError() instead
    */
   function showError(message) {
-    // Create temporary error message
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
-    
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-      mainContent.insertBefore(errorDiv, mainContent.firstChild);
-      
-      // Remove after 3 seconds
-      setTimeout(() => {
-        if (errorDiv.parentNode) {
-          errorDiv.parentNode.removeChild(errorDiv);
-        }
-      }, 3000);
+    // For backward compatibility, map to new error handler
+    if (errorHandler) {
+      return errorHandler.showLegacyError(message);
+    } else {
+      // Fallback if error handler not initialized
+      showFallbackError(message);
     }
   }
 

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AiGuardian - Authentication Callback</title>
+  <style>
+    body {
+      font-family: 'ClashGrotesk-Variable', 'ClashGrotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #081C3D 0%, #134390 50%, #1C64D9 100%);
+      color: #F9F9F9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(51, 184, 255, 0.3);
+    }
+
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 24px;
+      font-weight: 700;
+      color: #33B8FF;
+    }
+
+    p {
+      margin: 0 0 24px 0;
+      color: rgba(249, 249, 249, 0.8);
+      line-height: 1.5;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid #33B8FF;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .status {
+      font-size: 14px;
+      color: rgba(249, 249, 249, 0.7);
+    }
+
+    .error {
+      color: #FF5757;
+      background: rgba(255, 87, 87, 0.1);
+      border: 1px solid rgba(255, 87, 87, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="../assets/brand/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo" class="logo">
+    <h1>AiGuardian</h1>
+    <p>Completing authentication...</p>
+    <div class="spinner"></div>
+    <div class="status" id="status">Processing your sign in...</div>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="debug-log" style="margin-top: 20px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; font-family: monospace; font-size: 11px; max-height: 300px; overflow-y: auto; text-align: left; display: none;"></div>
+  </div>
+
+  <script>
+    // Capture all console logs and display them on the page
+    const debugLog = document.getElementById('debug-log');
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    function addToDebugLog(type, ...args) {
+      if (!debugLog) return;
+      debugLog.style.display = 'block';
+      const color = type === 'error' ? '#ff5757' : type === 'warn' ? '#ffaa00' : '#33b8ff';
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      const time = new Date().toLocaleTimeString();
+      debugLog.innerHTML += `<div style="color: ${color}; margin: 2px 0;">[${time}] [${type.toUpperCase()}] ${message}</div>`;
+      debugLog.scrollTop = debugLog.scrollHeight;
+    }
+    
+    console.log = (...args) => {
+      originalLog.apply(console, args);
+      addToDebugLog('log', ...args);
+    };
+    
+    console.error = (...args) => {
+      originalError.apply(console, args);
+      addToDebugLog('error', ...args);
+    };
+    
+    console.warn = (...args) => {
+      originalWarn.apply(console, args);
+      addToDebugLog('warn', ...args);
+    };
+    
+    // Log initial page load info
+    console.log('Page loaded:', window.location.href);
+    console.log('URL search:', window.location.search);
+    console.log('URL hash:', window.location.hash);
+  </script>
+  <script src="logging.js"></script>
+  <script src="auth-callback.js"></script>
+</body>
+</html>

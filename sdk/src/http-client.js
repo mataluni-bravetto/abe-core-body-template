@@ -36,27 +36,39 @@ export class HttpClient {
 
     try {
       const url = this.buildUrl(endpoint);
-      const requestOptions = this.buildRequestOptions(data, options);
 
       this.logger.debug('Making HTTP request', {
         traceId,
         url,
-        method: requestOptions.method,
+        method: options.method || 'POST',
         hasData: !!data
       });
 
       let lastError;
       let response;
+      let timeoutIds = []; // Track timeout IDs for cleanup
 
       // Retry logic
       for (let attempt = 1; attempt <= this.config.get('retryAttempts'); attempt++) {
         try {
           this.tracer.recordEvent(traceId, 'request_attempt', { attempt });
 
+          // Rebuild request options for each retry to get a fresh abort signal
+          const requestOptions = this.buildRequestOptions(data, options);
+          
+          // Track timeout ID if using AbortController fallback
+          if (requestOptions.signal && requestOptions.signal._timeoutId) {
+            timeoutIds.push(requestOptions.signal._timeoutId);
+          }
+
           response = await fetch(url, requestOptions);
 
           // Check for successful response
           if (response.ok) {
+            // Clear any pending timeouts
+            timeoutIds.forEach(id => clearTimeout(id));
+            timeoutIds = [];
+            
             const result = await this.parseResponse(response);
 
             this.logger.info('HTTP request successful', {
@@ -99,6 +111,10 @@ export class HttpClient {
         }
       }
 
+      // Clear any remaining timeouts
+      timeoutIds.forEach(id => clearTimeout(id));
+      timeoutIds = [];
+
       // All attempts failed
       this.logger.error('HTTP request failed after all retries', {
         traceId,
@@ -126,6 +142,11 @@ export class HttpClient {
       throw error;
 
     } finally {
+      // Ensure all timeouts are cleared (in case error occurred before cleanup)
+      if (typeof timeoutIds !== 'undefined' && timeoutIds.length > 0) {
+        timeoutIds.forEach(id => clearTimeout(id));
+      }
+      
       this.tracer.endTrace('http_request', traceId, {
         responseTime: Date.now() - startTime
       });
@@ -146,6 +167,39 @@ export class HttpClient {
   }
 
   /**
+   * Create abort signal with timeout (Node.js 16+ compatible)
+   * Falls back to AbortController if AbortSignal.timeout is not available
+   * @param {number} timeoutMs - Timeout in milliseconds
+   * @returns {AbortSignal} Abort signal for fetch request (with _timeoutId property for cleanup)
+   */
+  createTimeoutSignal(timeoutMs) {
+    // Use AbortSignal.timeout if available (Node.js 17.3+)
+    // This automatically cleans up the timeout when the signal is aborted
+    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+      return AbortSignal.timeout(timeoutMs);
+    }
+    
+    // Fallback for Node.js 16.x using AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+    
+    // Clean up timeout if signal is aborted early
+    const signal = controller.signal;
+    if (signal.addEventListener) {
+      signal.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+      });
+    }
+    
+    // Store timeout ID on signal for manual cleanup if needed
+    signal._timeoutId = timeoutId;
+    
+    return signal;
+  }
+
+  /**
    * Builds request options for fetch
    * @param {Object} data - Request data
    * @param {Object} options - Additional options
@@ -163,7 +217,7 @@ export class HttpClient {
         'X-Request-ID': this.generateRequestId(),
         ...options.headers
       },
-      signal: AbortSignal.timeout(timeout)
+      signal: this.createTimeoutSignal(timeout)
     };
 
     // Add API key if available

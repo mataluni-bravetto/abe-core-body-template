@@ -10,14 +10,29 @@
   <!-- Header -->
   <div class="header">
     <div class="logo">
-      <img src="../AiGuardian Assets/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo">
+      <img src="../assets/brand/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo">
     </div>
     <h1>AiGuardian</h1>
     <p>Finally, AI tools for engineers who don't believe the hype</p>
   </div>
 
+  <!-- Authentication Section -->
+  <div class="auth-section" id="authSection">
+    <div class="user-profile" id="userProfile" style="display: none;">
+      <div class="user-avatar" id="userAvatar"></div>
+      <div class="user-info">
+        <div class="user-name" id="userName"></div>
+        <button class="btn btn-secondary btn-small" id="signOutBtn">Sign Out</button>
+      </div>
+    </div>
+    <div class="auth-buttons" id="authButtons">
+      <button class="btn btn-primary" id="signInBtn">🔐 Sign In</button>
+      <button class="btn btn-secondary" id="signUpBtn">📝 Sign Up</button>
+    </div>
+  </div>
+
   <!-- Main Content -->
-  <div class="main-content">
+  <div class="main-content" style="display: none;">
     <!-- Status Section -->
     <div class="status-section">
       <div class="status-header">
@@ -30,15 +45,15 @@
     </div>
 
     <!-- Analysis Section -->
-    <div class="analysis-section">
+    <div class="analysis-section" id="analysisSection" style="display: none;">
       <div class="analysis-title">🔍 Trust & Transparency</div>
       <div class="analysis-result" id="analysisResult">
         <div class="bias-score">
           <span class="score-label">Confidence Score</span>
-          <span class="score-value low" id="biasScore">0.3</span>
+          <span class="score-value low" id="biasScore">—</span>
         </div>
-        <div class="bias-type" id="biasType">I'm not sure - needs human review</div>
-        <div class="confidence">Uncertainty: <span id="confidence">15%</span></div>
+        <div class="bias-type" id="biasType">Select text and analyze to see results</div>
+        <div class="confidence">Uncertainty: <span id="confidence">—</span></div>
       </div>
     </div>
 
@@ -53,19 +68,23 @@
       </div>
     </div>
 
+    <!-- Subscription Status -->
+    <div class="subscription-section" id="subscriptionSection" style="display: none;">
+      <div class="subscription-header">
+        <span class="subscription-title">💳 Subscription</span>
+        <div class="subscription-status-badge" id="subscriptionStatusBadge"></div>
+      </div>
+      <div class="subscription-details" id="subscriptionDetails">
+        <div class="subscription-tier" id="subscriptionTier">Free</div>
+        <div class="subscription-usage" id="subscriptionUsage">Loading...</div>
+      </div>
+      <button class="btn btn-secondary btn-small" id="refreshSubscriptionBtn" style="display: none;">🔄 Refresh Status</button>
+      <button class="btn btn-primary btn-small" id="upgradeBtn" style="display: none;">⬆️ Upgrade</button>
+    </div>
+
     <!-- Action Buttons -->
     <div class="action-buttons">
       <button class="btn btn-primary" id="analyzeBtn">🔍 Show Me the Proof</button>
-      <button class="btn btn-secondary" id="optionsBtn">⚙️ Configure Service</button>
-      <button class="btn btn-secondary btn-small" id="testConnectionBtn">📊 Audit Trail</button>
-    </div>
-
-    <!-- Additional Features -->
-    <div class="action-buttons">
-      <button class="btn btn-secondary btn-small" id="clearHighlightsBtn">🧹 Clear Highlights</button>
-      <button class="btn btn-secondary btn-small" id="showHistoryBtn">📜 Show History</button>
-      <button class="btn btn-secondary btn-small" id="copyAnalysisBtn">📋 Copy Analysis</button>
-      <button class="btn btn-secondary btn-small" id="testContextMenuBtn">🖱️ Test Context Menu</button>
     </div>
   </div>
 
@@ -73,7 +92,6 @@
   <div class="footer">
     <div class="footer-text">AiGuardian v1.0.0</div>
     <div class="footer-links">
-      <a href="https://dashboard.aiguardian.ai" target="_blank" class="footer-link">📊 Dashboard</a>
       <a href="https://aiguardian.ai" target="_blank" class="footer-link">🌐 Website</a>
       <a href="#" class="footer-link" id="settingsLink">⚙️ Settings</a>
     </div>
@@ -81,6 +99,9 @@
 
   <!-- Scripts -->
   <script src="logging.js"></script>
+  <script src="auth.js"></script>
+  <script src="error-handler.js"></script>
+  <script src="onboarding.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

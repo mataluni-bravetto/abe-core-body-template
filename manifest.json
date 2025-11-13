@@ -9,7 +9,8 @@
     "storage",
     "alarms",
     "contextMenus",
-    "clipboardWrite"
+    "clipboardWrite",
+    "identity"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -23,6 +24,7 @@
         "<all_urls>"
       ],
       "js": [
+        "src/logging.js",
         "src/content.js"
       ]
     }
@@ -75,7 +77,12 @@
     }
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self' https://clerk.com https://accounts.clerk.com https://accounts.clerk.dev; connect-src 'self' https://clerk.com https://*.clerk.com https://accounts.clerk.com https://accounts.clerk.dev https://*.clerk.dev https://*.clerk.accounts.dev wss://*.clerk.com wss://*.clerk.dev https://api.aiguardian.ai https://*.aiguardian.ai https://api.internal.aiguardian.ai;"
   },
-  "web_accessible_resources": []
+  "web_accessible_resources": [
+    {
+      "resources": ["src/clerk-callback.html", "src/vendor/clerk.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

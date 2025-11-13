@@ -10,7 +10,7 @@ const { test, assert, assertEqual, assertNotEqual, assertTrue, assertFalse, asse
  * Test Gateway Class
  */
 test('Gateway constructor initializes correctly', () => {
-  const gateway = new AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
   
   assertTrue(gateway.config, 'Config should be initialized');
   assertTrue(gateway.config.gatewayUrl, 'Gateway URL should be set');
@@ -19,7 +19,7 @@ test('Gateway constructor initializes correctly', () => {
 });
 
 test('Gateway sanitizes request data correctly', () => {
-  const gateway = new window.AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
 
   const maliciousData = {
     text: '<script>alert("xss")</script>Hello World',
@@ -35,10 +35,12 @@ test('Gateway sanitizes request data correctly', () => {
 });
 
 test('Gateway validates requests correctly', () => {
-  const gateway = new window.AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
 
-  // Valid request - should not throw
-  const validResult = gateway.validateRequest('analyze', { text: 'test' });
+  // Valid request with nested payload structure - should not throw
+  const validResult = gateway.validateRequest('analyze', {
+    payload: { text: 'test' }
+  });
   assertTrue(validResult !== undefined, 'Valid request should return a result');
 
   // Invalid endpoint - should throw
@@ -46,14 +48,26 @@ test('Gateway validates requests correctly', () => {
     gateway.validateRequest('invalid', {});
   }, Error, 'Invalid endpoint should throw');
 
-  // Invalid payload for analyze - should throw
+  // Invalid payload for analyze - missing payload object
   assertThrows(() => {
     gateway.validateRequest('analyze', {});
-  }, Error, 'Missing text should throw');
+  }, Error, 'Missing payload object should throw');
+
+  // Invalid payload for analyze - missing text in payload
+  assertThrows(() => {
+    gateway.validateRequest('analyze', { payload: {} });
+  }, Error, 'Missing text in payload should throw');
+
+  // Invalid payload for analyze - text too long
+  assertThrows(() => {
+    gateway.validateRequest('analyze', {
+      payload: { text: 'x'.repeat(10001) }
+    });
+  }, Error, 'Text too long should throw');
 });
 
 test('Gateway handles errors correctly', () => {
-  const gateway = new AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
   
   const error = new Error('Test error');
   const context = { endpoint: 'test', payload: {} };
@@ -66,7 +80,7 @@ test('Gateway handles errors correctly', () => {
 });
 
 test('Gateway generates unique request IDs', () => {
-  const gateway = new AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
   
   const id1 = gateway.generateRequestId();
   const id2 = gateway.generateRequestId();
@@ -77,7 +91,7 @@ test('Gateway generates unique request IDs', () => {
 });
 
 test('Gateway sanitizes payload for logging', () => {
-  const gateway = new AIGuardiansGateway();
+  const gateway = new window.AiGuardianGateway();
   
   const payload = {
     text: 'Test text',

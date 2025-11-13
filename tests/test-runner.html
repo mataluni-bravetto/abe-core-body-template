@@ -102,17 +102,31 @@
                 runtime: {
                     getManifest: () => ({ version: "0.0.0-test" }),
                     sendMessage: () => Promise.resolve(),
-                    onMessage: { addListener: () => {} }
+                    onMessage: { addListener: () => {} },
+                    openOptionsPage: () => Promise.resolve()
                 },
                 storage: {
                     sync: {
                         get: (_keys, callback) => callback && callback({}),
                         set: (_items, callback) => callback && callback(),
                         remove: (_keys, callback) => callback && callback()
+                    },
+                    local: {
+                        get: (_keys, callback) => callback && callback({}),
+                        set: (_items, callback) => callback && callback(),
+                        remove: (_keys, callback) => callback && callback()
                     }
                 },
                 alarms: { create: () => {}, clearAll: () => {} },
-                tabs: { sendMessage: () => {} }
+                tabs: { 
+                    sendMessage: () => {},
+                    query: () => Promise.resolve([{ id: 1 }]),
+                    create: () => {}
+                },
+                contextMenus: {
+                    create: () => {},
+                    removeAll: () => Promise.resolve()
+                }
             };
         }
     </script>
@@ -124,6 +138,7 @@
     <script src="../src/rate-limiter.js"></script>
     <script src="../src/string-optimizer.js"></script>
     <script src="../src/cache-manager.js"></script>
+    <script src="../src/subscription-service.js"></script>
     <script src="../src/gateway.js"></script>
 
     <script type="module">
@@ -143,6 +158,7 @@
                 const testRunnerModule = await import('./unit/test-runner.js');
                 await import('./unit/cache-manager.test.js');
                 await import('./unit/gateway.test.js');
+                await import('./unit/subscription-service.test.js');
 
                 const testRunner = testRunnerModule.testRunner;
                 const results = await testRunner.run();

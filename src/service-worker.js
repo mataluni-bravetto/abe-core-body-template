@@ -13,6 +13,7 @@ importScripts('src/constants.js');
 importScripts('src/logging.js');
 importScripts('src/string-optimizer.js');
 importScripts('src/cache-manager.js');
+importScripts('src/subscription-service.js');
 importScripts('src/gateway.js');
 
 let gateway = null;
@@ -235,7 +236,6 @@ try {
       'chrome-extension://',
       'https://api.aiguardian.ai',
       'https://aiguardian.ai',
-      'https://dashboard.aiguardian.ai',
       'https://localhost',
       'https://127.0.0.1'
     ];
@@ -354,7 +354,44 @@ try {
             sendResponse({ success: false, error: err.message });
           }
           return true;
-          
+
+        case "GET_SUBSCRIPTION_STATUS":
+          // TRACER BULLET: Get subscription status
+          handleSubscriptionStatusRequest(sendResponse);
+          return true;
+
+        case "CLEAR_SUBSCRIPTION_CACHE":
+          // TRACER BULLET: Clear subscription cache
+          handleClearSubscriptionCache(sendResponse);
+          return true;
+
+        case "GET_CLERK_KEY":
+          // Get Clerk publishable key (from storage or hardcoded fallback)
+          chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
+            const key = data.clerk_publishable_key || "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
+            sendResponse({ success: true, key: key });
+          });
+          return true;
+
+        case "AUTH_CALLBACK_SUCCESS":
+          // Handle successful authentication callback
+          Logger.info("[BG] Authentication callback successful");
+          // Store user data if provided
+          if (request.user) {
+            chrome.storage.local.set({
+              clerk_user: {
+                id: request.user.id,
+                email: request.user.primaryEmailAddress?.emailAddress,
+                firstName: request.user.firstName,
+                lastName: request.user.lastName,
+                username: request.user.username,
+                imageUrl: request.user.imageUrl || request.user.profileImageUrl
+              }
+            });
+          }
+          sendResponse({ success: true });
+          return true;
+
         default:
           Logger.warn("[BG] Unknown message type:", request.type);
           sendResponse({ success: false, error: "Unknown message type" });
@@ -372,27 +409,31 @@ try {
     try {
       Logger.info("[BG] Text analysis request received:", text?.substring(0, 50) + "...");
       
-      // TRACER BULLET: Mock analysis for immediate functionality
-      const mockAnalysis = generateMockAnalysis(text);
-      Logger.info("[BG] Mock analysis generated:", mockAnalysis);
-      
-      // Save to analysis history
-      saveToHistory(text, mockAnalysis);
-      
-      // Save as last analysis for copy feature
-      chrome.storage.local.set({ last_analysis: mockAnalysis });
-      
-      // Simulate network delay for realism
-      setTimeout(() => {
-        sendResponse(mockAnalysis);
-      }, 500 + Math.random() * 1000); // 500-1500ms delay
+      // TRACER BULLET: Use AI Guardians Gateway for analysis
+      try {
+        const analysisResult = await gateway.analyzeText(text);
+        Logger.info("[BG] Analysis result received:", analysisResult);
+
+        // Save to analysis history
+        saveToHistory(text, analysisResult);
+
+        // Save as last analysis for copy feature
+        chrome.storage.local.set({ last_analysis: analysisResult });
+
+        sendResponse(analysisResult);
+      } catch (error) {
+        Logger.error("[BG] Gateway analysis failed:", error);
+        sendResponse({ 
+          success: false, 
+          error: error.message || "Analysis failed. Please ensure you are authenticated and the backend is available."
+        });
+      }
       
     } catch (err) {
       Logger.error("[BG] Analysis failed:", err);
       sendResponse({ 
         success: false, 
-        error: err.message,
-        fallback_score: Math.random() * 0.8 + 0.1 // Fallback for development
+        error: err.message || "Analysis failed. Please try again."
       });
     }
   }
@@ -422,79 +463,65 @@ try {
   }
 
   /**
-   * TRACER BULLET: Generate mock analysis for immediate functionality
-   * This provides realistic bias analysis without requiring backend integration
+   * TRACER BULLET: Handle subscription status request
    */
-  function generateMockAnalysis(text) {
-    const textLower = text.toLowerCase();
-    
-    // Analyze text for bias indicators
-    let biasScore = 0.2; // Start with low bias
-    let biasType = 'neutral';
-    let confidence = 0.9;
-    
-    // Check for emotional language
-    const emotionalWords = ['amazing', 'terrible', 'incredible', 'awful', 'fantastic', 'horrible', 'love', 'hate', 'best', 'worst'];
-    const emotionalCount = emotionalWords.filter(word => textLower.includes(word)).length;
-    if (emotionalCount > 0) {
-      biasScore += 0.3;
-      biasType = 'emotional';
+  async function handleSubscriptionStatusRequest(sendResponse) {
+    try {
+      if (!gateway || !gateway.subscriptionService) {
+        sendResponse({ 
+          success: false, 
+          error: "Subscription service not initialized" 
+        });
+        return;
+      }
+
+      const subscription = await gateway.subscriptionService.getCurrentSubscription();
+      let usage = null;
+
+      try {
+        usage = await gateway.subscriptionService.getUsage();
+      } catch (usageError) {
+        Logger.warn("[BG] Failed to get usage, continuing without it:", usageError);
+      }
+
+      sendResponse({
+        success: true,
+        subscription: subscription,
+        usage: usage
+      });
+    } catch (err) {
+      Logger.error("[BG] Failed to get subscription status:", err);
+      sendResponse({ 
+        success: false, 
+        error: err.message 
+      });
     }
-    
-    // Check for subjective statements
-    const subjectiveWords = ['obviously', 'clearly', 'undoubtedly', 'certainly', 'definitely', 'absolutely'];
-    const subjectiveCount = subjectiveWords.filter(word => textLower.includes(word)).length;
-    if (subjectiveCount > 0) {
-      biasScore += 0.2;
-      biasType = 'subjective';
-    }
-    
-    // Check for loaded language
-    const loadedWords = ['always', 'never', 'all', 'none', 'everyone', 'nobody', 'perfect', 'flawless'];
-    const loadedCount = loadedWords.filter(word => textLower.includes(word)).length;
-    if (loadedCount > 0) {
-      biasScore += 0.25;
-      biasType = 'loaded_language';
-    }
-    
-    // Check for technical content (lower bias)
-    const technicalWords = ['function', 'algorithm', 'data', 'analysis', 'method', 'process', 'system'];
-    const technicalCount = technicalWords.filter(word => textLower.includes(word)).length;
-    if (technicalCount > 2) {
-      biasScore -= 0.1;
-      biasType = 'technical';
-    }
-    
-    // Check for question marks (uncertainty)
-    if (text.includes('?')) {
-      biasScore -= 0.1;
-      confidence -= 0.1;
-    }
-    
-    // Ensure score is between 0 and 1
-    biasScore = Math.max(0, Math.min(1, biasScore));
-    confidence = Math.max(0.5, Math.min(1, confidence));
-    
-    // Add some randomness for variety
-    biasScore += (Math.random() - 0.5) * 0.1;
-    biasScore = Math.max(0, Math.min(1, biasScore));
-    
-    return {
-      success: true,
-      score: biasScore,
-      analysis: {
-        bias_type: biasType,
-        confidence: confidence,
-        word_count: text.split(' ').length,
-        emotional_indicators: emotionalCount,
-        subjective_indicators: subjectiveCount,
-        loaded_language_indicators: loadedCount,
-        technical_indicators: technicalCount
-      },
-      timestamp: new Date().toISOString(),
-      trace_bullet: true // Indicate this is mock data
-    };
   }
+
+  /**
+   * TRACER BULLET: Clear subscription cache
+   */
+  function handleClearSubscriptionCache(sendResponse) {
+    try {
+      if (gateway && gateway.subscriptionService) {
+        gateway.subscriptionService.clearCache();
+        Logger.info("[BG] Subscription cache cleared");
+        sendResponse({ success: true, message: "Cache cleared" });
+      } else {
+        sendResponse({ 
+          success: false, 
+          error: "Subscription service not initialized" 
+        });
+      }
+    } catch (err) {
+      Logger.error("[BG] Failed to clear subscription cache:", err);
+      sendResponse({ 
+        success: false, 
+        error: err.message 
+      });
+    }
+  }
+
 
   /**
    * Handle guard status requests - Simplified for unified gateway

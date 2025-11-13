@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <title>AiGuardian Configuration</title>
-    <link rel="stylesheet" href="../AiGuardian Assets/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css">
+    <link rel="stylesheet" href="../assets/brand/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css">
     <style>
       body{
         font:14px 'ClashGrotesk-Variable', 'ClashGrotesk', system-ui, sans-serif; 
@@ -107,102 +107,130 @@
   </head>
   <body>
     <div style="display: flex; align-items: center; margin-bottom: 24px;">
-      <img src="../AiGuardian Assets/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo" style="width: 48px; height: 48px; margin-right: 16px;">
+      <img src="../assets/brand/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo" style="width: 48px; height: 48px; margin-right: 16px;">
       <div>
         <h1 style="margin: 0; color: #33B8FF;">AiGuardian Configuration</h1>
         <p style="margin: 4px 0 0 0; color: rgba(249, 249, 249, 0.8); font-size: 14px;">Finally, AI tools for engineers who don't believe the hype</p>
         <p style="margin: 4px 0 0 0; color: rgba(249, 249, 249, 0.6); font-size: 12px;">
-          <a href="https://dashboard.aiguardian.ai" target="_blank" style="color: #33B8FF; text-decoration: none;">📊 Open Dashboard</a> |
           <a href="https://aiguardian.ai" target="_blank" style="color: #33B8FF; text-decoration: none;">🌐 Main Website</a>
         </p>
       </div>
     </div>
     
-    <!-- Gateway Configuration -->
+    <!-- Authentication Configuration -->
     <div class="section">
-      <h3>Central Gateway</h3>
-      <label>Gateway URL</label>
-      <input id="gateway_url" type="url" placeholder="https://your-ai-guardians-gateway.com/api/v1" />
-      
-      <label>API Key</label>
-      <input id="api_key" type="password" placeholder="Your API key" />
-      
-      <button id="test_connection">Test Connection</button>
-      <span id="connection_status" class="status disconnected">Disconnected</span>
-    </div>
-
-    <!-- AiGuardian Service Configuration -->
-    <div class="section">
-      <h3>AiGuardian Service</h3>
-      <p style="color: #6B7280; font-size: 13px; margin-bottom: 12px;">
-        Unified AI analysis service with transparent failure logging and confidence scoring.
+      <h3>🔐 Authentication</h3>
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+        Your Clerk authentication is automatically configured from the backend when available.
+        You can also manually configure it below if needed.
+        <br><br>
+        <strong>Note:</strong> Payment and subscription management is handled through Stripe on the landing page. 
+        Users who sign up through the landing page will automatically be recognized here.
       </p>
-      <div class="checkbox-label">
-        <input id="enable_service" type="checkbox" checked disabled />
-        <label for="enable_service">Service Enabled (Always On)</label>
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="margin: 0;">Clerk Publishable Key</label>
+          <span id="clerk_key_status" class="status disconnected" style="font-size: 11px;">Manual</span>
+        </div>
+        <input id="clerk_publishable_key" type="password" placeholder="Auto-configured from backend or enter manually" />
+        <p id="clerk_key_info" style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin: 6px 0 0 0;">
+          <span id="clerk_key_source_text">Manually configured</span>
+          <br>
+          Get your publishable key from <a href="https://dashboard.clerk.com" target="_blank" style="color: #33B8FF; text-decoration: none;">Clerk Dashboard</a>
+        </p>
       </div>
     </div>
 
-    <!-- Analysis Pipeline -->
-    <div class="section">
-      <h3>Analysis Pipeline</h3>
-      <label>Pipeline Type</label>
-      <select id="analysis_pipeline">
-        <option value="default">Default Pipeline</option>
-        <option value="enhanced">Enhanced Pipeline</option>
-        <option value="custom">Custom Pipeline</option>
-      </select>
-      
-      <label>Analysis Timeout (seconds)</label>
-      <input id="analysis_timeout" type="number" min="1" max="60" value="10" />
-    </div>
-
-    <!-- Logging Configuration -->
-    <div class="section">
-      <h3>Logging & Monitoring</h3>
-      <div class="checkbox-label">
-        <input id="enable_central_logging" type="checkbox" />
-        <label for="enable_central_logging">Enable Central Logging</label>
-      </div>
-      
-      <div class="checkbox-label">
-        <input id="enable_local_logging" type="checkbox" />
-        <label for="enable_local_logging">Enable Local Logging</label>
-      </div>
-      
-      <label>Log Level</label>
-      <select id="log_level">
-        <option value="debug">Debug</option>
-        <option value="info">Info</option>
-        <option value="warn">Warning</option>
-        <option value="error">Error</option>
-      </select>
-    </div>
-
-    <!-- Testing Section -->
-    <div class="section">
-      <h3>Testing & Validation</h3>
-      <button id="run_tests">Run Guard Service Tests</button>
-      <button id="run_performance_tests" class="secondary">Run Performance Tests</button>
-      <button id="run_integration_tests" class="secondary">Run Integration Tests</button>
-      
-      <div id="test_results" class="test-results hidden">
-        <!-- Test results will be displayed here -->
+    <!-- Subscription Information -->
+    <div class="section" id="subscriptionSection" style="display: none;">
+      <h3>💳 Subscription</h3>
+      <div class="guard-service">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 18px; font-weight: 700; color: #33B8FF; text-transform: uppercase;" id="subscriptionTier">Free</div>
+            <div style="font-size: 12px; color: rgba(249, 249, 249, 0.8); margin-top: 4px;" id="subscriptionStatus">Status: Loading...</div>
+          </div>
+          <div id="subscriptionStatusBadge" class="status connected" style="font-size: 11px;">Active</div>
+        </div>
+        <div style="margin: 12px 0;">
+          <div style="font-size: 13px; color: rgba(249, 249, 249, 0.9); margin-bottom: 4px;">Usage Statistics</div>
+          <div style="font-size: 12px; color: rgba(249, 249, 249, 0.8);" id="subscriptionUsage">Loading...</div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <button id="refresh_subscription" class="secondary">🔄 Refresh</button>
+          <button id="manage_subscription" class="secondary">⚙️ Manage</button>
+          <button id="upgrade_subscription" class="secondary" style="display: none;">⬆️ Upgrade</button>
+        </div>
       </div>
     </div>
 
-    <!-- Actions -->
+    <!-- Backend Connection Status -->
     <div class="section">
-      <h3>Actions</h3>
-      <button id="save_config">Save Configuration</button>
-      <button id="reset_config" class="secondary">Reset to Defaults</button>
-      <button id="export_config" class="secondary">Export Configuration</button>
-      <button id="import_config" class="secondary">Import Configuration</button>
+      <h3>🔌 Backend Connection</h3>
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+        Verify that the extension can connect to your backend server.
+      </p>
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="margin: 0;">Gateway URL</label>
+          <span id="connection_status" class="status disconnected" style="font-size: 11px;">Not Tested</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input id="connection_gateway_url" type="text" placeholder="https://api.aiguardian.ai" style="flex: 1;" />
+          <button id="test_connection" class="secondary">🔍 Test Connection</button>
+        </div>
+        <div id="connection_result" style="margin-top: 8px; font-size: 12px; color: rgba(249, 249, 249, 0.7); display: none;"></div>
+      </div>
     </div>
+
+    <!-- Backend Integration Testing -->
+    <div class="section">
+      <h3>🧪 Backend Integration Testing</h3>
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+        Test your backend API integration, including the division-by-zero fix for performance tests.
+      </p>
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="margin: 0;">Gateway URL</label>
+        </div>
+        <input id="test_gateway_url" type="text" placeholder="https://api.aiguardian.ai" value="https://api.aiguardian.ai" />
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="margin: 0;">API Key (optional)</label>
+        </div>
+        <input id="test_api_key" type="password" placeholder="Enter API key if required" />
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 12px;">
+        <button id="run_all_tests" class="secondary">🚀 Run All Tests</button>
+        <button id="run_performance_test" class="secondary">⚡ Performance Test Only</button>
+        <button id="clear_test_results" class="secondary">🗑️ Clear Results</button>
+      </div>
+      <div id="test_results" class="test-results hidden" style="margin-top: 16px;">
+        <div id="test_results_content"></div>
+      </div>
+    </div>
+
+    <!-- Auth Debug Section -->
+    <div class="section">
+      <h3>🔍 Auth Debug</h3>
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+        Debug authentication state and test sign-up flow.
+      </p>
+      <div style="margin-bottom: 12px;">
+        <button id="check_auth_state" class="secondary">🔍 Check Auth State</button>
+        <button id="test_sign_up" class="secondary">🚀 Test Sign Up</button>
+        <button id="clear_debug" class="secondary">🗑️ Clear Debug</button>
+      </div>
+      <div id="auth_debug_output" style="margin-top: 16px; padding: 12px; background: rgba(0, 0, 0, 0.3); border-radius: 8px; font-family: monospace; font-size: 11px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; display: none;"></div>
+    </div>
+
 
     <script src="logging.js"></script>
-    <script src="testing.js"></script>
+    <script src="auth.js"></script>
     <script src="options.js"></script>
+    <script src="../tests/integration/backend-integration.test.js"></script>
+    <script src="options-testing.js"></script>
   </body>
 </html>
 

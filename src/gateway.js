@@ -41,7 +41,6 @@ class AiGuardianGateway {
       /<link[^>]*>/gi,
       /<style[^>]*>.*?<\/style>/gi,
       /expression\s*\(/gi,
-      /vbscript:/gi,
       /data:text\/javascript/gi
     ];
 
@@ -137,10 +136,14 @@ class AiGuardianGateway {
         if (!payload || typeof payload !== 'object') {
           throw new Error('Invalid payload: must be an object');
         }
-        if (!payload.text || typeof payload.text !== 'string') {
-          throw new Error('Invalid payload: text field is required');
+        // Check for nested payload structure: payload.payload.text
+        if (!payload.payload || typeof payload.payload !== 'object') {
+          throw new Error('Invalid payload: payload field must be an object');
         }
-        if (payload.text.length > 10000) {
+        if (!payload.payload.text || typeof payload.payload.text !== 'string') {
+          throw new Error('Invalid payload: text field is required in payload');
+        }
+        if (payload.payload.text.length > TEXT_ANALYSIS.MAX_TEXT_LENGTH) {
           throw new Error('Invalid payload: text too long');
         }
         break;
@@ -232,6 +235,7 @@ class AiGuardianGateway {
     this.logger = this.initializeLogger();
     this.centralLogger = null;
     this.cacheManager = new CacheManager();
+    this.subscriptionService = null; // Will be initialized after gateway is ready
 
     this.initializeGateway();
   }
@@ -303,6 +307,12 @@ class AiGuardianGateway {
       // Initialize central logging
       await this.initializeCentralLogging();
 
+      // Initialize subscription service (after config is loaded)
+      if (typeof SubscriptionService !== 'undefined') {
+        this.subscriptionService = new SubscriptionService(this);
+        Logger.info('[Gateway] Subscription service initialized');
+      }
+
       Logger.info('[Gateway] Initialized unified gateway connection');
     } catch (err) {
       Logger.error('[Gateway] Initialization failed', err);
@@ -332,28 +342,31 @@ class AiGuardianGateway {
    * Initialize central logging bridge
    */
   async initializeCentralLogging() {
+    // Define log method first to avoid circular reference
+    const logMethod = async (level, message, metadata = {}) => {
+      try {
+        // Send to central logging service
+        await this.sendToGateway('logging', {
+          level,
+          message,
+          metadata: {
+            ...metadata,
+            timestamp: new Date().toISOString(),
+            extension_version: chrome.runtime.getManifest().version,
+            user_agent: navigator.userAgent
+          }
+        });
+      } catch (err) {
+        Logger.error('[Central Logger] Failed to send log:', err);
+      }
+    };
+    
+    // Create logger object with all methods
     this.centralLogger = {
-      log: async (level, message, metadata = {}) => {
-        try {
-          // Send to central logging service
-          await this.sendToGateway('logging', {
-            level,
-            message,
-            metadata: {
-              ...metadata,
-              timestamp: new Date().toISOString(),
-              extension_version: chrome.runtime.getManifest().version,
-              user_agent: navigator.userAgent
-            }
-          });
-        } catch (err) {
-          Logger.error('[Central Logger] Failed to send log:', err);
-        }
-      },
-      
-      info: (message, metadata) => this.centralLogger.log('info', message, metadata),
-      warn: (message, metadata) => this.centralLogger.log('warn', message, metadata),
-      error: (message, metadata) => this.centralLogger.log('error', message, metadata)
+      log: logMethod,
+      info: (message, metadata) => logMethod('info', message, metadata),
+      warn: (message, metadata) => logMethod('warn', message, metadata),
+      error: (message, metadata) => logMethod('error', message, metadata)
     };
   }
 
@@ -361,15 +374,59 @@ class AiGuardianGateway {
    * Send request to central gateway with enhanced tracing
    */
   async sendToGateway(endpoint, payload) {
+    try {
+      this.validateRequest(endpoint, payload);
+    } catch (error) {
+      this.handleError(error, { endpoint, payload });
+      throw error;
+    }
     // Sanitize payload data
     payload = this.sanitizeRequestData(payload);
     
     try {
       this.validateRequest(endpoint, payload);
     } catch (error) {
-      console.error('[Error Context]', { file: 'src/gateway.js', error: error.message, stack: error.stack });
+      Logger.error('[Gateway] Request validation failed', {
+        context: {
+          file: 'src/gateway.js',
+          endpoint,
+          error: {
+            message: error.message,
+            stack: error.stack
+          }
+        }
+      });
       this.handleError(error, { endpoint, payload });
       throw error;
+    }
+
+    // Get Clerk session token for authenticated requests (user-based auth only)
+    // This is retrieved once and used for both subscription check and API request
+    let clerkToken = null;
+    try {
+      clerkToken = await this.getClerkSessionToken();
+    } catch (error) {
+      Logger.debug('[Gateway] Clerk token not available:', error.message);
+    }
+
+    // Check subscription status before making request (only for analyze endpoint)
+    // Only check if user is authenticated via Clerk (has session token)
+    if (endpoint === 'analyze' && this.subscriptionService && clerkToken) {
+      try {
+        const subscriptionCheck = await this.subscriptionService.canMakeRequest();
+        
+        if (!subscriptionCheck.allowed) {
+          Logger.error('[Gateway] Request blocked by subscription check:', subscriptionCheck.reason);
+          throw new Error(subscriptionCheck.message);
+        }
+
+        if (subscriptionCheck.warning) {
+          Logger.warn('[Gateway] Subscription warning:', subscriptionCheck.message);
+        }
+      } catch (subscriptionError) {
+        // If subscription check fails, log but allow request (fail open)
+        Logger.warn('[Gateway] Subscription check failed, allowing request:', subscriptionError);
+      }
     }
 
     const startTime = Date.now();
@@ -391,12 +448,15 @@ class AiGuardianGateway {
     }
     
     // Map extension endpoints to backend API endpoints
+    // ALIGNED WITH BACKEND: AIGuards-Backend codeguardians-gateway
+    // All guard services now use unified /api/v1/guards/process endpoint
     const endpointMapping = {
-      'analyze': 'api/v1/guards/process',
-      'health': 'api/v1/health',
-      'logging': 'api/v1/logging',
-      'guards': 'api/v1/guards/list',
-      'config': 'api/v1/config'
+      'analyze': 'api/v1/guards/process',      // Unified guard processing endpoint
+      'health': 'health/live',                  // Liveness probe
+      'health-ready': 'health/ready',           // Readiness probe
+      'guards': 'api/v1/guards/services',       // Service discovery endpoint
+      'logging': 'api/v1/logging',              // Central logging (if implemented)
+      'config': 'api/v1/config'                 // Configuration endpoint
     };
     
     const mappedEndpoint = endpointMapping[endpoint] || endpoint;
@@ -411,15 +471,28 @@ class AiGuardianGateway {
       payload: this.sanitizePayload(payload)
     });
     
+    // Clerk token already retrieved above - reuse it here
+
+    // Build headers - ONLY use Clerk user authentication tokens
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Extension-Version': chrome.runtime.getManifest().version,
+      'X-Request-ID': requestId,
+      'X-Timestamp': new Date().toISOString()
+    };
+
+    // Use Clerk session token for authentication (user-based auth only)
+    // NO API key fallback - all requests must be authenticated via Clerk user session
+    if (clerkToken) {
+      headers['Authorization'] = 'Bearer ' + clerkToken;
+    } else {
+      // If no Clerk token, request will fail with 401 - user must sign in
+      Logger.warn('[Gateway] No Clerk session token available - user must authenticate');
+    }
+
     const requestOptions = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + this.config.apiKey,
-        'X-Extension-Version': chrome.runtime.getManifest().version,
-        'X-Request-ID': requestId,
-        'X-Timestamp': new Date().toISOString()
-      },
+      headers: headers,
       body: JSON.stringify(payload)
     };
 
@@ -516,35 +589,79 @@ class AiGuardianGateway {
     const startTime = Date.now();
 
     try {
-      await this.centralLogger?.info('Starting text analysis', {
-        analysis_id: analysisId,
-        text_length: text.length,
-        options
-      });
+      // Log start with explicit error handling
+      if (this.centralLogger) {
+        try {
+          await this.centralLogger.info('Starting text analysis', {
+            analysis_id: analysisId,
+            text_length: text.length,
+            options
+          });
+        } catch (logError) {
+          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+        }
+      }
+
+      // Get Clerk user ID if available (from stored user data)
+      let userId = options.user_id || null;
+      if (!userId) {
+        try {
+          const storedUser = await new Promise((resolve) => {
+            chrome.storage.local.get(['clerk_user'], (data) => {
+              resolve(data.clerk_user || null);
+            });
+          });
+          if (storedUser && storedUser.id) {
+            userId = storedUser.id;
+          }
+        } catch (error) {
+          Logger.debug('[Gateway] Could not get user ID:', error.message);
+        }
+      }
 
       // Send analysis request to unified gateway endpoint
       // Backend handles all guard orchestration
+      // PAYLOAD FORMAT ALIGNED WITH BACKEND: GuardProcessRequest schema
       const result = await this.sendToGateway('analyze', {
-        analysis_id: analysisId,
-        text,
-        options: {
-          ...options,
-          timestamp: new Date().toISOString()
-        }
+        service_type: options.service_type || 'biasguard',  // Default to BiasGuard for content analysis
+        payload: {
+          text: text,
+          contentType: options.contentType || 'text',
+          scanLevel: options.scanLevel || 'standard',
+          context: options.context || 'webpage-content'
+        },
+        user_id: userId,                                      // Clerk user ID for authenticated requests
+        session_id: analysisId,                               // Unique session identifier
+        client_type: 'chrome',                                // Client identifier for backend routing
+        client_version: chrome.runtime.getManifest().version
       });
 
-      await this.centralLogger?.info('Text analysis completed', {
-        analysis_id: analysisId,
-        duration: Date.now() - startTime
-      });
+      // Log completion with explicit error handling
+      if (this.centralLogger) {
+        try {
+          await this.centralLogger.info('Text analysis completed', {
+            analysis_id: analysisId,
+            duration: Date.now() - startTime
+          });
+        } catch (logError) {
+          Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+        }
+      }
 
       return result;
     } catch (err) {
-      await this.centralLogger?.error('Text analysis failed', {
-        analysis_id: analysisId,
-        duration: Date.now() - startTime,
-        error: err.message
-      });
+      // Log error with explicit error handling
+      if (this.centralLogger) {
+        try {
+          await this.centralLogger.error('Text analysis failed', {
+            analysis_id: analysisId,
+            duration: Date.now() - startTime,
+            error: err.message
+          });
+        } catch (logError) {
+          Logger.warn('[Gateway] Central logging failed during error reporting:', logError);
+        }
+      }
 
       throw err;
     }
@@ -608,7 +725,14 @@ class AiGuardianGateway {
       }, resolve);
     });
 
-    await this.centralLogger?.info('Configuration updated', { gateway_url: this.config.gatewayUrl });
+    // Log configuration update with explicit error handling
+    if (this.centralLogger) {
+      try {
+        await this.centralLogger.info('Configuration updated', { gateway_url: this.config.gatewayUrl });
+      } catch (logError) {
+        Logger.warn('[Gateway] Central logging failed, continuing:', logError);
+      }
+    }
   }
 
   /**
@@ -643,39 +767,20 @@ class AiGuardianGateway {
       return { isValid: false, errors };
     }
     
-    // For mock API testing, we'll transform the response
+    // Validate response structure based on endpoint
     if (endpoint === 'analyze') {
-      // Transform mock response to expected format
-      if (Array.isArray(response)) {
-        // Mock API returns array, transform to expected format
-        const mockResult = {
-          analysis_id: this.generateRequestId(),
-          overall_score: Math.random() * 0.8 + 0.1, // Random score between 0.1-0.9
-          bias_type: 'mock_analysis',
-          confidence: 0.85,
-          guards: {
-            biasguard: {
-              score: Math.random() * 0.8 + 0.1,
-              enabled: true,
-              threshold: 0.5
-            },
-            trustguard: {
-              score: Math.random() * 0.8 + 0.1,
-              enabled: true,
-              threshold: 0.7
-            }
-          },
-          suggestions: ['This is a mock analysis result'],
-          timestamp: new Date().toISOString()
-        };
-        return { isValid: true, errors: [], transformedResponse: mockResult };
+      // Ensure response has required fields from backend
+      if (!response.hasOwnProperty('score') && !response.hasOwnProperty('overall_score')) {
+        errors.push('Response missing score field');
+      }
+      if (!response.hasOwnProperty('analysis') && !response.hasOwnProperty('guards')) {
+        errors.push('Response missing analysis data');
       }
     }
     
-    // For other endpoints, accept any response for testing
     return {
-      isValid: true,
-      errors: []
+      isValid: errors.length === 0,
+      errors: errors
     };
   }
 
@@ -704,6 +809,69 @@ class AiGuardianGateway {
     return `ext_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
+  /**
+   * Get Clerk session token (if available)
+   * This is the primary authentication method - Clerk handles all user authentication
+   * 
+   * In service worker context, retrieves token from chrome.storage.local
+   * In popup/options context, can also get from Clerk SDK if available
+   */
+  async getClerkSessionToken() {
+    try {
+      // First, try to get token from storage (works in all contexts)
+      const storedToken = await this.getStoredClerkToken();
+      if (storedToken) {
+        return storedToken;
+      }
+
+      // If in window context and Clerk is available, try to get fresh token
+      if (typeof window !== 'undefined' && window.Clerk) {
+        try {
+          const clerk = window.Clerk;
+          // Only call load() if it exists
+          if (typeof clerk.load === 'function' && !clerk.loaded) {
+            await clerk.load();
+          }
+          const session = await clerk.session;
+          if (session) {
+            const token = await session.getToken();
+            // Store token for future use
+            if (token) {
+              await this.storeClerkToken(token);
+            }
+            return token;
+          }
+        } catch (e) {
+          Logger.debug('[Gateway] Could not get token from Clerk SDK:', e.message);
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      Logger.debug('[Gateway] Clerk token not available:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Get stored Clerk token from chrome.storage.local
+   */
+  async getStoredClerkToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['clerk_token'], (data) => {
+        resolve(data.clerk_token || null);
+      });
+    });
+  }
+
+  /**
+   * Store Clerk token in chrome.storage.local
+   */
+  async storeClerkToken(token) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ clerk_token: token }, resolve);
+    });
+  }
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
