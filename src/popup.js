@@ -344,16 +344,44 @@
     if (signUpBtn) {
       const clickHandler = async () => {
         Logger.info('[Popup] Sign Up button clicked');
+        Logger.info('[Popup] Auth object exists:', !!auth);
+        
         try {
+          // Wait a moment for auth to initialize if it's still initializing
           if (!auth) {
-            Logger.error('[Popup] Auth object is null');
-            errorHandler.showError('AUTH_NOT_CONFIGURED');
-            return;
+            Logger.warn('[Popup] Auth not initialized yet, waiting...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (!auth) {
+              Logger.error('[Popup] Auth object still null after wait');
+              errorHandler.showError('AUTH_NOT_CONFIGURED');
+              return;
+            }
+          }
+
+          // Double-check auth is initialized
+          if (!auth.isInitialized) {
+            Logger.warn('[Popup] Auth not initialized, attempting to initialize...');
+            const initialized = await auth.initialize();
+            if (!initialized) {
+              Logger.error('[Popup] Failed to initialize auth');
+              errorHandler.showError('AUTH_NOT_CONFIGURED');
+              return;
+            }
           }
           
-          Logger.info('[Popup] Calling auth.signUp()');
+          Logger.info('[Popup] Auth initialized, calling auth.signUp()');
+          Logger.info('[Popup] Auth state:', {
+            isInitialized: auth.isInitialized,
+            hasClerk: !!auth.clerk,
+            hasPublishableKey: !!auth.publishableKey
+          });
+          
           await auth.signUp();
-          Logger.info('[Popup] auth.signUp() completed, closing popup');
+          Logger.info('[Popup] auth.signUp() completed successfully');
+          
+          // Small delay before closing to ensure tab opens
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           // Close popup after redirecting to auth
           window.close();
         } catch (err) {
@@ -364,6 +392,7 @@
             error: err
           });
           console.error('[Popup] Full error object:', err);
+          console.error('[Popup] Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
           errorHandler.showError('AUTH_SIGN_UP_FAILED');
         }
       };
