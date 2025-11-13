@@ -432,6 +432,33 @@ class BackendIntegrationTester {
   }
 
   /**
+   * Create abort signal with timeout (Node.js 16+ compatible)
+   * Falls back to AbortController if AbortSignal.timeout is not available
+   */
+  createTimeoutSignal(timeoutMs) {
+    // Use AbortSignal.timeout if available (Node.js 17.3+)
+    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+      return AbortSignal.timeout(timeoutMs);
+    }
+    
+    // Fallback for Node.js 16.x using AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+    
+    // Clean up timeout if signal is aborted early
+    const signal = controller.signal;
+    if (signal.addEventListener) {
+      signal.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+      });
+    }
+    
+    return signal;
+  }
+
+  /**
    * Make HTTP request to backend
    */
   async makeRequest(method, endpoint, payload) {
@@ -450,7 +477,7 @@ class BackendIntegrationTester {
     const options = {
       method,
       headers,
-      signal: AbortSignal.timeout(this.config.timeout)
+      signal: this.createTimeoutSignal(this.config.timeout)
     };
     
     if (payload && method !== 'GET') {
@@ -461,7 +488,8 @@ class BackendIntegrationTester {
       const response = await fetch(url, options);
       return response;
     } catch (error) {
-      if (error.name === 'TimeoutError') {
+      // Handle timeout errors (both TimeoutError from AbortSignal.timeout and AbortError from AbortController)
+      if (error.name === 'TimeoutError' || (error.name === 'AbortError' && error.message.includes('aborted'))) {
         throw new Error(`Request timeout after ${this.config.timeout}ms`);
       }
       if (error.name === 'TypeError' && error.message.includes('fetch')) {

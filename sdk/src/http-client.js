@@ -146,6 +146,35 @@ export class HttpClient {
   }
 
   /**
+   * Create abort signal with timeout (Node.js 16+ compatible)
+   * Falls back to AbortController if AbortSignal.timeout is not available
+   * @param {number} timeoutMs - Timeout in milliseconds
+   * @returns {AbortSignal} Abort signal for fetch request
+   */
+  createTimeoutSignal(timeoutMs) {
+    // Use AbortSignal.timeout if available (Node.js 17.3+)
+    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+      return AbortSignal.timeout(timeoutMs);
+    }
+    
+    // Fallback for Node.js 16.x using AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+    
+    // Clean up timeout if signal is aborted early
+    const signal = controller.signal;
+    if (signal.addEventListener) {
+      signal.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+      });
+    }
+    
+    return signal;
+  }
+
+  /**
    * Builds request options for fetch
    * @param {Object} data - Request data
    * @param {Object} options - Additional options
@@ -163,7 +192,7 @@ export class HttpClient {
         'X-Request-ID': this.generateRequestId(),
         ...options.headers
       },
-      signal: AbortSignal.timeout(timeout)
+      signal: this.createTimeoutSignal(timeout)
     };
 
     // Add API key if available
