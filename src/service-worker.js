@@ -366,9 +366,10 @@ try {
           return true;
 
         case "GET_CLERK_KEY":
-          // Get Clerk publishable key
+          // Get Clerk publishable key (from storage or hardcoded fallback)
           chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
-            sendResponse({ success: true, key: data.clerk_publishable_key });
+            const key = data.clerk_publishable_key || "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
+            sendResponse({ success: true, key: key });
           });
           return true;
 

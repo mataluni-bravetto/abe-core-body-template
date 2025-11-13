@@ -18,13 +18,23 @@ class AuthCallbackHandler {
       Logger.info('[AuthCallback] Initializing callback handler');
 
       // Check if we're in a callback flow
+      // Clerk redirects back with various parameters in URL or hash
       const urlParams = new URLSearchParams(window.location.search);
-      const isCallback = urlParams.has('code') || urlParams.has('token') || window.location.hash.includes('access_token');
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const isCallback = urlParams.has('code') || 
+                        urlParams.has('token') || 
+                        urlParams.has('__clerk_redirect_url') ||
+                        hashParams.has('access_token') ||
+                        hashParams.has('__clerk_redirect_url') ||
+                        window.location.hash.includes('access_token') ||
+                        window.location.hash.includes('__clerk');
 
       if (isCallback) {
         await this.handleCallback();
       } else {
-        this.showError('Invalid callback URL');
+        // If no callback params, might be direct navigation - try to handle anyway
+        Logger.warn('[AuthCallback] No callback parameters found, attempting to handle anyway');
+        await this.handleCallback();
       }
     } catch (error) {
       Logger.error('[AuthCallback] Initialization error:', error);
@@ -68,15 +78,30 @@ class AuthCallbackHandler {
         await clerk.load();
       }
 
-      // Wait for Clerk to be ready and check authentication
-      
+      // Handle Clerk redirect callback
+      // This processes the OAuth callback and sets up the session
+      try {
+        await clerk.handleRedirectCallback();
+        Logger.info('[AuthCallback] Clerk redirect callback handled successfully');
+      } catch (e) {
+        Logger.warn('[AuthCallback] Clerk handleRedirectCallback error (may be normal if already handled):', e.message);
+        // Continue anyway - Clerk might have already processed it
+      }
+
+      // Wait a moment for Clerk to finish processing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Check if user is authenticated after redirect
       let user = null;
       try {
+        // Wait for Clerk to be ready
+        await clerk.load();
         user = clerk.user;
       } catch (e) {
+        Logger.warn('[AuthCallback] Error getting user, retrying:', e.message);
         // Try waiting a bit more for Clerk to initialize
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await clerk.load();
         user = clerk.user;
       }
 
