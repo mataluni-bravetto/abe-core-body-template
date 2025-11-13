@@ -401,7 +401,9 @@ class AiGuardianGateway {
     }
 
     // Check subscription status before making request (only for analyze endpoint)
-    if (endpoint === 'analyze' && this.subscriptionService && this.config.apiKey) {
+    // Only check if user is authenticated via Clerk (has session token)
+    const clerkToken = await this.getClerkSessionToken();
+    if (endpoint === 'analyze' && this.subscriptionService && clerkToken) {
       try {
         const subscriptionCheck = await this.subscriptionService.canMakeRequest();
         
@@ -469,7 +471,7 @@ class AiGuardianGateway {
       Logger.debug('[Gateway] Clerk token not available:', error.message);
     }
 
-    // Build headers with Clerk token if available, otherwise use API key
+    // Build headers - ONLY use Clerk user authentication tokens
     const headers = {
       'Content-Type': 'application/json',
       'X-Extension-Version': chrome.runtime.getManifest().version,
@@ -477,11 +479,13 @@ class AiGuardianGateway {
       'X-Timestamp': new Date().toISOString()
     };
 
-    // Use Clerk token for authentication if available, otherwise fall back to API key
+    // Use Clerk session token for authentication (user-based auth only)
+    // NO API key fallback - all requests must be authenticated via Clerk user session
     if (clerkToken) {
       headers['Authorization'] = 'Bearer ' + clerkToken;
-    } else if (this.config.apiKey) {
-      headers['Authorization'] = 'Bearer ' + this.config.apiKey;
+    } else {
+      // If no Clerk token, request will fail with 401 - user must sign in
+      Logger.warn('[Gateway] No Clerk session token available - user must authenticate');
     }
 
     const requestOptions = {

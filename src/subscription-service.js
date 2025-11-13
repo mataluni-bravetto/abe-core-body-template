@@ -65,10 +65,18 @@ class SubscriptionService {
       
       Logger.info('[Subscription] Fetching subscription status:', url);
       
+      // Get Clerk session token for user authentication (NO API keys)
+      const clerkToken = await this.gateway.getClerkSessionToken();
+      if (!clerkToken) {
+        Logger.warn('[Subscription] No Clerk session token - user must authenticate');
+        // Return default subscription if not authenticated
+        return this.getDefaultSubscription();
+      }
+      
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.gateway.config.apiKey}`,
+          'Authorization': `Bearer ${clerkToken}`,
           'Content-Type': 'application/json',
           'X-Extension-Version': chrome.runtime.getManifest().version,
           'X-Request-ID': `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -77,7 +85,7 @@ class SubscriptionService {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Unauthorized - Invalid API key');
+          throw new Error('Unauthorized - Invalid or expired Clerk session token');
         } else if (response.status === 404) {
           // No subscription found - return free tier
           return this.getDefaultSubscription();
@@ -147,10 +155,18 @@ class SubscriptionService {
       
       Logger.info('[Subscription] Fetching usage statistics:', url);
       
+      // Get Clerk session token for user authentication (NO API keys)
+      const clerkToken = await this.gateway.getClerkSessionToken();
+      if (!clerkToken) {
+        Logger.warn('[Subscription] No Clerk session token - user must authenticate');
+        // Return default usage if not authenticated
+        return { requests_used: 0, requests_limit: 0, reset_date: null };
+      }
+      
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${this.gateway.config.apiKey}`,
+          'Authorization': `Bearer ${clerkToken}`,
           'Content-Type': 'application/json',
           'X-Extension-Version': chrome.runtime.getManifest().version,
           'X-Request-ID': `usage_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -159,7 +175,7 @@ class SubscriptionService {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Unauthorized - Invalid API key');
+          throw new Error('Unauthorized - Invalid or expired Clerk session token');
         } else if (response.status === 404) {
           // No usage data - return default
           return this.getDefaultUsage();
