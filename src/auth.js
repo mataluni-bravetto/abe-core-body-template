@@ -120,23 +120,46 @@ class AiGuardianAuth {
       
       // Create timeout signal with fallback for browsers without AbortSignal.timeout
       let timeoutSignal;
+      let timeoutId = null;
       if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
         timeoutSignal = AbortSignal.timeout(5000);
       } else {
         // Fallback for older browsers using AbortController
         const controller = new AbortController();
-        setTimeout(() => controller.abort(), 5000);
-        timeoutSignal = controller.signal;
+        timeoutId = setTimeout(() => {
+          controller.abort();
+        }, 5000);
+        
+        // Clean up timeout if signal is aborted early
+        const signal = controller.signal;
+        if (signal.addEventListener) {
+          signal.addEventListener('abort', () => {
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
+            }
+          });
+        }
+        timeoutSignal = signal;
       }
       
-      const response = await fetch(configUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Extension-Version': chrome.runtime.getManifest().version
-        },
-        signal: timeoutSignal
-      });
+      let response;
+      try {
+        response = await fetch(configUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Extension-Version': chrome.runtime.getManifest().version
+          },
+          signal: timeoutSignal
+        });
+      } finally {
+        // Clean up timeout after fetch completes (success or failure)
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      }
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
