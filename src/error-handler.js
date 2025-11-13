@@ -230,6 +230,15 @@ class AiGuardianErrorHandler {
    * Show error to user (popup context)
    */
   showError(errorType, context = {}, options = {}) {
+    // Only show errors in popup context, not in options page
+    const isOptionsPage = window.location.pathname.includes('options.html');
+    if (isOptionsPage) {
+      // In options page, just log the error instead of displaying it
+      const errorInfo = this.getErrorInfo(errorType, context);
+      Logger.error(`[ErrorHandler] ${errorInfo.title}: ${errorInfo.message}`, { errorType, context });
+      return null;
+    }
+
     const errorId = Date.now().toString();
     const errorInfo = this.getErrorInfo(errorType, context);
 
@@ -267,7 +276,7 @@ class AiGuardianErrorHandler {
 
     errorDiv.appendChild(closeBtn);
 
-    // Add to DOM
+    // Add to DOM - only in popup context
     const container = document.querySelector('.main-content') || document.body;
     container.insertBefore(errorDiv, container.firstChild);
 

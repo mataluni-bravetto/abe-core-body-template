@@ -5,6 +5,13 @@
  */
 
 (function(){
+  // Only run in popup context, not in options page
+  const isOptionsPage = window.location.pathname.includes('options.html');
+  if (isOptionsPage) {
+    // Don't initialize popup code in options page
+    return;
+  }
+
   let eventListeners = [];
   let currentStatus = 'loading';
   let auth = null;
