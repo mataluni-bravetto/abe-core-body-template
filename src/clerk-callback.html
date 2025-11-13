@@ -88,8 +88,48 @@
     <div class="spinner"></div>
     <div class="status" id="status">Processing your sign in...</div>
     <div id="error" class="error" style="display: none;"></div>
+    <div id="debug-log" style="margin-top: 20px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; font-family: monospace; font-size: 11px; max-height: 300px; overflow-y: auto; text-align: left; display: none;"></div>
   </div>
 
+  <script>
+    // Capture all console logs and display them on the page
+    const debugLog = document.getElementById('debug-log');
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    function addToDebugLog(type, ...args) {
+      if (!debugLog) return;
+      debugLog.style.display = 'block';
+      const color = type === 'error' ? '#ff5757' : type === 'warn' ? '#ffaa00' : '#33b8ff';
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      const time = new Date().toLocaleTimeString();
+      debugLog.innerHTML += `<div style="color: ${color}; margin: 2px 0;">[${time}] [${type.toUpperCase()}] ${message}</div>`;
+      debugLog.scrollTop = debugLog.scrollHeight;
+    }
+    
+    console.log = (...args) => {
+      originalLog.apply(console, args);
+      addToDebugLog('log', ...args);
+    };
+    
+    console.error = (...args) => {
+      originalError.apply(console, args);
+      addToDebugLog('error', ...args);
+    };
+    
+    console.warn = (...args) => {
+      originalWarn.apply(console, args);
+      addToDebugLog('warn', ...args);
+    };
+    
+    // Log initial page load info
+    console.log('Page loaded:', window.location.href);
+    console.log('URL search:', window.location.search);
+    console.log('URL hash:', window.location.hash);
+  </script>
   <script src="logging.js"></script>
   <script src="auth-callback.js"></script>
 </body>
