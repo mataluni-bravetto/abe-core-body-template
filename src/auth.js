@@ -389,13 +389,42 @@ class AiGuardianAuth {
    * Sign in user - redirect to Clerk auth page
    */
   async signIn() {
-    if (!this.isInitialized || !this.clerk) {
-      throw new Error('Clerk authentication not initialized');
+    Logger.info('[Auth] signIn() called');
+    Logger.info('[Auth] isInitialized:', this.isInitialized);
+    Logger.info('[Auth] clerk exists:', !!this.clerk);
+    Logger.info('[Auth] publishableKey:', this.publishableKey ? `${this.publishableKey.substring(0, 20)}...` : 'null');
+
+    // Ensure we have what we need - initialize on demand if needed
+    if (!this.publishableKey) {
+      Logger.info('[Auth] No publishable key, fetching settings...');
+      const settings = await this.getSettings();
+      this.publishableKey = settings.clerk_publishable_key || "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
+    }
+    
+    if (!this.clerk || typeof window.Clerk === 'undefined') {
+      Logger.info('[Auth] Clerk SDK not loaded, loading...');
+      if (typeof window.Clerk === 'undefined') {
+        await this.loadClerkSDK();
+      }
+      this.clerk = window.Clerk;
+      if (this.clerk && !this.clerk.loaded) {
+        await this.clerk.load();
+      }
+    }
+    
+    if (!this.clerk || !this.publishableKey) {
+      const error = new Error('Clerk authentication not available');
+      Logger.error('[Auth] Sign-in failed - missing requirements:', {
+        hasClerk: !!this.clerk,
+        hasPublishableKey: !!this.publishableKey
+      });
+      throw error;
     }
 
     try {
       // Generate Clerk sign-in URL with redirect
       const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
+      Logger.info('[Auth] Redirect URL:', redirectUrl);
       
       // Build sign-in URL using Clerk's instance configuration
       // Include publishable key so Clerk knows which application instance to use
@@ -407,6 +436,8 @@ class AiGuardianAuth {
           ? 'accounts.clerk.dev' 
           : 'accounts.clerk.com';
         
+        Logger.info('[Auth] Using Clerk domain:', instanceDomain);
+        
         signInUrl = `https://${instanceDomain}/sign-in?__clerk_publishable_key=${encodeURIComponent(this.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
       } else {
         // Fallback to standard URL (shouldn't happen if initialized properly)
@@ -417,7 +448,24 @@ class AiGuardianAuth {
       Logger.info('[Auth] Opening sign-in URL:', signInUrl);
       
       // Open sign-in page in new tab
-      chrome.tabs.create({ url: signInUrl });
+      // Note: chrome.tabs.create callback errors don't propagate to outer try-catch
+      // So we handle errors in the callback and don't throw
+      chrome.tabs.create({ url: signInUrl }, (tab) => {
+        if (chrome.runtime.lastError) {
+          const errorMsg = chrome.runtime.lastError.message;
+          Logger.error('[Auth] Failed to create tab:', errorMsg);
+          // Can't throw here - callback errors don't propagate
+          // Instead, show error via message to popup
+          chrome.runtime.sendMessage({
+            type: 'AUTH_ERROR',
+            error: `Failed to open sign-in page: ${errorMsg}`
+          }).catch(() => {
+            // Ignore if no listener
+          });
+        } else {
+          Logger.info('[Auth] Tab created successfully:', tab ? tab.id : 'unknown');
+        }
+      });
     } catch (error) {
       Logger.error('[Auth] Error during sign in:', error);
       throw error;
