@@ -511,7 +511,7 @@ class AiGuardianAuth {
         await this.loadClerkSDK();
       }
       this.clerk = window.Clerk;
-      if (this.clerk && !this.clerk.loaded) {
+      if (this.clerk && typeof this.clerk.load === 'function' && !this.clerk.loaded) {
         await this.clerk.load();
       }
     }
