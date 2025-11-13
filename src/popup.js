@@ -93,7 +93,7 @@
         errorHandler.showError('AUTH_NOT_CONFIGURED');
       }
 
-      // Listen for auth callback success
+      // Listen for auth callback success and errors
       chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.type === 'AUTH_CALLBACK_SUCCESS') {
           // Reload auth state when callback succeeds
@@ -102,6 +102,10 @@
               updateAuthUI();
             });
           }
+        } else if (request.type === 'AUTH_ERROR') {
+          // Handle auth errors from background/service worker
+          Logger.error('[Popup] Auth error received:', request.error);
+          errorHandler.showError('AUTH_SIGN_UP_FAILED');
         }
       });
         } catch (err) {

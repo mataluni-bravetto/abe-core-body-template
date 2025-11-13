@@ -395,12 +395,22 @@ class AiGuardianAuth {
       Logger.info('[Auth] Opening sign-up URL:', signUpUrl);
       
       // Open sign-up page in new tab
+      // Note: chrome.tabs.create callback errors don't propagate to outer try-catch
+      // So we handle errors in the callback and don't throw
       chrome.tabs.create({ url: signUpUrl }, (tab) => {
         if (chrome.runtime.lastError) {
-          Logger.error('[Auth] Failed to create tab:', chrome.runtime.lastError.message);
-          throw new Error(`Failed to open sign-up page: ${chrome.runtime.lastError.message}`);
+          const errorMsg = chrome.runtime.lastError.message;
+          Logger.error('[Auth] Failed to create tab:', errorMsg);
+          // Can't throw here - callback errors don't propagate
+          // Instead, show error via message to popup
+          chrome.runtime.sendMessage({
+            type: 'AUTH_ERROR',
+            error: `Failed to open sign-up page: ${errorMsg}`
+          }).catch(() => {
+            // Ignore if no listener
+          });
         } else {
-          Logger.info('[Auth] Tab created successfully:', tab.id);
+          Logger.info('[Auth] Tab created successfully:', tab ? tab.id : 'unknown');
         }
       });
     } catch (error) {
