@@ -15,7 +15,8 @@
     "test:sdk": "cd sdk && npm test",
     "test:all": "npm run test:smoke && npm run test:unit && npm run test:integration && npm run test:security",
     "test:e2e": "jest tests/e2e/extension.test.js",
-    "build": "echo 'No build process required - pure JavaScript extension'",
+    "build": "node scripts/bundle-clerk.js",
+    "build:clerk": "node scripts/bundle-clerk.js",
     "build:sdk": "cd sdk && npm run build",
     "package": "zip -r aiguardian-v1.0.0.zip . -x '*.git*' '*node_modules*' '*tests*' '*sdk*' '*.md' '!*.json' '!*.html' '!*.js' '!manifest.json' '!src/*' '!assets/*'",
     "docs": "echo 'SDK docs: sdk/README.md | Extension docs: DEVELOPER_GUIDE.md'"
@@ -24,6 +25,7 @@
     "sdk"
   ],
   "devDependencies": {
+    "esbuild": "^0.19.12",
     "jest": "^30.2.0",
     "puppeteer": "^24.26.1"
   },

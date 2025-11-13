@@ -77,11 +77,11 @@
     }
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self' https://cdn.jsdelivr.net; object-src 'self'; base-uri 'self'; form-action 'self' https://clerk.com https://accounts.clerk.com; connect-src 'self' https://clerk.com https://*.clerk.com https://accounts.clerk.com https://*.clerk.accounts.dev https://cdn.jsdelivr.net wss://*.clerk.com;"
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self' https://clerk.com https://accounts.clerk.com; connect-src 'self' https://clerk.com https://*.clerk.com https://accounts.clerk.com https://*.clerk.accounts.dev wss://*.clerk.com;"
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/clerk-callback.html"],
+      "resources": ["src/clerk-callback.html", "src/vendor/clerk.js"],
       "matches": ["<all_urls>"]
     }
   ]

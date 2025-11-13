@@ -56,14 +56,27 @@ class AiGuardianAuth {
   }
 
   /**
-   * Load Clerk SDK dynamically
+   * Load Clerk SDK from bundled file
+   * Uses bundled version to avoid CSP issues with external scripts in Manifest V3
    */
   async loadClerkSDK() {
+    // Check if Clerk is already loaded
+    if (typeof Clerk !== 'undefined') {
+      return Promise.resolve();
+    }
+
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@4/dist/index.js';
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Clerk SDK'));
+      script.src = chrome.runtime.getURL('src/vendor/clerk.js');
+      script.onload = () => {
+        // Clerk should be available as window.Clerk after script loads
+        if (typeof Clerk !== 'undefined') {
+          resolve();
+        } else {
+          reject(new Error('Clerk SDK loaded but Clerk object not found'));
+        }
+      };
+      script.onerror = () => reject(new Error('Failed to load Clerk SDK bundle'));
       document.head.appendChild(script);
     });
   }
