@@ -118,14 +118,24 @@ class AiGuardianAuth {
       
       Logger.info('[Auth] Fetching public config from backend:', configUrl);
       
+      // Create timeout signal with fallback for browsers without AbortSignal.timeout
+      let timeoutSignal;
+      if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+        timeoutSignal = AbortSignal.timeout(5000);
+      } else {
+        // Fallback for older browsers using AbortController
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 5000);
+        timeoutSignal = controller.signal;
+      }
+      
       const response = await fetch(configUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'X-Extension-Version': chrome.runtime.getManifest().version
         },
-        // Add timeout to prevent hanging
-        signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : null
+        signal: timeoutSignal
       });
 
       if (!response.ok) {
