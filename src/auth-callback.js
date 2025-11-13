@@ -42,24 +42,31 @@ class AuthCallbackHandler {
     try {
       this.updateStatus('Processing authentication...');
 
-      // Load Clerk SDK dynamically
-      await this.loadClerkSDK();
-
-      // Get publishable key from extension
+      // Get publishable key from extension first
       const publishableKey = await this.getClerkPublishableKey();
 
       if (!publishableKey) {
         throw new Error('Clerk publishable key not configured');
       }
 
-      // Initialize Clerk
-      const Clerk = window.Clerk;
-      if (!Clerk) {
-        throw new Error('Clerk SDK not loaded');
-      }
+      // Set publishable key before loading Clerk SDK
+      // Clerk SDK browser build reads this from window.__clerk_publishable_key
+      window.__clerk_publishable_key = publishableKey;
 
-      const clerk = new Clerk(publishableKey);
-      await clerk.load();
+      // Load Clerk SDK dynamically
+      await this.loadClerkSDK();
+
+      // Initialize Clerk
+      // The bundled Clerk SDK auto-instantiates window.Clerk with publishable key
+      const clerk = window.Clerk;
+      if (!clerk) {
+        throw new Error('Clerk SDK not loaded - window.Clerk not found');
+      }
+      
+      // Ensure Clerk is loaded
+      if (!clerk.loaded) {
+        await clerk.load();
+      }
 
       // Wait for Clerk to be ready and check authentication
       
@@ -107,6 +114,7 @@ class AuthCallbackHandler {
   /**
    * Load Clerk SDK from bundled file
    * Uses bundled version to avoid CSP issues with external scripts in Manifest V3
+   * Note: Publishable key should be set in window.__clerk_publishable_key before calling this
    */
   async loadClerkSDK() {
     // Check if Clerk is already loaded
@@ -119,10 +127,10 @@ class AuthCallbackHandler {
       script.src = chrome.runtime.getURL('src/vendor/clerk.js');
       script.onload = () => {
         // Clerk should be available as window.Clerk after script loads
-        if (typeof Clerk !== 'undefined' || window.Clerk) {
+        if (window.Clerk) {
           resolve();
         } else {
-          reject(new Error('Clerk SDK loaded but Clerk object not found'));
+          reject(new Error('Clerk SDK loaded but window.Clerk not found'));
         }
       };
       script.onerror = () => reject(new Error('Failed to load Clerk SDK bundle'));

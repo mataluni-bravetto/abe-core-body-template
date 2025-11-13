@@ -34,13 +34,26 @@ class AiGuardianAuth {
       }
 
       // Import Clerk SDK dynamically
-      if (typeof Clerk === 'undefined') {
+      if (typeof Clerk === 'undefined' && typeof window.Clerk === 'undefined') {
         await this.loadClerkSDK();
       }
 
       // Initialize Clerk for Chrome extension
-      this.clerk = new Clerk(this.publishableKey);
-      await this.clerk.load();
+      // The bundled Clerk SDK auto-instantiates window.Clerk with publishable key from window.__clerk_publishable_key
+      // We set this in loadClerkSDK() before loading the script
+      const clerkInstance = window.Clerk;
+      
+      if (!clerkInstance) {
+        throw new Error('Clerk SDK not loaded - window.Clerk not found');
+      }
+      
+      // Use the auto-instantiated Clerk instance
+      this.clerk = clerkInstance;
+      
+      // Ensure Clerk is loaded
+      if (!this.clerk.loaded) {
+        await this.clerk.load();
+      }
 
       this.isInitialized = true;
       Logger.info('[Auth] Clerk authentication initialized');
@@ -58,11 +71,18 @@ class AiGuardianAuth {
   /**
    * Load Clerk SDK from bundled file
    * Uses bundled version to avoid CSP issues with external scripts in Manifest V3
+   * Sets publishable key before loading so Clerk SDK can use it
    */
   async loadClerkSDK() {
     // Check if Clerk is already loaded
-    if (typeof Clerk !== 'undefined') {
+    if (typeof Clerk !== 'undefined' || window.Clerk) {
       return Promise.resolve();
+    }
+
+    // Set publishable key before loading Clerk SDK
+    // Clerk SDK browser build reads this from window.__clerk_publishable_key
+    if (this.publishableKey) {
+      window.__clerk_publishable_key = this.publishableKey;
     }
 
     return new Promise((resolve, reject) => {
@@ -70,7 +90,7 @@ class AiGuardianAuth {
       script.src = chrome.runtime.getURL('src/vendor/clerk.js');
       script.onload = () => {
         // Clerk should be available as window.Clerk after script loads
-        if (typeof Clerk !== 'undefined') {
+        if (typeof Clerk !== 'undefined' || window.Clerk) {
           resolve();
         } else {
           reject(new Error('Clerk SDK loaded but Clerk object not found'));
