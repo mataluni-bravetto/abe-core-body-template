@@ -21,16 +21,18 @@ class AiGuardianAuth {
 
   /**
    * Initialize Clerk authentication
+   * Automatically fetches Clerk key from backend - no user configuration needed
    */
   async initialize() {
     try {
-      // Get Clerk publishable key from settings
+      // Get Clerk publishable key from settings (tries backend first, then fallback)
       const settings = await this.getSettings();
       this.publishableKey = settings.clerk_publishable_key;
 
+      // If still no key, use hardcoded fallback (public key, safe to include)
       if (!this.publishableKey) {
-        Logger.warn('[Auth] Clerk publishable key not configured');
-        return false;
+        Logger.warn('[Auth] Clerk publishable key not found, using hardcoded fallback');
+        this.publishableKey = "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
       }
 
       // Import Clerk SDK dynamically
@@ -218,7 +220,8 @@ class AiGuardianAuth {
 
   /**
    * Get authentication settings from storage or backend API
-   * Tries backend API first, falls back to manual configuration
+   * Tries backend API first, falls back to manual configuration, then hardcoded default
+   * Users never need to configure anything - it just works
    */
   async getSettings() {
     // First, try to fetch from backend API (if gateway URL is configured)
@@ -233,10 +236,20 @@ class AiGuardianAuth {
     // Fallback to manual configuration from storage
     return new Promise((resolve) => {
       chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
-        resolve({
-          clerk_publishable_key: data.clerk_publishable_key || null,
-          source: 'manual_config'
-        });
+        const manualKey = data.clerk_publishable_key || null;
+        
+        // If no manual config, use hardcoded fallback (public key, safe to include)
+        if (!manualKey) {
+          resolve({
+            clerk_publishable_key: "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA",
+            source: 'hardcoded_default'
+          });
+        } else {
+          resolve({
+            clerk_publishable_key: manualKey,
+            source: 'manual_config'
+          });
+        }
       });
     });
   }
