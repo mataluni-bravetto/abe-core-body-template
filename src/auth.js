@@ -25,9 +25,12 @@ class AiGuardianAuth {
    */
   async initialize() {
     try {
+      Logger.info('[Auth] Starting initialization...');
+      
       // Get Clerk publishable key from settings (tries backend first, then fallback)
       const settings = await this.getSettings();
       this.publishableKey = settings.clerk_publishable_key;
+      Logger.info('[Auth] Got settings, key present:', !!this.publishableKey, 'source:', settings.source);
 
       // If still no key, use hardcoded fallback (public key, safe to include)
       if (!this.publishableKey) {
@@ -36,14 +39,28 @@ class AiGuardianAuth {
       }
 
       // Import Clerk SDK dynamically
+      Logger.info('[Auth] Checking Clerk SDK...', {
+        'typeof Clerk': typeof Clerk,
+        'window.Clerk': typeof window.Clerk
+      });
+      
       if (typeof Clerk === 'undefined' && typeof window.Clerk === 'undefined') {
+        Logger.info('[Auth] Clerk SDK not found, loading...');
         await this.loadClerkSDK();
+        Logger.info('[Auth] Clerk SDK loaded');
+      } else {
+        Logger.info('[Auth] Clerk SDK already available');
       }
 
       // Initialize Clerk for Chrome extension
       // The bundled Clerk SDK auto-instantiates window.Clerk with publishable key from window.__clerk_publishable_key
       // We set this in loadClerkSDK() before loading the script
       const clerkInstance = window.Clerk;
+      Logger.info('[Auth] Clerk instance:', {
+        exists: !!clerkInstance,
+        type: typeof clerkInstance,
+        hasLoad: typeof clerkInstance?.load === 'function'
+      });
       
       if (!clerkInstance) {
         throw new Error('Clerk SDK not loaded - window.Clerk not found');
@@ -51,21 +68,39 @@ class AiGuardianAuth {
       
       // Use the auto-instantiated Clerk instance
       this.clerk = clerkInstance;
+      Logger.info('[Auth] Clerk instance assigned');
       
       // Ensure Clerk is loaded
+      Logger.info('[Auth] Checking if Clerk is loaded...', {
+        loaded: this.clerk.loaded,
+        hasLoad: typeof this.clerk.load === 'function'
+      });
+      
       if (!this.clerk.loaded) {
+        Logger.info('[Auth] Calling clerk.load()...');
         await this.clerk.load();
+        Logger.info('[Auth] clerk.load() completed');
+      } else {
+        Logger.info('[Auth] Clerk already loaded');
       }
 
       this.isInitialized = true;
-      Logger.info('[Auth] Clerk authentication initialized');
+      Logger.info('[Auth] Clerk authentication initialized successfully');
 
       // Check if user is already signed in
+      Logger.info('[Auth] Checking user session...');
       await this.checkUserSession();
+      Logger.info('[Auth] User session check completed');
 
       return true;
     } catch (error) {
-      Logger.error('[Auth] Failed to initialize Clerk:', error);
+      Logger.error('[Auth] Failed to initialize Clerk:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        error: error
+      });
+      console.error('[Auth] Full error details:', error);
       return false;
     }
   }
