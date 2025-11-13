@@ -53,6 +53,9 @@ export class HttpClient {
         try {
           this.tracer.recordEvent(traceId, 'request_attempt', { attempt });
 
+          // Rebuild request options for each retry to get a fresh abort signal
+          const requestOptions = this.buildRequestOptions(data, options);
+
           response = await fetch(url, requestOptions);
 
           // Check for successful response

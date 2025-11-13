@@ -133,6 +133,9 @@ class AuthCallbackHandler {
     } catch (error) {
       Logger.error('[AuthCallback] Callback handling error:', error);
       this.showError('Authentication failed: ' + error.message);
+    } finally {
+      // Always reset processing flag, even on error
+      this.isProcessing = false;
     }
   }
 

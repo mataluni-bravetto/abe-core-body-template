@@ -159,8 +159,8 @@ class SubscriptionService {
       const clerkToken = await this.gateway.getClerkSessionToken();
       if (!clerkToken) {
         Logger.warn('[Subscription] No Clerk session token - user must authenticate');
-        // Return default usage if not authenticated
-        return { requests_used: 0, requests_limit: 0, reset_date: null };
+        // Return default usage if not authenticated (consistent with getDefaultUsage)
+        return this.getDefaultUsage();
       }
       
       const response = await fetch(url, {

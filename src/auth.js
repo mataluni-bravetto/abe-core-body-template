@@ -235,7 +235,7 @@ class AiGuardianAuth {
     return new Promise((resolve) => {
       chrome.storage.sync.get(['gateway_url'], (data) => {
         // Use configured URL or fall back to default production URL
-        resolve(data.gateway_url || DEFAULT_CONFIG.GATEWAY_URL || 'https://api.aiguardian.ai');
+        resolve(data.gateway_url || 'https://api.aiguardian.ai');
       });
     });
   }
