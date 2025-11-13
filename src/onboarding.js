@@ -16,6 +16,12 @@ class AiGuardianOnboarding {
    */
   async shouldShow() {
     try {
+      // Check if Chrome APIs are available (extension context)
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
+        Logger.warn('[Onboarding] Chrome APIs not available - skipping onboarding check');
+        return false;
+      }
+      
       const data = await new Promise((resolve) => {
         chrome.storage.sync.get([this.storageKey], resolve);
       });
@@ -31,6 +37,12 @@ class AiGuardianOnboarding {
    */
   async markCompleted() {
     try {
+      // Check if Chrome APIs are available (extension context)
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
+        Logger.warn('[Onboarding] Chrome APIs not available - cannot mark completed');
+        return;
+      }
+      
       await new Promise((resolve) => {
         chrome.storage.sync.set({ [this.storageKey]: true }, resolve);
       });

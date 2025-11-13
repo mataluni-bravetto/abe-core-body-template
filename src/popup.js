@@ -94,24 +94,28 @@
       }
 
       // Listen for auth callback success and errors
-      chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.type === 'AUTH_CALLBACK_SUCCESS') {
-          // Reload auth state when callback succeeds
-          if (auth) {
-            auth.checkUserSession().then(() => {
-              updateAuthUI();
-            });
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+          if (request.type === 'AUTH_CALLBACK_SUCCESS') {
+            // Reload auth state when callback succeeds
+            if (auth) {
+              auth.checkUserSession().then(() => {
+                updateAuthUI();
+              });
+            }
+          } else if (request.type === 'AUTH_ERROR') {
+            // Handle auth errors from background/service worker
+            Logger.error('[Popup] Auth error received:', request.error);
+            errorHandler.showError('AUTH_SIGN_UP_FAILED');
           }
-        } else if (request.type === 'AUTH_ERROR') {
-          // Handle auth errors from background/service worker
-          Logger.error('[Popup] Auth error received:', request.error);
-          errorHandler.showError('AUTH_SIGN_UP_FAILED');
-        }
-      });
-        } catch (err) {
-          Logger.error('Auth initialization error', err);
-          errorHandler.showError('AUTH_NOT_CONFIGURED');
-        }
+        });
+      } else {
+        Logger.warn('[Popup] Chrome runtime API not available - message listener not registered');
+      }
+    } catch (err) {
+      Logger.error('Auth initialization error', err);
+      errorHandler.showError('AUTH_NOT_CONFIGURED');
+    }
   }
 
   /**

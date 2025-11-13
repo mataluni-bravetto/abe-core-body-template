@@ -141,6 +141,24 @@ class AiGuardianAuth {
     }
 
     return new Promise((resolve, reject) => {
+      // Check if Chrome APIs are available (extension context)
+      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
+        Logger.warn('[Auth] Chrome runtime API not available - loading Clerk SDK from CDN');
+        // Fallback: load from CDN for testing
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+        script.onload = () => {
+          if (typeof Clerk !== 'undefined' || window.Clerk) {
+            resolve();
+          } else {
+            reject(new Error('Clerk SDK loaded from CDN but Clerk object not found'));
+          }
+        };
+        script.onerror = () => reject(new Error('Failed to load Clerk SDK from CDN'));
+        document.head.appendChild(script);
+        return;
+      }
+      
       const script = document.createElement('script');
       script.src = chrome.runtime.getURL('src/vendor/clerk.js');
       script.onload = () => {
@@ -251,6 +269,13 @@ class AiGuardianAuth {
    */
   async getGatewayUrl() {
     return new Promise((resolve) => {
+      // Check if Chrome APIs are available (extension context)
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
+        Logger.warn('[Auth] Chrome storage API not available - using default gateway URL');
+        resolve('https://api.aiguardian.ai');
+        return;
+      }
+      
       chrome.storage.sync.get(['gateway_url'], (data) => {
         // Use configured URL or fall back to default production URL
         resolve(data.gateway_url || 'https://api.aiguardian.ai');
@@ -288,6 +313,16 @@ class AiGuardianAuth {
 
     // Fallback to manual configuration from storage
     return new Promise((resolve) => {
+      // Check if Chrome APIs are available (extension context)
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
+        Logger.warn('[Auth] Chrome storage API not available - using hardcoded fallback');
+        resolve({
+          clerk_publishable_key: "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA",
+          source: 'hardcoded_default'
+        });
+        return;
+      }
+      
       chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
         const manualKey = data.clerk_publishable_key || null;
         
@@ -439,6 +474,16 @@ class AiGuardianAuth {
     }
 
     try {
+      // Check if Chrome APIs are available (extension context)
+      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
+        Logger.warn('[Auth] Chrome runtime API not available - cannot open sign-in page');
+        // Fallback: open in current window (for testing)
+        const signInUrl = `https://accounts.clerk.dev/sign-in?__clerk_publishable_key=${encodeURIComponent(this.publishableKey || 'pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA')}`;
+        Logger.info('[Auth] Opening sign-in URL in current window (testing mode):', signInUrl);
+        window.open(signInUrl, '_blank');
+        return;
+      }
+      
       // Generate Clerk sign-in URL with redirect
       const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
       Logger.info('[Auth] Redirect URL:', redirectUrl);
@@ -467,6 +512,12 @@ class AiGuardianAuth {
       // Open sign-in page in new tab
       // Note: chrome.tabs.create callback errors don't propagate to outer try-catch
       // So we handle errors in the callback and don't throw
+      if (typeof chrome.tabs === 'undefined' || !chrome.tabs.create) {
+        Logger.warn('[Auth] Chrome tabs API not available - opening in current window');
+        window.open(signInUrl, '_blank');
+        return;
+      }
+      
       chrome.tabs.create({ url: signInUrl }, (tab) => {
         if (chrome.runtime.lastError) {
           const errorMsg = chrome.runtime.lastError.message;
@@ -526,6 +577,16 @@ class AiGuardianAuth {
     }
 
     try {
+      // Check if Chrome APIs are available (extension context)
+      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
+        Logger.warn('[Auth] Chrome runtime API not available - cannot open sign-up page');
+        // Fallback: open in current window (for testing)
+        const signUpUrl = `https://accounts.clerk.dev/sign-up?__clerk_publishable_key=${encodeURIComponent(this.publishableKey || 'pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA')}`;
+        Logger.info('[Auth] Opening sign-up URL in current window (testing mode):', signUpUrl);
+        window.open(signUpUrl, '_blank');
+        return;
+      }
+      
       // Generate Clerk sign-up URL with redirect
       const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
       Logger.info('[Auth] Redirect URL:', redirectUrl);
@@ -557,6 +618,12 @@ class AiGuardianAuth {
       // Open sign-up page in new tab
       // Note: chrome.tabs.create callback errors don't propagate to outer try-catch
       // So we handle errors in the callback and don't throw
+      if (typeof chrome.tabs === 'undefined' || !chrome.tabs.create) {
+        Logger.warn('[Auth] Chrome tabs API not available - opening in current window');
+        window.open(signUpUrl, '_blank');
+        return;
+      }
+      
       chrome.tabs.create({ url: signUpUrl }, (tab) => {
         if (chrome.runtime.lastError) {
           const errorMsg = chrome.runtime.lastError.message;
