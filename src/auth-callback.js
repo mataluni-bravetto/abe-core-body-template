@@ -16,6 +16,9 @@ class AuthCallbackHandler {
   async initialize() {
     try {
       Logger.info('[AuthCallback] Initializing callback handler');
+      Logger.info('[AuthCallback] Current URL:', window.location.href);
+      Logger.info('[AuthCallback] URL search:', window.location.search);
+      Logger.info('[AuthCallback] URL hash:', window.location.hash);
 
       // Check if we're in a callback flow
       // Clerk redirects back with various parameters in URL or hash
@@ -28,6 +31,10 @@ class AuthCallbackHandler {
                         hashParams.has('__clerk_redirect_url') ||
                         window.location.hash.includes('access_token') ||
                         window.location.hash.includes('__clerk');
+
+      Logger.info('[AuthCallback] Is callback:', isCallback);
+      Logger.info('[AuthCallback] URL params:', Object.fromEntries(urlParams));
+      Logger.info('[AuthCallback] Hash params:', Object.fromEntries(hashParams));
 
       if (isCallback) {
         await this.handleCallback();
