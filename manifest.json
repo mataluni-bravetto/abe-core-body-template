@@ -77,7 +77,7 @@
     }
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self' https://clerk.com https://accounts.clerk.com; connect-src 'self' https://clerk.com https://*.clerk.com https://accounts.clerk.com https://accounts.clerk.dev https://*.clerk.dev https://*.clerk.accounts.dev wss://*.clerk.com wss://*.clerk.dev https://api.aiguardian.ai https://*.aiguardian.ai https://api.internal.aiguardian.ai;"
+    "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self' https://clerk.com https://accounts.clerk.com https://accounts.clerk.dev; connect-src 'self' https://clerk.com https://*.clerk.com https://accounts.clerk.com https://accounts.clerk.dev https://*.clerk.dev https://*.clerk.accounts.dev wss://*.clerk.com wss://*.clerk.dev https://api.aiguardian.ai https://*.aiguardian.ai https://api.internal.aiguardian.ai;"
   },
   "web_accessible_resources": [
     {
