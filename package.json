@@ -10,9 +10,10 @@
     "test:integration": "node tests/integration-test.js",
     "test:backend": "node scripts/run-backend-integration-tests.js",
     "test:backend-integration": "node tests/integration/backend-integration.test.js",
+    "test:smoke": "node tests/smoke-test.js",
     "test:security": "node tests/security-vulnerability-audit.js",
     "test:sdk": "cd sdk && npm test",
-    "test:all": "npm run test:unit && npm run test:integration && npm run test:security",
+    "test:all": "npm run test:smoke && npm run test:unit && npm run test:integration && npm run test:security",
     "test:e2e": "jest tests/e2e/extension.test.js",
     "build": "echo 'No build process required - pure JavaScript extension'",
     "build:sdk": "cd sdk && npm run build",
@@ -25,6 +26,9 @@
   "devDependencies": {
     "jest": "^30.2.0",
     "puppeteer": "^24.26.1"
+  },
+  "dependencies": {
+    "@clerk/clerk-js": "^4.70.0"
   },
   "keywords": [
     "ai",

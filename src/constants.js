@@ -71,22 +71,55 @@ const SUCCESS_MESSAGES = {
 
 /**
  * Default Configuration Values
+ * ALIGNED WITH BACKEND: AIGuards-Backend codeguardians-gateway
  */
 const DEFAULT_CONFIG = {
-  GATEWAY_URL: 'https://api.aiguardian.ai',
-  API_KEY: 'test-api-key-12345',
+  // Backend API Gateway URL - Production endpoint
+  GATEWAY_URL: 'https://api.internal.aiguardian.ai',
+  // For local development, use: 'http://localhost:8000'
+  
+  API_KEY: '', // User must configure via extension options
   SERVICE_ENABLED: true,
   LOGGING_CONFIG: {
     level: 'info',
     enable_central_logging: true,
     enable_local_logging: true
   },
-  ANALYSIS_PIPELINE: 'unified',
+  ANALYSIS_PIPELINE: 'unified', // Uses /api/v1/guards/process endpoint
+  
+  // Guard Services Configuration
+  // Maps to backend guard services: TokenGuard, TrustGuard, ContextGuard, BiasGuard, HealthGuard
   GUARD_SERVICES: {
-    biasguard: { enabled: true, threshold: 0.5 },
-    trustguard: { enabled: true, threshold: 0.7 },
-    contextguard: { enabled: false, threshold: 0.6 },
-    securityguard: { enabled: false, threshold: 0.8 }
+    // BiasGuard (Port 8004) - Bias detection and content analysis
+    biasguard: { 
+      enabled: true, 
+      threshold: 0.5,
+      service_type: 'biasguard'
+    },
+    // TrustGuard (Port 8002) - Trust validation and reliability
+    trustguard: { 
+      enabled: true, 
+      threshold: 0.7,
+      service_type: 'trustguard'
+    },
+    // ContextGuard (Port 8003) - Context drift detection
+    contextguard: { 
+      enabled: true, 
+      threshold: 0.6,
+      service_type: 'contextguard'
+    },
+    // TokenGuard (Port 8001) - Token optimization
+    tokenguard: { 
+      enabled: false, 
+      threshold: 0.5,
+      service_type: 'tokenguard'
+    },
+    // HealthGuard (Port 8006) - Health monitoring and validation
+    healthguard: { 
+      enabled: false, 
+      threshold: 0.8,
+      service_type: 'healthguard'
+    }
   }
 };
 
@@ -138,6 +171,4 @@ const EVENT_TYPES = {
   GET_TRACE_STATS: 'GET_TRACE_STATS',
   TEST_GATEWAY_CONNECTION: 'TEST_GATEWAY_CONNECTION'
 };
-
-
 
