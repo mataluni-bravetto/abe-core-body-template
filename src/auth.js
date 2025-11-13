@@ -350,13 +350,25 @@ class AiGuardianAuth {
    * Sign up user - redirect to Clerk auth page
    */
   async signUp() {
+    Logger.info('[Auth] signUp() called');
+    Logger.info('[Auth] isInitialized:', this.isInitialized);
+    Logger.info('[Auth] clerk exists:', !!this.clerk);
+    Logger.info('[Auth] publishableKey:', this.publishableKey ? `${this.publishableKey.substring(0, 20)}...` : 'null');
+
     if (!this.isInitialized || !this.clerk) {
-      throw new Error('Clerk authentication not initialized');
+      const error = new Error('Clerk authentication not initialized');
+      Logger.error('[Auth] Sign-up failed - not initialized:', {
+        isInitialized: this.isInitialized,
+        hasClerk: !!this.clerk,
+        publishableKey: this.publishableKey ? 'present' : 'missing'
+      });
+      throw error;
     }
 
     try {
       // Generate Clerk sign-up URL with redirect
       const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
+      Logger.info('[Auth] Redirect URL:', redirectUrl);
       
       // Build sign-up URL using Clerk's instance configuration
       // Include publishable key so Clerk knows which application instance to use
@@ -368,6 +380,8 @@ class AiGuardianAuth {
         const instanceDomain = this.publishableKey.includes('pk_test_') 
           ? 'accounts.clerk.dev' 
           : 'accounts.clerk.com';
+        
+        Logger.info('[Auth] Using Clerk domain:', instanceDomain);
         
         // Extract instance identifier from publishable key if possible
         // Or use the standard Clerk URL with publishable key parameter
@@ -381,9 +395,20 @@ class AiGuardianAuth {
       Logger.info('[Auth] Opening sign-up URL:', signUpUrl);
       
       // Open sign-up page in new tab
-      chrome.tabs.create({ url: signUpUrl });
+      chrome.tabs.create({ url: signUpUrl }, (tab) => {
+        if (chrome.runtime.lastError) {
+          Logger.error('[Auth] Failed to create tab:', chrome.runtime.lastError.message);
+          throw new Error(`Failed to open sign-up page: ${chrome.runtime.lastError.message}`);
+        } else {
+          Logger.info('[Auth] Tab created successfully:', tab.id);
+        }
+      });
     } catch (error) {
-      Logger.error('[Auth] Error during sign up:', error);
+      Logger.error('[Auth] Error during sign up:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       throw error;
     }
   }

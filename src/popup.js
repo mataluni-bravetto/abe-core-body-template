@@ -339,16 +339,27 @@
     const signUpBtn = document.getElementById('signUpBtn');
     if (signUpBtn) {
       const clickHandler = async () => {
+        Logger.info('[Popup] Sign Up button clicked');
         try {
-          if (auth) {
-            await auth.signUp();
-            // Close popup after redirecting to auth
-            window.close();
-          } else {
+          if (!auth) {
+            Logger.error('[Popup] Auth object is null');
             errorHandler.showError('AUTH_NOT_CONFIGURED');
+            return;
           }
+          
+          Logger.info('[Popup] Calling auth.signUp()');
+          await auth.signUp();
+          Logger.info('[Popup] auth.signUp() completed, closing popup');
+          // Close popup after redirecting to auth
+          window.close();
         } catch (err) {
-          Logger.error('Failed to sign up', err);
+          Logger.error('[Popup] Sign-up failed with error:', {
+            message: err.message,
+            stack: err.stack,
+            name: err.name,
+            error: err
+          });
+          console.error('[Popup] Full error object:', err);
           errorHandler.showError('AUTH_SIGN_UP_FAILED');
         }
       };
