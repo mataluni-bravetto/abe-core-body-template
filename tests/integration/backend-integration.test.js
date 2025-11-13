@@ -588,7 +588,7 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof require !== 'undefined' && require.main === module) {
   const tester = new BackendIntegrationTester({
     gatewayUrl: (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) || 'https://api.aiguardian.ai',
-    apiKey: (typeof process !== 'undefined' && process.env.AIGUARDIAN_API_KEY) || ''
+    clerkToken: (typeof process !== 'undefined' && process.env.CLERK_SESSION_TOKEN) || null
   });
   
   tester.runAllTests().catch(error => {

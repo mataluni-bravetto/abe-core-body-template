@@ -456,13 +456,21 @@
    */
   async function loadSubscriptionStatus() {
     try {
-      // Check if API key is configured
+      // Check if user is authenticated via Clerk and gateway is configured
       const data = await new Promise((resolve) => {
-        chrome.storage.sync.get(['gateway_url', 'api_key'], resolve);
+        chrome.storage.sync.get(['gateway_url'], (syncData) => {
+          chrome.storage.local.get(['clerk_user', 'clerk_token'], (localData) => {
+            resolve({
+              gateway_url: syncData.gateway_url,
+              clerk_user: localData.clerk_user,
+              clerk_token: localData.clerk_token
+            });
+          });
+        });
       });
 
-      if (!data.api_key || !data.gateway_url) {
-        // Hide subscription section if no API key
+      if (!data.clerk_user || !data.gateway_url) {
+        // Hide subscription section if user is not authenticated or gateway not configured
         const section = document.getElementById('subscriptionSection');
         if (section) section.style.display = 'none';
         return;
