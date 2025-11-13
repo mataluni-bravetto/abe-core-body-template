@@ -400,9 +400,17 @@ class AiGuardianGateway {
       throw error;
     }
 
+    // Get Clerk session token for authenticated requests (user-based auth only)
+    // This is retrieved once and used for both subscription check and API request
+    let clerkToken = null;
+    try {
+      clerkToken = await this.getClerkSessionToken();
+    } catch (error) {
+      Logger.debug('[Gateway] Clerk token not available:', error.message);
+    }
+
     // Check subscription status before making request (only for analyze endpoint)
     // Only check if user is authenticated via Clerk (has session token)
-    const clerkToken = await this.getClerkSessionToken();
     if (endpoint === 'analyze' && this.subscriptionService && clerkToken) {
       try {
         const subscriptionCheck = await this.subscriptionService.canMakeRequest();
@@ -463,13 +471,7 @@ class AiGuardianGateway {
       payload: this.sanitizePayload(payload)
     });
     
-    // Get Clerk session token for authenticated requests
-    let clerkToken = null;
-    try {
-      clerkToken = await this.getClerkSessionToken();
-    } catch (error) {
-      Logger.debug('[Gateway] Clerk token not available:', error.message);
-    }
+    // Clerk token already retrieved above - reuse it here
 
     // Build headers - ONLY use Clerk user authentication tokens
     const headers = {
@@ -826,7 +828,10 @@ class AiGuardianGateway {
       if (typeof window !== 'undefined' && window.Clerk) {
         try {
           const clerk = window.Clerk;
-          await clerk.load();
+          // Only call load() if it exists
+          if (typeof clerk.load === 'function' && !clerk.loaded) {
+            await clerk.load();
+          }
           const session = await clerk.session;
           if (session) {
             const token = await session.getToken();

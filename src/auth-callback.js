@@ -73,9 +73,11 @@ class AuthCallbackHandler {
         throw new Error('Clerk SDK not loaded - window.Clerk not found');
       }
       
-      // Ensure Clerk is loaded
-      if (!clerk.loaded) {
+      // Ensure Clerk is loaded (only if load() method exists)
+      if (typeof clerk.load === 'function' && !clerk.loaded) {
         await clerk.load();
+      } else if (typeof clerk.load !== 'function') {
+        Logger.info('[AuthCallback] Clerk SDK does not have load() method - assuming ready');
       }
 
       // Handle Clerk redirect callback
@@ -94,14 +96,18 @@ class AuthCallbackHandler {
       // Check if user is authenticated after redirect
       let user = null;
       try {
-        // Wait for Clerk to be ready
-        await clerk.load();
+        // Wait for Clerk to be ready (only if load() method exists)
+        if (typeof clerk.load === 'function') {
+          await clerk.load();
+        }
         user = clerk.user;
       } catch (e) {
         Logger.warn('[AuthCallback] Error getting user, retrying:', e.message);
         // Try waiting a bit more for Clerk to initialize
         await new Promise(resolve => setTimeout(resolve, 1000));
-        await clerk.load();
+        if (typeof clerk.load === 'function') {
+          await clerk.load();
+        }
         user = clerk.user;
       }
 
