@@ -31,7 +31,8 @@
       { id: 'clerk_publishable_key', event: 'change', handler: updateClerkPublishableKey },
       { id: 'refresh_subscription', event: 'click', handler: refreshSubscriptionInfo },
       { id: 'manage_subscription', event: 'click', handler: manageSubscription },
-      { id: 'upgrade_subscription', event: 'click', handler: upgradeSubscription }
+      { id: 'upgrade_subscription', event: 'click', handler: upgradeSubscription },
+      { id: 'test_connection', event: 'click', handler: testBackendConnection }
     ];
 
     elements.forEach(({ id, event, handler }) => {
@@ -60,10 +61,19 @@
     chrome.storage.sync.get([
       'clerk_publishable_key',
       'clerk_key_source',
-      'clerk_key_cached_at'
+      'clerk_key_cached_at',
+      'gateway_url'
     ], (data) => {
       // Update Clerk key status display
       updateClerkKeyStatus(data);
+      
+      // Load gateway URL for connection test
+      const gatewayInput = document.getElementById('connection_gateway_url');
+      if (gatewayInput && data.gateway_url) {
+        gatewayInput.value = data.gateway_url;
+      } else if (gatewayInput) {
+        gatewayInput.value = 'https://api.aiguardian.ai';
+      }
     });
   }
 
@@ -282,6 +292,116 @@
       chrome.tabs.create({ url: upgradeUrl });
     } catch (err) {
       Logger.error('Failed to open upgrade page', err);
+    }
+  }
+
+  /**
+   * Test backend connection
+   */
+  async function testBackendConnection() {
+    const statusElement = document.getElementById('connection_status');
+    const resultElement = document.getElementById('connection_result');
+    const testButton = document.getElementById('test_connection');
+    const gatewayInput = document.getElementById('connection_gateway_url');
+    
+    if (!statusElement || !resultElement || !testButton || !gatewayInput) return;
+    
+    const gatewayUrl = gatewayInput.value.trim() || 'https://api.aiguardian.ai';
+    
+    // Update UI to show testing state
+    testButton.disabled = true;
+    testButton.textContent = '🔄 Testing...';
+    statusElement.textContent = 'Testing...';
+    statusElement.className = 'status disconnected';
+    resultElement.style.display = 'block';
+    resultElement.textContent = 'Testing connection...';
+    resultElement.style.color = 'rgba(249, 249, 249, 0.7)';
+    
+    // Test health endpoint
+    const healthUrl = gatewayUrl.replace(/\/$/, '') + '/health/live';
+    Logger.info('Testing backend connection:', healthUrl);
+    
+    try {
+      
+      // Create timeout signal with fallback for older browsers
+      let timeoutSignal;
+      if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+        timeoutSignal = AbortSignal.timeout(10000);
+      } else {
+        // Fallback for older browsers
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 10000);
+        timeoutSignal = controller.signal;
+      }
+      
+      const startTime = Date.now();
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        headers: {
+          'X-Extension-Version': chrome.runtime.getManifest().version
+        },
+        signal: timeoutSignal
+      });
+      const responseTime = Date.now() - startTime;
+      
+      if (response.ok) {
+        const responseData = await response.json().catch(() => ({}));
+        
+        // Update status to connected
+        statusElement.textContent = 'Connected';
+        statusElement.className = 'status connected';
+        resultElement.style.color = '#33B8FF';
+        resultElement.innerHTML = `
+          ✅ <strong>Connection Successful!</strong><br>
+          Response Time: ${responseTime}ms<br>
+          Status: ${response.status} ${response.statusText}<br>
+          ${responseData.status ? `Backend Status: ${responseData.status}` : ''}
+        `;
+        
+        // Save the gateway URL if test succeeds
+        chrome.storage.sync.set({ gateway_url: gatewayUrl }, () => {
+          Logger.info('Gateway URL saved:', gatewayUrl);
+        });
+        
+        Logger.info('Backend connection test successful', { gatewayUrl, responseTime });
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      // Update status to disconnected
+      statusElement.textContent = 'Disconnected';
+      statusElement.className = 'status disconnected';
+      resultElement.style.color = '#FF5757';
+      
+      let errorMessage = 'Connection failed';
+      let troubleshootingTips = '';
+      
+      if (error.name === 'TimeoutError' || error.name === 'AbortError' || error.message.includes('timeout') || error.message.includes('aborted')) {
+        errorMessage = 'Connection timeout - backend may be unreachable or slow';
+        troubleshootingTips = '• Check if backend is running<br>• Verify network connectivity<br>• Check firewall settings';
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        errorMessage = 'Network error - backend may not be reachable';
+        troubleshootingTips = '• Verify backend is running: <code>curl ' + healthUrl + '</code><br>• Check Gateway URL is correct<br>• Test URL in browser: <a href="' + healthUrl + '" target="_blank">' + healthUrl + '</a><br>• Check network/firewall settings';
+      } else if (error.message.includes('CORS')) {
+        errorMessage = 'CORS error - backend may not allow extension origin';
+        troubleshootingTips = '• Update backend ALLOWED_ORIGINS to include chrome-extension://*<br>• Check backend CORS configuration';
+      } else {
+        errorMessage = error.message || 'Unknown error';
+        troubleshootingTips = '• Check browser console (F12) for details<br>• Verify backend logs<br>• Test endpoint directly: <a href="' + healthUrl + '" target="_blank">' + healthUrl + '</a>';
+      }
+      
+      resultElement.innerHTML = `
+        ❌ <strong>Connection Failed</strong><br>
+        ${errorMessage}<br><br>
+        <strong>Troubleshooting:</strong><br>
+        <div style="font-size: 11px; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+          ${troubleshootingTips}
+        </div>
+      `;
+      Logger.error('Backend connection test failed', { gatewayUrl, healthUrl, error: error.message, errorName: error.name });
+    } finally {
+      testButton.disabled = false;
+      testButton.textContent = '🔍 Test Connection';
     }
   }
 

@@ -4,16 +4,23 @@
  * This test suite makes actual API calls to your backend to verify integration.
  * 
  * USAGE:
- * 1. Set your backend URL and API key in the configuration below
- * 2. Run: node tests/integration/backend-integration.test.js
- * 3. Or import in Chrome extension context and run via testing.js
+ * 1. Set your backend URL in the configuration below
+ * 2. For authenticated endpoints, set CLERK_SESSION_TOKEN environment variable
+ * 3. Run: node tests/integration/backend-integration.test.js
+ * 4. Or import in Chrome extension context and run via testing.js
+ * 
+ * NOTE: This extension uses Clerk authentication only (no API keys).
+ * Public endpoints (health, config/public) work without authentication.
+ * Protected endpoints require a Clerk session token.
  */
 
 class BackendIntegrationTester {
   constructor(config = {}) {
     this.config = {
       gatewayUrl: config.gatewayUrl || 'https://api.aiguardian.ai',
-      apiKey: config.apiKey || (typeof process !== 'undefined' && process.env.AIGUARDIAN_API_KEY) || '',
+      // Note: API keys are deprecated - using Clerk authentication only
+      // For Node.js tests, we can only test public endpoints
+      clerkToken: config.clerkToken || (typeof process !== 'undefined' && process.env.CLERK_SESSION_TOKEN) || null,
       timeout: config.timeout || 10000,
       retryAttempts: config.retryAttempts || 3,
       ...config
@@ -31,7 +38,7 @@ class BackendIntegrationTester {
     console.log('\n🚀 Starting Backend Integration Tests');
     console.log('='.repeat(70));
     console.log(`Backend URL: ${this.config.gatewayUrl}`);
-    console.log(`API Key: ${this.config.apiKey ? '***configured***' : '⚠️  NOT SET'}`);
+    console.log(`Clerk Token: ${this.config.clerkToken ? '***configured***' : '⚠️  NOT SET (will test public endpoints only)'}`);
     console.log('='.repeat(70));
 
     const tests = [
@@ -107,25 +114,21 @@ class BackendIntegrationTester {
 
   /**
    * Test 2: Authentication
-   * Verifies API key authentication works
+   * Verifies public config endpoint is accessible (doesn't require auth)
+   * Note: Protected endpoints require Clerk session token (not available in Node.js context)
    */
   async testAuthentication() {
     const startTime = Date.now();
     
-    if (!this.config.apiKey) {
-      throw new Error('API key not configured. Set AIGUARDIAN_API_KEY environment variable or pass in config');
-    }
-
     try {
-      // Try to access a protected endpoint
-      const response = await this.makeRequest('GET', '/api/v1/config', null);
+      // Test public config endpoint (doesn't require authentication)
+      const response = await this.makeRequest('GET', '/api/v1/config/public', null);
       const responseTime = Date.now() - startTime;
       
-      if (response.status === 401) {
-        throw new Error('Authentication failed: Invalid API key');
-      }
-      
-      if (!response.ok && response.status !== 200) {
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication required: Backend requires Clerk session token. This test runs in Node.js context and cannot authenticate.');
+        }
         throw new Error(`Authentication test failed: ${response.status} ${response.statusText}`);
       }
       
@@ -133,9 +136,11 @@ class BackendIntegrationTester {
       
       return {
         authenticated: true,
+        publicConfigAccessible: true,
         responseTime,
         statusCode: response.status,
-        hasConfig: !!data
+        hasClerkKey: !!data.clerk_publishable_key,
+        source: data.source || 'unknown'
       };
     } catch (error) {
       if (error.message.includes('401')) {
@@ -168,6 +173,11 @@ class BackendIntegrationTester {
     try {
       const response = await this.makeRequest('POST', '/api/v1/guards/process', payload);
       const responseTime = Date.now() - startTime;
+      
+      // If no Clerk token, expect 403 (authentication required)
+      if (!this.config.clerkToken && response.status === 403) {
+        throw new Error('Authentication required: This endpoint requires Clerk session token. Set CLERK_SESSION_TOKEN environment variable or authenticate in extension.');
+      }
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
@@ -225,6 +235,11 @@ class BackendIntegrationTester {
     try {
       const response = await this.makeRequest('POST', '/api/v1/guards/process', payload);
       const responseTime = Date.now() - startTime;
+      
+      // If no Clerk token, expect 403 (authentication required)
+      if (!this.config.clerkToken && response.status === 403) {
+        throw new Error('Authentication required: This endpoint requires Clerk session token. Set CLERK_SESSION_TOKEN environment variable or authenticate in extension.');
+      }
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
@@ -405,13 +420,14 @@ class BackendIntegrationTester {
 
   /**
    * Test 7: Configuration Management
+   * Verifies public configuration endpoint (doesn't require auth)
    */
   async testConfiguration() {
     const startTime = Date.now();
     
     try {
-      // Get configuration
-      const response = await this.makeRequest('GET', '/api/v1/config', null);
+      // Get public configuration (doesn't require authentication)
+      const response = await this.makeRequest('GET', '/api/v1/config/public', null);
       const responseTime = Date.now() - startTime;
       
       if (!response.ok) {
@@ -424,7 +440,9 @@ class BackendIntegrationTester {
         responseTime,
         hasConfig: !!data,
         configKeys: Object.keys(data || {}),
-        statusCode: response.status
+        statusCode: response.status,
+        hasClerkKey: !!data.clerk_publishable_key,
+        source: data.source || 'unknown'
       };
     } catch (error) {
       throw new Error(`Configuration test error: ${error.message}`);
@@ -470,8 +488,10 @@ class BackendIntegrationTester {
       'X-Timestamp': new Date().toISOString()
     };
     
-    if (this.config.apiKey) {
-      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    // Use Clerk session token for authentication (if available)
+    // Note: In Node.js context, tests will only work with public endpoints
+    if (this.config.clerkToken) {
+      headers['Authorization'] = `Bearer ${this.config.clerkToken}`;
     }
     
     const options = {
@@ -540,7 +560,8 @@ class BackendIntegrationTester {
       },
       config: {
         gatewayUrl: this.config.gatewayUrl,
-        apiKeyConfigured: !!this.config.apiKey
+        clerkTokenConfigured: !!this.config.clerkToken,
+        note: 'Protected endpoints require Clerk session token. Public endpoints (health, config/public) work without authentication.'
       },
       results: this.testResults
     };

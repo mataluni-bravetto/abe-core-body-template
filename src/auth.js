@@ -259,7 +259,25 @@ class AiGuardianAuth {
     try {
       // Generate Clerk sign-in URL with redirect
       const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
-      const signInUrl = `https://accounts.clerk.com/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`;
+      
+      // Build sign-in URL using Clerk's instance configuration
+      // Include publishable key so Clerk knows which application instance to use
+      let signInUrl;
+      
+      if (this.publishableKey) {
+        // Use Clerk's instance-specific sign-in URL with publishable key
+        const instanceDomain = this.publishableKey.includes('pk_test_') 
+          ? 'accounts.clerk.dev' 
+          : 'accounts.clerk.com';
+        
+        signInUrl = `https://${instanceDomain}/sign-in?__clerk_publishable_key=${encodeURIComponent(this.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+      } else {
+        // Fallback to standard URL (shouldn't happen if initialized properly)
+        signInUrl = `https://accounts.clerk.com/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`;
+        Logger.warn('[Auth] Sign-in without publishable key - may not work correctly');
+      }
+      
+      Logger.info('[Auth] Opening sign-in URL:', signInUrl);
       
       // Open sign-in page in new tab
       chrome.tabs.create({ url: signInUrl });
@@ -280,7 +298,28 @@ class AiGuardianAuth {
     try {
       // Generate Clerk sign-up URL with redirect
       const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
-      const signUpUrl = `https://accounts.clerk.com/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`;
+      
+      // Build sign-up URL using Clerk's instance configuration
+      // Include publishable key so Clerk knows which application instance to use
+      let signUpUrl;
+      
+      if (this.publishableKey) {
+        // Use Clerk's instance-specific sign-up URL with publishable key
+        // Format: https://<instance>.clerk.accounts.dev/sign-up?redirect_url=...
+        const instanceDomain = this.publishableKey.includes('pk_test_') 
+          ? 'accounts.clerk.dev' 
+          : 'accounts.clerk.com';
+        
+        // Extract instance identifier from publishable key if possible
+        // Or use the standard Clerk URL with publishable key parameter
+        signUpUrl = `https://${instanceDomain}/sign-up?__clerk_publishable_key=${encodeURIComponent(this.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+      } else {
+        // Fallback to standard URL (shouldn't happen if initialized properly)
+        signUpUrl = `https://accounts.clerk.com/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`;
+        Logger.warn('[Auth] Sign-up without publishable key - may not work correctly');
+      }
+      
+      Logger.info('[Auth] Opening sign-up URL:', signUpUrl);
       
       // Open sign-up page in new tab
       chrome.tabs.create({ url: signUpUrl });

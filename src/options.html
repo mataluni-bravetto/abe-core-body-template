@@ -164,6 +164,25 @@
       </div>
     </div>
 
+    <!-- Backend Connection Status -->
+    <div class="section">
+      <h3>🔌 Backend Connection</h3>
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+        Verify that the extension can connect to your backend server.
+      </p>
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="margin: 0;">Gateway URL</label>
+          <span id="connection_status" class="status disconnected" style="font-size: 11px;">Not Tested</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input id="connection_gateway_url" type="text" placeholder="https://api.aiguardian.ai" style="flex: 1;" />
+          <button id="test_connection" class="secondary">🔍 Test Connection</button>
+        </div>
+        <div id="connection_result" style="margin-top: 8px; font-size: 12px; color: rgba(249, 249, 249, 0.7); display: none;"></div>
+      </div>
+    </div>
+
     <!-- Backend Integration Testing -->
     <div class="section">
       <h3>🧪 Backend Integration Testing</h3>
