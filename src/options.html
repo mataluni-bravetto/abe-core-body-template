@@ -164,9 +164,39 @@
       </div>
     </div>
 
+    <!-- Backend Integration Testing -->
+    <div class="section">
+      <h3>🧪 Backend Integration Testing</h3>
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+        Test your backend API integration, including the division-by-zero fix for performance tests.
+      </p>
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="margin: 0;">Gateway URL</label>
+        </div>
+        <input id="test_gateway_url" type="text" placeholder="https://api.aiguardian.ai" value="https://api.aiguardian.ai" />
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label style="margin: 0;">API Key (optional)</label>
+        </div>
+        <input id="test_api_key" type="password" placeholder="Enter API key if required" />
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 12px;">
+        <button id="run_all_tests" class="secondary">🚀 Run All Tests</button>
+        <button id="run_performance_test" class="secondary">⚡ Performance Test Only</button>
+        <button id="clear_test_results" class="secondary">🗑️ Clear Results</button>
+      </div>
+      <div id="test_results" class="test-results hidden" style="margin-top: 16px;">
+        <div id="test_results_content"></div>
+      </div>
+    </div>
+
 
     <script src="logging.js"></script>
     <script src="options.js"></script>
+    <script src="../tests/integration/backend-integration.test.js"></script>
+    <script src="options-testing.js"></script>
   </body>
 </html>
 
