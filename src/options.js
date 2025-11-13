@@ -477,7 +477,20 @@
       debug += '=== INITIALIZING AUTH ===\n';
       try {
         const auth = new AiGuardianAuth();
+        
+        // Capture console errors during initialization
+        const consoleErrors = [];
+        const originalError = console.error;
+        console.error = (...args) => {
+          consoleErrors.push(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' '));
+          originalError.apply(console, args);
+        };
+        
         const initialized = await auth.initialize();
+        
+        // Restore console.error
+        console.error = originalError;
+        
         debug += `Initialized: ${initialized}\n`;
         debug += `isInitialized: ${auth.isInitialized}\n`;
         debug += `hasClerk: ${!!auth.clerk}\n`;
@@ -488,6 +501,17 @@
           debug += `\n⚠️ Auth failed to initialize - checking why...\n`;
           debug += `  publishableKey from getSettings: ${auth.publishableKey ? 'present' : 'missing'}\n`;
           debug += `  Clerk SDK loaded: ${typeof window.Clerk !== 'undefined' ? 'yes' : 'no'}\n`;
+          debug += `  Clerk instance type: ${typeof window.Clerk}\n`;
+          debug += `  Clerk has load method: ${typeof window.Clerk?.load === 'function' ? 'yes' : 'no'}\n`;
+          
+          if (consoleErrors.length > 0) {
+            debug += `\n❌ Console Errors During Initialization:\n`;
+            consoleErrors.forEach((err, idx) => {
+              debug += `  [${idx + 1}] ${err}\n`;
+            });
+          } else {
+            debug += `\n⚠️ No console errors captured - check browser console (F12) for details\n`;
+          }
         }
         
         // Test sign-up URL generation
@@ -498,6 +522,8 @@
           debug += `\nSign-Up URL:\n${signUpUrl}\n`;
         } else if (!auth.publishableKey) {
           debug += `\n❌ Cannot generate sign-up URL - publishableKey is missing\n`;
+        } else if (!initialized) {
+          debug += `\n⚠️ Cannot generate sign-up URL - initialization failed (but sign-up should still work with on-demand init)\n`;
         }
       } catch (e) {
         debug += `ERROR: ${e.message}\n`;
