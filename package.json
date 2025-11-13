@@ -8,6 +8,8 @@
   "scripts": {
     "test:unit": "node scripts/run-unit-tests.cjs",
     "test:integration": "node tests/integration-test.js",
+    "test:backend": "node scripts/run-backend-integration-tests.js",
+    "test:backend-integration": "node tests/integration/backend-integration.test.js",
     "test:security": "node tests/security-vulnerability-audit.js",
     "test:sdk": "cd sdk && npm test",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:security",

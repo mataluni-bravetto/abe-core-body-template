@@ -8,7 +8,7 @@
 }
 
 /* Fallback fonts if import fails */
-@import url('../AiGuardian Assets/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css');
+@import url('../assets/brand/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css');
 
 body {
   width: 380px;
