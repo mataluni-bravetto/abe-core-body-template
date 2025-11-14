@@ -80,6 +80,10 @@ const DEFAULT_CONFIG = {
   // For internal/testing: 'https://api.internal.aiguardian.ai'
   // For local development: 'http://localhost:8000'
   
+  // Clerk Publishable Key - Hardcoded fallback (safe to expose, publishable keys are public)
+  // This is used if backend API doesn't return it and user hasn't configured manually
+  CLERK_PUBLISHABLE_KEY: 'pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA',
+  
   API_KEY: '', // User must configure via extension options
   SERVICE_ENABLED: true,
   LOGGING_CONFIG: {

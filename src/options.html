@@ -121,24 +121,43 @@
     <div class="section">
       <h3>🔐 Authentication</h3>
       <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
-        Your Clerk authentication is automatically configured from the backend when available.
-        You can also manually configure it below if needed.
+        Your Clerk authentication is automatically configured from the backend.
         <br><br>
         <strong>Note:</strong> Payment and subscription management is handled through Stripe on the landing page. 
         Users who sign up through the landing page will automatically be recognized here.
       </p>
-      <div style="margin-bottom: 12px;">
+      
+      <!-- Auto-configuration status -->
+      <div style="margin-bottom: 12px; padding: 12px; background: rgba(51, 184, 255, 0.1); border-radius: 8px; border: 1px solid rgba(51, 184, 255, 0.3);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <label style="margin: 0;">Clerk Publishable Key</label>
-          <span id="clerk_key_status" class="status disconnected" style="font-size: 11px;">Manual</span>
+          <span style="font-size: 13px; color: rgba(249, 249, 249, 0.9);">Clerk Configuration</span>
+          <span id="clerk_key_status" class="status disconnected" style="font-size: 11px;">Checking...</span>
         </div>
-        <input id="clerk_publishable_key" type="password" placeholder="Auto-configured from backend or enter manually" />
-        <p id="clerk_key_info" style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin: 6px 0 0 0;">
-          <span id="clerk_key_source_text">Manually configured</span>
-          <br>
-          Get your publishable key from <a href="https://dashboard.clerk.com" target="_blank" style="color: #33B8FF; text-decoration: none;">Clerk Dashboard</a>
+        <p id="clerk_key_info" style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin: 0;">
+          <span id="clerk_key_source_text">Auto-configured from backend</span>
         </p>
       </div>
+      
+      <!-- Advanced Settings (collapsed by default) -->
+      <details style="margin-top: 12px;">
+        <summary style="cursor: pointer; color: rgba(249, 249, 249, 0.7); font-size: 12px; user-select: none;">
+          ⚙️ Advanced Settings
+        </summary>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+          <p style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin-bottom: 8px;">
+            Manual configuration is usually not needed. Everything is auto-configured from the backend.
+          </p>
+          <div style="margin-bottom: 12px;">
+            <label style="margin: 0;">Clerk Publishable Key (Manual Override)</label>
+            <input id="clerk_publishable_key" type="password" placeholder="Auto-configured from backend or enter manually" />
+            <p id="clerk_key_info_advanced" style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin: 6px 0 0 0;">
+              <span id="clerk_key_source_text_advanced">Manually configured</span>
+              <br>
+              Get your publishable key from <a href="https://dashboard.clerk.com" target="_blank" style="color: #33B8FF; text-decoration: none;">Clerk Dashboard</a>
+            </p>
+          </div>
+        </div>
+      </details>
     </div>
 
     <!-- Subscription Information -->
@@ -183,54 +202,12 @@
       </div>
     </div>
 
-    <!-- Backend Integration Testing -->
-    <div class="section">
-      <h3>🧪 Backend Integration Testing</h3>
-      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
-        Test your backend API integration, including the division-by-zero fix for performance tests.
-      </p>
-      <div style="margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <label style="margin: 0;">Gateway URL</label>
-        </div>
-        <input id="test_gateway_url" type="text" placeholder="https://api.aiguardian.ai" value="https://api.aiguardian.ai" />
-      </div>
-      <div style="margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <label style="margin: 0;">API Key (optional)</label>
-        </div>
-        <input id="test_api_key" type="password" placeholder="Enter API key if required" />
-      </div>
-      <div style="display: flex; gap: 8px; margin-top: 12px;">
-        <button id="run_all_tests" class="secondary">🚀 Run All Tests</button>
-        <button id="run_performance_test" class="secondary">⚡ Performance Test Only</button>
-        <button id="clear_test_results" class="secondary">🗑️ Clear Results</button>
-      </div>
-      <div id="test_results" class="test-results hidden" style="margin-top: 16px;">
-        <div id="test_results_content"></div>
-      </div>
-    </div>
-
-    <!-- Auth Debug Section -->
-    <div class="section">
-      <h3>🔍 Auth Debug</h3>
-      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
-        Debug authentication state and test sign-up flow.
-      </p>
-      <div style="margin-bottom: 12px;">
-        <button id="check_auth_state" class="secondary">🔍 Check Auth State</button>
-        <button id="test_sign_up" class="secondary">🚀 Test Sign Up</button>
-        <button id="clear_debug" class="secondary">🗑️ Clear Debug</button>
-      </div>
-      <div id="auth_debug_output" style="margin-top: 16px; padding: 12px; background: rgba(0, 0, 0, 0.3); border-radius: 8px; font-family: monospace; font-size: 11px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; display: none;"></div>
-    </div>
 
 
+    <script src="constants.js"></script>
     <script src="logging.js"></script>
     <script src="auth.js"></script>
     <script src="options.js"></script>
-    <script src="../tests/integration/backend-integration.test.js"></script>
-    <script src="options-testing.js"></script>
   </body>
 </html>
 

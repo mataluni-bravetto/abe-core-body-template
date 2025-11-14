@@ -449,12 +449,25 @@ class AiGuardianAuth {
               error: null
             });
           } else {
-            // No key found - return error info if backend fetch failed
-            resolve({
-              clerk_publishable_key: null,
-              source: 'not_configured',
-              error: fetchError
-            });
+            // Final fallback to hardcoded default (publishable keys are safe to expose)
+            const hardcodedKey = typeof DEFAULT_CONFIG !== 'undefined' && DEFAULT_CONFIG.CLERK_PUBLISHABLE_KEY 
+              ? DEFAULT_CONFIG.CLERK_PUBLISHABLE_KEY.trim() 
+              : null;
+            
+            if (hardcodedKey) {
+              resolve({
+                clerk_publishable_key: hardcodedKey,
+                source: 'hardcoded_default',
+                error: null
+              });
+            } else {
+              // No key found anywhere
+              resolve({
+                clerk_publishable_key: null,
+                source: 'not_configured',
+                error: fetchError
+              });
+            }
           }
         });
       });

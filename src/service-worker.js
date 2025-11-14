@@ -370,11 +370,19 @@ try {
           return true;
 
         case "GET_CLERK_KEY":
-          // Get Clerk publishable key from storage (must be configured)
+          // Get Clerk publishable key from storage, fallback to hardcoded default
           chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
-            const key = data.clerk_publishable_key;
+            let key = data.clerk_publishable_key;
+            
+            // Fallback to hardcoded default if not in storage
+            if (!key && typeof DEFAULT_CONFIG !== 'undefined' && DEFAULT_CONFIG.CLERK_PUBLISHABLE_KEY) {
+              key = DEFAULT_CONFIG.CLERK_PUBLISHABLE_KEY.trim();
+              Logger.info('[BG] Using hardcoded Clerk publishable key fallback');
+            }
+            
             if (!key) {
               Logger.warn('[BG] Clerk publishable key not configured');
+              sendResponse({ success: false, key: null });
               return;
             }
             sendResponse({ success: true, key: key });

@@ -32,10 +32,7 @@
       { id: 'refresh_subscription', event: 'click', handler: refreshSubscriptionInfo },
       { id: 'manage_subscription', event: 'click', handler: manageSubscription },
       { id: 'upgrade_subscription', event: 'click', handler: upgradeSubscription },
-      { id: 'test_connection', event: 'click', handler: testBackendConnection },
-      { id: 'check_auth_state', event: 'click', handler: checkAuthState },
-      { id: 'test_sign_up', event: 'click', handler: testSignUpFlow },
-      { id: 'clear_debug', event: 'click', handler: clearDebugOutput }
+      { id: 'test_connection', event: 'click', handler: testBackendConnection }
     ];
 
     elements.forEach(({ id, event, handler }) => {
@@ -102,15 +99,18 @@
   function updateClerkKeyStatus(data) {
     const statusElement = document.getElementById('clerk_key_status');
     const sourceTextElement = document.getElementById('clerk_key_source_text');
+    const sourceTextElementAdvanced = document.getElementById('clerk_key_source_text_advanced');
     
     if (!statusElement || !sourceTextElement) return;
     
     const keySource = data.clerk_key_source || 'manual_config';
     const cachedAt = data.clerk_key_cached_at;
     
+    let statusText, statusClass, sourceText;
+    
     if (keySource === 'backend_api') {
-      statusElement.textContent = 'Auto';
-      statusElement.className = 'status connected';
+      statusText = 'Auto';
+      statusClass = 'status connected';
       
       if (cachedAt) {
         const cacheAge = Math.floor((Date.now() - cachedAt) / 1000 / 60); // minutes
@@ -121,14 +121,24 @@
           const hours = Math.floor(cacheAge / 60);
           ageText = `${hours} hour${hours > 1 ? 's' : ''} ago`;
         }
-        sourceTextElement.textContent = `Auto-configured from backend API (${ageText})`;
+        sourceText = `Auto-configured from backend API (${ageText})`;
       } else {
-        sourceTextElement.textContent = 'Auto-configured from backend API';
+        sourceText = 'Auto-configured from backend API';
       }
     } else {
-      statusElement.textContent = 'Manual';
-      statusElement.className = 'status disconnected';
-      sourceTextElement.textContent = 'Manually configured';
+      statusText = 'Manual';
+      statusClass = 'status disconnected';
+      sourceText = 'Manually configured';
+    }
+    
+    // Update main status display
+    statusElement.textContent = statusText;
+    statusElement.className = statusClass;
+    sourceTextElement.textContent = sourceText;
+    
+    // Update advanced section if it exists
+    if (sourceTextElementAdvanced) {
+      sourceTextElementAdvanced.textContent = sourceText;
     }
   }
 
