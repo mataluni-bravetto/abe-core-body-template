@@ -58,8 +58,8 @@ The Chrome extension provides browser-based AI content analysis with visual feed
 - **Keyboard Shortcuts**: `Ctrl+Shift+A` for quick analysis
 - **Analysis History**: Track and review past analyses
 
-**[📚 Extension Documentation](DEVELOPER_GUIDE.md)** - Development and user guides  
-**[🔌 Backend Integration Guide](docs/BACKEND_INTEGRATION_GUIDE.md)** - Complete API integration reference
+**[📚 Extension Documentation](docs/guides/DEVELOPER_GUIDE.md)** - Development and user guides  
+**[🔌 Backend Integration Guide](docs/guides/BACKEND_INTEGRATION_GUIDE.md)** - Complete API integration reference
 
 ## 📁 Project Structure
 
@@ -115,9 +115,11 @@ npm test
 ## 📚 Documentation
 
 - **[SDK Documentation](sdk/README.md)** - Complete SDK API reference
-- **[Developer Guide](DEVELOPER_GUIDE.md)** - Extension development guide
-- **[Architecture](ARCHITECTURE.md)** - System architecture
-- **[User Guide](USER_GUIDE.md)** - End-user documentation
+- **[Developer Guide](docs/guides/DEVELOPER_GUIDE.md)** - Extension development guide
+- **[Architecture](docs/architecture/ARCHITECTURE.md)** - System architecture
+- **[User Guide](docs/guides/USER_GUIDE.md)** - End-user documentation
+- **[Troubleshooting](docs/guides/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Auth Fixes](docs/technical/AUTH_FIXES.md)** - Authentication fixes and debugging
 
 ## 🤝 Support
 

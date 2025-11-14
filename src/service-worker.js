@@ -294,6 +294,10 @@ try {
 
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // Log ALL incoming messages for debugging
+    Logger.info("[BG] 📨 Message received:", { type: request.type, hasUser: !!request.user });
+    console.log("[BG] 📨 Incoming message:", request.type, request);
+    
     try {
       switch (request.type) {
         case "ANALYZE_TEXT":
@@ -366,28 +370,133 @@ try {
           return true;
 
         case "GET_CLERK_KEY":
-          // Get Clerk publishable key (from storage or hardcoded fallback)
+          // Get Clerk publishable key from storage (must be configured)
           chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
-            const key = data.clerk_publishable_key || "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
+            const key = data.clerk_publishable_key;
+            if (!key) {
+              Logger.warn('[BG] Clerk publishable key not configured');
+              return;
+            }
             sendResponse({ success: true, key: key });
           });
           return true;
 
         case "AUTH_CALLBACK_SUCCESS":
           // Handle successful authentication callback
-          Logger.info("[BG] Authentication callback successful");
+          Logger.info("[BG] 🔔 AUTH_CALLBACK_SUCCESS message received", {
+            hasUser: !!request.user,
+            hasToken: !!request.token,
+            userId: request.user?.id,
+            email: request.user?.email
+          });
+          
           // Store user data if provided
           if (request.user) {
-            chrome.storage.local.set({
+            const dataToStore = {
               clerk_user: {
                 id: request.user.id,
-                email: request.user.primaryEmailAddress?.emailAddress,
+                email: request.user.primaryEmailAddress?.emailAddress || request.user.email,
                 firstName: request.user.firstName,
                 lastName: request.user.lastName,
                 username: request.user.username,
                 imageUrl: request.user.imageUrl || request.user.profileImageUrl
               }
+            };
+            if (request.token) {
+              dataToStore.clerk_token = request.token;
+            }
+            
+            Logger.info("[BG] Storing user data in service worker:", {
+              userId: dataToStore.clerk_user.id,
+              email: dataToStore.clerk_user.email,
+              hasToken: !!dataToStore.clerk_token
             });
+            
+            chrome.storage.local.set(dataToStore, () => {
+              if (chrome.runtime.lastError) {
+                Logger.error("[BG] ❌ Failed to store user data in service worker:", chrome.runtime.lastError);
+              } else {
+                Logger.info("[BG] ✅ User data stored successfully in service worker");
+                
+                // Verify the storage write
+                chrome.storage.local.get(['clerk_user', 'clerk_token'], (verifyData) => {
+                  if (chrome.runtime.lastError) {
+                    Logger.error("[BG] ❌ Storage verification failed:", chrome.runtime.lastError);
+                  } else {
+                    Logger.info("[BG] ✅ Storage verification:", {
+                      hasUser: !!verifyData.clerk_user,
+                      userId: verifyData.clerk_user?.id,
+                      hasToken: !!verifyData.clerk_token,
+                      matches: verifyData.clerk_user?.id === dataToStore.clerk_user.id
+                    });
+                  }
+                });
+              }
+            });
+          } else {
+            Logger.warn("[BG] ⚠️ AUTH_CALLBACK_SUCCESS received but no user data provided");
+          }
+          sendResponse({ success: true });
+          return true;
+
+        case "CLERK_AUTH_DETECTED":
+          // Handle Clerk auth detected from content script on accounts.dev pages
+          Logger.info("[BG] 🔔 CLERK_AUTH_DETECTED message received!", {
+            hasUser: !!request.user,
+            hasToken: !!request.token,
+            userId: request.user?.id,
+            email: request.user?.email,
+            firstName: request.user?.firstName,
+            lastName: request.user?.lastName
+          });
+          console.log("[BG] Full request object:", request);
+          
+          if (request.user) {
+            // Store user even if token is not available (token fetch might fail)
+            const storageData = {
+              clerk_user: request.user
+            };
+            if (request.token) {
+              storageData.clerk_token = request.token;
+            }
+            
+            Logger.info("[BG] Storing user data:", storageData);
+            
+            chrome.storage.local.set(storageData, () => {
+              if (chrome.runtime.lastError) {
+                Logger.error("[BG] ❌ Storage error:", chrome.runtime.lastError);
+                console.error("[BG] Storage error:", chrome.runtime.lastError);
+                sendResponse({ success: false, error: chrome.runtime.lastError.message });
+              } else {
+                Logger.info("[BG] ✅ Successfully stored Clerk auth from content script", {
+                  hasUser: !!request.user,
+                  hasToken: !!request.token,
+                  userId: request.user?.id,
+                  email: request.user?.email
+                });
+                
+                // Verify storage was successful
+                chrome.storage.local.get(['clerk_user'], (verifyData) => {
+                  if (chrome.runtime.lastError) {
+                    Logger.error("[BG] ❌ Verification read error:", chrome.runtime.lastError);
+                  } else if (verifyData.clerk_user) {
+                    Logger.info("[BG] ✅ Storage verification successful - user stored:", verifyData.clerk_user.id);
+                    console.log("[BG] ✅ Verified user in storage:", verifyData.clerk_user);
+                  } else {
+                    Logger.error("[BG] ❌ Storage verification FAILED - user not found after set!");
+                    console.error("[BG] ❌ Verification failed - storage data:", verifyData);
+                  }
+                });
+                
+                sendResponse({ success: true, userId: request.user?.id });
+              }
+            });
+            
+            // Return true to keep message channel open for async response
+            return true;
+          } else {
+            Logger.warn("[BG] ⚠️ CLERK_AUTH_DETECTED message missing user data");
+            console.warn("[BG] Request object:", request);
           }
           sendResponse({ success: true });
           return true;

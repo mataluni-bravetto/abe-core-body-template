@@ -12,6 +12,7 @@
     "test:backend-integration": "node tests/integration/backend-integration.test.js",
     "test:smoke": "node tests/smoke-test.js",
     "test:security": "node tests/security-vulnerability-audit.js",
+    "test:auth:patterns": "node tests/auth/pattern-validation.test.js",
     "test:sdk": "cd sdk && npm test",
     "test:all": "npm run test:smoke && npm run test:unit && npm run test:integration && npm run test:security",
     "test:e2e": "jest tests/e2e/extension.test.js",

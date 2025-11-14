@@ -29,13 +29,14 @@ class AiGuardianAuth {
       
       // Get Clerk publishable key from settings (tries backend first, then fallback)
       const settings = await this.getSettings();
-      this.publishableKey = settings.clerk_publishable_key;
+      // Trim whitespace to prevent issues
+      this.publishableKey = settings.clerk_publishable_key ? settings.clerk_publishable_key.trim() : null;
       Logger.info('[Auth] Got settings, key present:', !!this.publishableKey, 'source:', settings.source);
 
-      // If still no key, use hardcoded fallback (public key, safe to include)
+      // If still no key, log error - user must configure via backend or options page
       if (!this.publishableKey) {
-        Logger.warn('[Auth] Clerk publishable key not found, using hardcoded fallback');
-        this.publishableKey = "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
+        Logger.error('[Auth] Clerk publishable key not found - must be configured via backend API or options page');
+        throw new Error('Clerk publishable key not configured. Please configure it in extension settings or ensure backend API returns it.');
       }
 
       // Import Clerk SDK dynamically
@@ -177,6 +178,7 @@ class AiGuardianAuth {
   /**
    * Fetch public configuration from backend API
    * Gets Clerk publishable key from AWS Secrets Manager via backend
+   * Returns detailed error information for diagnostic display
    */
   async fetchPublicConfig() {
     try {
@@ -184,7 +186,7 @@ class AiGuardianAuth {
       const gatewayUrl = await this.getGatewayUrl();
       if (!gatewayUrl) {
         Logger.debug('[Auth] No gateway URL available, skipping public config fetch');
-        return null;
+        return { error: 'No gateway URL configured', errorType: 'no_gateway' };
       }
 
       const configUrl = `${gatewayUrl.replace(/\/$/, '')}/api/v1/config/public`;
@@ -226,6 +228,24 @@ class AiGuardianAuth {
           },
           signal: timeoutSignal
         });
+      } catch (fetchError) {
+        // Clean up timeout after fetch fails
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        // Handle fetch errors (network, CORS, etc.)
+        if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
+          Logger.warn('[Auth] Backend config fetch timed out');
+          return { error: 'Timeout after 5s', errorType: 'timeout', httpStatus: null };
+        } else if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('NetworkError')) {
+          Logger.warn('[Auth] Network error fetching config:', fetchError.message);
+          return { error: 'Network error - cannot reach backend', errorType: 'network', httpStatus: null };
+        } else {
+          Logger.warn('[Auth] Fetch error:', fetchError.message);
+          return { error: fetchError.message, errorType: 'fetch_error', httpStatus: null };
+        }
       } finally {
         // Clean up timeout after fetch completes (success or failure)
         if (timeoutId) {
@@ -237,10 +257,22 @@ class AiGuardianAuth {
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
         Logger.warn(`[Auth] Backend returned ${response.status}: ${errorText}`);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorMsg = response.status === 404 
+          ? `Backend returned 404 - endpoint not found`
+          : response.status === 500
+          ? `Backend returned 500 - server error`
+          : `Backend returned ${response.status}`;
+        return { error: errorMsg, errorType: 'http_error', httpStatus: response.status };
       }
 
-      const config = await response.json();
+      const config = await response.json().catch((parseError) => {
+        Logger.error('[Auth] Failed to parse JSON response:', parseError);
+        return null;
+      });
+      
+      if (!config) {
+        return { error: 'Backend returned invalid JSON', errorType: 'parse_error', httpStatus: response.status };
+      }
       
       if (config.clerk_publishable_key) {
         Logger.info(`[Auth] Successfully fetched Clerk publishable key from backend (source: ${config.source || 'unknown'})`);
@@ -250,17 +282,11 @@ class AiGuardianAuth {
       }
       
       Logger.warn('[Auth] Backend config response missing clerk_publishable_key');
-      return null;
+      return { error: 'Backend returned empty response - no Clerk key', errorType: 'empty_response', httpStatus: response.status };
     } catch (error) {
-      // Don't log as error if it's just a network issue - backend might not be available yet
-      if (error.name === 'AbortError' || error.message.includes('timeout')) {
-        Logger.debug('[Auth] Backend config fetch timed out or was aborted');
-      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        Logger.debug('[Auth] Backend not reachable, will try manual config or retry later');
-      } else {
-        Logger.warn('[Auth] Failed to fetch public config from backend:', error.message);
-      }
-      return null;
+      // Unexpected errors
+      Logger.error('[Auth] Unexpected error fetching public config:', error);
+      return { error: error.message || 'Unknown error', errorType: 'unexpected_error', httpStatus: null };
     }
   }
 
@@ -287,9 +313,15 @@ class AiGuardianAuth {
    * Cache Clerk publishable key in storage
    */
   async cacheClerkKey(key) {
+    // Trim whitespace to prevent issues
+    const trimmedKey = typeof key === 'string' ? key.trim() : key;
+    if (!trimmedKey) {
+      Logger.warn('[Auth] Attempted to cache empty Clerk key');
+      return Promise.resolve();
+    }
     return new Promise((resolve) => {
       chrome.storage.sync.set({ 
-        clerk_publishable_key: key,
+        clerk_publishable_key: trimmedKey,
         clerk_key_source: 'backend_api',
         clerk_key_cached_at: Date.now()
       }, resolve);
@@ -297,49 +329,135 @@ class AiGuardianAuth {
   }
 
   /**
+   * Extract instance ID from Clerk publishable key and build instance-specific URL
+   * @param {string} publishableKey - The Clerk publishable key
+   * @param {string} path - The path (e.g., 'sign-in', 'sign-up')
+   * @param {string} redirectUrl - The redirect URL after authentication
+   * @returns {string|null} The constructed URL or null if extraction fails
+   */
+  buildClerkInstanceUrl(publishableKey, path, redirectUrl) {
+    if (!publishableKey) {
+      return null;
+    }
+
+    try {
+      // Clerk publishable keys contain instance info encoded in base64
+      // Format: pk_test_{base64-encoded-instance-info} or pk_live_{base64-encoded-instance-info}
+      // Decoded format: {instance-id}.clerk.accounts.dev$ or {instance-id}.accounts.dev$
+      const keyParts = publishableKey.split('_');
+      if (keyParts.length < 3) {
+        Logger.warn('[Auth] Invalid publishable key format');
+        return null;
+      }
+
+      const keyType = keyParts[1]; // 'test' or 'live'
+      const encodedInstance = keyParts.slice(2).join('_'); // Rest of the key
+
+      // Decode base64 to get instance identifier
+      // In browser context, use atob; in Node.js, use Buffer
+      let decodedInstance;
+      if (typeof atob !== 'undefined') {
+        decodedInstance = atob(encodedInstance);
+      } else if (typeof Buffer !== 'undefined') {
+        decodedInstance = Buffer.from(encodedInstance, 'base64').toString('utf-8');
+      } else {
+        Logger.warn('[Auth] No base64 decoder available');
+        return null;
+      }
+
+      // Decoded format is typically: {instance-id}.clerk.accounts.dev$ or {instance-id}.accounts.dev$
+      // Extract instance ID (everything before the first dot)
+      const instanceMatch = decodedInstance.match(/^([^.]+)/);
+      if (!instanceMatch) {
+        Logger.warn('[Auth] Could not extract instance ID from decoded key');
+        return null;
+      }
+
+      const instanceId = instanceMatch[1];
+      // Construct proper Clerk instance URL
+      // Test keys use: {instance-id}.accounts.dev
+      // Production keys use: {instance-id}.clerk.accounts.dev
+      const instanceDomain = keyType === 'test' 
+        ? `${instanceId}.accounts.dev`
+        : `${instanceId}.clerk.accounts.dev`;
+
+      const url = `https://${instanceDomain}/${path}?__clerk_publishable_key=${encodeURIComponent(publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+      Logger.info('[Auth] Built Clerk instance URL:', { instanceId, domain: instanceDomain, path });
+      return url;
+    } catch (error) {
+      Logger.warn('[Auth] Failed to build Clerk instance URL:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get authentication settings from storage or backend API
    * Tries backend API first, falls back to manual configuration, then hardcoded default
    * Users never need to configure anything - it just works
+   * Returns error information if backend fetch fails
    */
   async getSettings() {
     // First, try to fetch from backend API (if gateway URL is configured)
     const publicConfig = await this.fetchPublicConfig();
+    
+    Logger.info('[Auth] fetchPublicConfig() returned:', {
+      hasKey: !!(publicConfig && publicConfig.clerk_publishable_key),
+      hasError: !!(publicConfig && publicConfig.error),
+      error: publicConfig && publicConfig.error,
+      errorType: publicConfig && publicConfig.errorType
+    });
+    
     if (publicConfig && publicConfig.clerk_publishable_key) {
+      // Trim whitespace to prevent issues
+      const trimmedKey = publicConfig.clerk_publishable_key.trim();
       return {
-        clerk_publishable_key: publicConfig.clerk_publishable_key,
-        source: 'backend_api'
+        clerk_publishable_key: trimmedKey,
+        source: 'backend_api',
+        error: null
       };
     }
 
-    // Fallback to manual configuration from storage
-    return new Promise((resolve) => {
-      // Check if Chrome APIs are available (extension context)
-      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
-        Logger.warn('[Auth] Chrome storage API not available - using hardcoded fallback');
-        resolve({
-          clerk_publishable_key: "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA",
-          source: 'hardcoded_default'
-        });
-        return;
-      }
-      
-      chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
-        const manualKey = data.clerk_publishable_key || null;
-        
-        // If no manual config, use hardcoded fallback (public key, safe to include)
-        if (!manualKey) {
+    // If fetchPublicConfig returned an error object, preserve it
+    const fetchError = publicConfig && publicConfig.error ? {
+      error: publicConfig.error,
+      errorType: publicConfig.errorType,
+      httpStatus: publicConfig.httpStatus
+    } : null;
+    
+    Logger.info('[Auth] Extracted fetchError:', fetchError);
+
+      // Fallback to manual configuration from storage
+      return new Promise((resolve) => {
+        // Check if Chrome APIs are available (extension context)
+        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
+          Logger.warn('[Auth] Chrome storage API not available');
           resolve({
-            clerk_publishable_key: "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA",
-            source: 'hardcoded_default'
+            clerk_publishable_key: null,
+            source: 'not_available',
+            error: fetchError
           });
-        } else {
-          resolve({
-            clerk_publishable_key: manualKey,
-            source: 'manual_config'
-          });
+          return;
         }
+        
+        chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
+          const manualKey = data.clerk_publishable_key ? data.clerk_publishable_key.trim() : null;
+          
+          if (manualKey) {
+            resolve({
+              clerk_publishable_key: manualKey,
+              source: 'manual_config',
+              error: null
+            });
+          } else {
+            // No key found - return error info if backend fetch failed
+            resolve({
+              clerk_publishable_key: null,
+              source: 'not_configured',
+              error: fetchError
+            });
+          }
+        });
       });
-    });
   }
 
   /**
@@ -382,30 +500,41 @@ class AiGuardianAuth {
         hasUser: typeof this.clerk.user !== 'undefined'
       });
       
-      // Try to get user from Clerk instance
+      // Check storage first - this is populated by the callback handler
+      // Storage works in all contexts, while clerk.user only works if cookies are accessible
       let user = null;
-      try {
-        Logger.info('[Auth] Attempting to access clerk.user...');
-        user = this.clerk.user;
-        Logger.info('[Auth] clerk.user accessed:', user ? `user found (id: ${user.id})` : 'null');
-      } catch (e) {
-        Logger.warn('[Auth] Error accessing clerk.user:', e.message);
-        // If Clerk.user throws, try getting from storage
-        Logger.info('[Auth] Falling back to stored user...');
-        const stored = await this.getStoredUser();
-        if (stored) {
-          // Create a user-like object from stored data
-          user = stored;
-          Logger.info('[Auth] Using stored user');
+      Logger.info('[Auth] Checking stored user first...');
+      const stored = await this.getStoredUser();
+      if (stored) {
+        user = stored;
+        Logger.info('[Auth] Found stored user:', user.id || 'stored');
+      } else {
+        Logger.info('[Auth] No stored user, checking Clerk instance...');
+        // Try to get user from Clerk instance (only works if cookies are accessible)
+        try {
+          user = this.clerk.user;
+          Logger.info('[Auth] clerk.user accessed:', user ? `user found (id: ${user.id})` : 'null');
+        } catch (e) {
+          Logger.warn('[Auth] Error accessing clerk.user:', e.message);
         }
       }
       
       if (user) {
         this.user = user;
         Logger.info('[Auth] User session found:', user.id || 'stored');
+        // Store the user in extension storage if not already stored
+        await this.storeAuthState(user);
       } else {
-        this.user = null;
-        Logger.info('[Auth] No active user session');
+        // If no user found, try to sync from Clerk's session
+        // This handles cases where Clerk redirected to default page instead of callback
+        Logger.info('[Auth] No stored user, attempting to sync from Clerk session...');
+        const synced = await this.syncAuthFromClerk();
+        if (synced && this.user) {
+          Logger.info('[Auth] Successfully synced user from Clerk session');
+        } else {
+          this.user = null;
+          Logger.info('[Auth] No active user session');
+        }
       }
     } catch (error) {
       Logger.error('[Auth] Error checking user session:', {
@@ -447,11 +576,14 @@ class AiGuardianAuth {
     Logger.info('[Auth] publishableKey:', this.publishableKey ? `${this.publishableKey.substring(0, 20)}...` : 'null');
 
     // Ensure we have what we need - initialize on demand if needed
-    if (!this.publishableKey) {
-      Logger.info('[Auth] No publishable key, fetching settings...');
-      const settings = await this.getSettings();
-      this.publishableKey = settings.clerk_publishable_key || "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
-    }
+      if (!this.publishableKey) {
+        Logger.info('[Auth] No publishable key, fetching settings...');
+        const settings = await this.getSettings();
+        this.publishableKey = settings.clerk_publishable_key;
+        if (!this.publishableKey) {
+          throw new Error('Clerk publishable key not configured. Please configure it in extension settings.');
+        }
+      }
     
     if (!this.clerk || typeof window.Clerk === 'undefined') {
       Logger.info('[Auth] Clerk SDK not loaded, loading...');
@@ -474,33 +606,53 @@ class AiGuardianAuth {
     }
 
     try {
-      // Check if Chrome APIs are available (extension context)
-      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
-        Logger.warn('[Auth] Chrome runtime API not available - cannot open sign-in page');
-        // Fallback: open in current window (for testing)
-        const signInUrl = `https://accounts.clerk.dev/sign-in?__clerk_publishable_key=${encodeURIComponent(this.publishableKey || 'pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA')}`;
-        Logger.info('[Auth] Opening sign-in URL in current window (testing mode):', signInUrl);
-        window.open(signInUrl, '_blank');
-        return;
+      // Generate redirect URL first
+      let redirectUrl;
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+        redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
+      } else {
+        // Fallback for testing outside extension context
+        redirectUrl = window.location.origin + '/src/clerk-callback.html';
       }
-      
-      // Generate Clerk sign-in URL with redirect
-      const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
       Logger.info('[Auth] Redirect URL:', redirectUrl);
       
-      // Build sign-in URL using Clerk's instance configuration
-      // Include publishable key so Clerk knows which application instance to use
+      // Build Clerk sign-in URL using proper instance-specific format
+      // Clerk uses instance-specific URLs, not generic accounts.clerk.dev/com
+      // The instance ID is encoded in the publishable key
       let signInUrl;
       
       if (this.publishableKey) {
-        // Use Clerk's instance-specific sign-in URL with publishable key
-        const instanceDomain = this.publishableKey.includes('pk_test_') 
-          ? 'accounts.clerk.dev' 
-          : 'accounts.clerk.com';
+        // Try to use Clerk SDK to generate the URL if available
+        if (this.clerk && this.clerk.client && typeof this.clerk.client.signIn === 'object') {
+          try {
+            // Use Clerk SDK's signIn.create() to generate proper URL
+            const signInResource = await this.clerk.client.signIn.create({
+              redirectUrl: redirectUrl
+            });
+            if (signInResource && signInResource.url) {
+              signInUrl = signInResource.url;
+              Logger.info('[Auth] Generated sign-in URL from Clerk SDK');
+            }
+          } catch (sdkError) {
+            Logger.warn('[Auth] Failed to generate URL from Clerk SDK, using manual construction:', sdkError);
+          }
+        }
         
-        Logger.info('[Auth] Using Clerk domain:', instanceDomain);
-        
-        signInUrl = `https://${instanceDomain}/sign-in?__clerk_publishable_key=${encodeURIComponent(this.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+        // Fallback: Extract instance ID from publishable key and construct URL manually
+        if (!signInUrl) {
+          signInUrl = this.buildClerkInstanceUrl(this.publishableKey, 'sign-in', redirectUrl);
+          
+          // If extraction failed, use fallback URL with publishable key parameter
+          if (!signInUrl) {
+            const keyParts = this.publishableKey.split('_');
+            const keyType = keyParts.length >= 2 ? keyParts[1] : 'test';
+            const baseDomain = keyType === 'test' 
+              ? 'accounts.dev' 
+              : 'clerk.accounts.dev';
+            signInUrl = `https://${baseDomain}/sign-in?__clerk_publishable_key=${encodeURIComponent(this.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+            Logger.warn('[Auth] Using fallback URL format (instance extraction failed)');
+          }
+        }
       } else {
         // Fallback to standard URL (shouldn't happen if initialized properly)
         signInUrl = `https://accounts.clerk.com/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`;
@@ -508,6 +660,13 @@ class AiGuardianAuth {
       }
       
       Logger.info('[Auth] Opening sign-in URL:', signInUrl);
+      
+      // Check if Chrome APIs are available (extension context)
+      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
+        Logger.warn('[Auth] Chrome runtime API not available - opening in current window');
+        window.open(signInUrl, '_blank');
+        return;
+      }
       
       // Open sign-in page in new tab
       // Note: chrome.tabs.create callback errors don't propagate to outer try-catch
@@ -550,11 +709,14 @@ class AiGuardianAuth {
     Logger.info('[Auth] publishableKey:', this.publishableKey ? `${this.publishableKey.substring(0, 20)}...` : 'null');
 
     // Ensure we have what we need - initialize on demand if needed
-    if (!this.publishableKey) {
-      Logger.info('[Auth] No publishable key, fetching settings...');
-      const settings = await this.getSettings();
-      this.publishableKey = settings.clerk_publishable_key || "pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA";
-    }
+      if (!this.publishableKey) {
+        Logger.info('[Auth] No publishable key, fetching settings...');
+        const settings = await this.getSettings();
+        this.publishableKey = settings.clerk_publishable_key;
+        if (!this.publishableKey) {
+          throw new Error('Clerk publishable key not configured. Please configure it in extension settings.');
+        }
+      }
     
     if (!this.clerk || typeof window.Clerk === 'undefined') {
       Logger.info('[Auth] Clerk SDK not loaded, loading...');
@@ -577,36 +739,53 @@ class AiGuardianAuth {
     }
 
     try {
-      // Check if Chrome APIs are available (extension context)
-      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
-        Logger.warn('[Auth] Chrome runtime API not available - cannot open sign-up page');
-        // Fallback: open in current window (for testing)
-        const signUpUrl = `https://accounts.clerk.dev/sign-up?__clerk_publishable_key=${encodeURIComponent(this.publishableKey || 'pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA')}`;
-        Logger.info('[Auth] Opening sign-up URL in current window (testing mode):', signUpUrl);
-        window.open(signUpUrl, '_blank');
-        return;
+      // Generate redirect URL first
+      let redirectUrl;
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+        redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
+      } else {
+        // Fallback for testing outside extension context
+        redirectUrl = window.location.origin + '/src/clerk-callback.html';
       }
-      
-      // Generate Clerk sign-up URL with redirect
-      const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
       Logger.info('[Auth] Redirect URL:', redirectUrl);
       
-      // Build sign-up URL using Clerk's instance configuration
-      // Include publishable key so Clerk knows which application instance to use
+      // Build Clerk sign-up URL using proper instance-specific format
+      // Clerk uses instance-specific URLs, not generic accounts.clerk.dev/com
+      // The instance ID is encoded in the publishable key
       let signUpUrl;
       
       if (this.publishableKey) {
-        // Use Clerk's instance-specific sign-up URL with publishable key
-        // Format: https://<instance>.clerk.accounts.dev/sign-up?redirect_url=...
-        const instanceDomain = this.publishableKey.includes('pk_test_') 
-          ? 'accounts.clerk.dev' 
-          : 'accounts.clerk.com';
+        // Try to use Clerk SDK to generate the URL if available
+        if (this.clerk && this.clerk.client && typeof this.clerk.client.signUp === 'object') {
+          try {
+            // Use Clerk SDK's signUp.create() to generate proper URL
+            const signUpResource = await this.clerk.client.signUp.create({
+              redirectUrl: redirectUrl
+            });
+            if (signUpResource && signUpResource.url) {
+              signUpUrl = signUpResource.url;
+              Logger.info('[Auth] Generated sign-up URL from Clerk SDK');
+            }
+          } catch (sdkError) {
+            Logger.warn('[Auth] Failed to generate URL from Clerk SDK, using manual construction:', sdkError);
+          }
+        }
         
-        Logger.info('[Auth] Using Clerk domain:', instanceDomain);
-        
-        // Extract instance identifier from publishable key if possible
-        // Or use the standard Clerk URL with publishable key parameter
-        signUpUrl = `https://${instanceDomain}/sign-up?__clerk_publishable_key=${encodeURIComponent(this.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+        // Fallback: Extract instance ID from publishable key and construct URL manually
+        if (!signUpUrl) {
+          signUpUrl = this.buildClerkInstanceUrl(this.publishableKey, 'sign-up', redirectUrl);
+          
+          // If extraction failed, use fallback URL with publishable key parameter
+          if (!signUpUrl) {
+            const keyParts = this.publishableKey.split('_');
+            const keyType = keyParts.length >= 2 ? keyParts[1] : 'test';
+            const baseDomain = keyType === 'test' 
+              ? 'accounts.dev' 
+              : 'clerk.accounts.dev';
+            signUpUrl = `https://${baseDomain}/sign-up?__clerk_publishable_key=${encodeURIComponent(this.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+            Logger.warn('[Auth] Using fallback URL format (instance extraction failed)');
+          }
+        }
       } else {
         // Fallback to standard URL (shouldn't happen if initialized properly)
         signUpUrl = `https://accounts.clerk.com/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`;
@@ -614,6 +793,13 @@ class AiGuardianAuth {
       }
       
       Logger.info('[Auth] Opening sign-up URL:', signUpUrl);
+      
+      // Check if Chrome APIs are available (extension context)
+      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.getURL) {
+        Logger.warn('[Auth] Chrome runtime API not available - opening in current window');
+        window.open(signUpUrl, '_blank');
+        return;
+      }
       
       // Open sign-up page in new tab
       // Note: chrome.tabs.create callback errors don't propagate to outer try-catch
@@ -802,6 +988,88 @@ class AiGuardianAuth {
     } catch (error) {
       Logger.error('[Auth] Error handling callback:', error);
     }
+  }
+
+  /**
+   * Manually sync authentication state from Clerk's session
+   * Useful when Clerk redirects to default page instead of extension callback
+   */
+  async syncAuthFromClerk() {
+    Logger.info('[Auth] syncAuthFromClerk() called');
+    
+    if (!this.isInitialized) {
+      Logger.warn('[Auth] Cannot sync - not initialized');
+      await this.initialize();
+    }
+
+    if (!this.clerk) {
+      Logger.error('[Auth] Cannot sync - Clerk SDK not available');
+      return false;
+    }
+
+    try {
+      // Ensure Clerk is loaded
+      if (typeof this.clerk.load === 'function' && !this.clerk.loaded) {
+        await this.clerk.load();
+      }
+
+      // Check if Clerk has an active session
+      const user = this.clerk.user;
+      if (!user) {
+        Logger.info('[Auth] No active Clerk session found');
+        return false;
+      }
+
+      Logger.info('[Auth] Found Clerk session, syncing to extension storage');
+
+      // Get session token
+      let token = null;
+      try {
+        const session = await this.clerk.session;
+        if (session) {
+          token = await session.getToken();
+        }
+      } catch (e) {
+        Logger.warn('[Auth] Could not get token:', e);
+      }
+
+      // Store authentication state
+      await this.storeAuthState(user, token);
+      
+      // Update local user reference
+      this.user = user;
+      
+      Logger.info('[Auth] Successfully synced authentication state');
+      return true;
+    } catch (error) {
+      Logger.error('[Auth] Error syncing authentication:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Store authentication state in extension storage
+   */
+  async storeAuthState(user, token = null) {
+    return new Promise((resolve) => {
+      const dataToStore = {
+        clerk_user: {
+          id: user.id,
+          email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          username: user.username,
+          imageUrl: user.imageUrl || user.profileImageUrl
+        }
+      };
+
+      // Store token if available
+      if (token) {
+        dataToStore.clerk_token = token;
+      }
+
+      chrome.storage.local.set(dataToStore, resolve);
+    });
   }
 }
 

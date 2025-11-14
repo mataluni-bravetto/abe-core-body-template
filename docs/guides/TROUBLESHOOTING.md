@@ -1,131 +1,203 @@
-# 🔧 Extension Loading Troubleshooting Guide
+# 🔧 Troubleshooting Guide
 
-## Current Status: Extension Not Loading
+## Common Issues and Solutions
 
-The extension files are syntactically correct, but Chrome is not loading the extension. Here's a step-by-step troubleshooting guide:
+### Extension Buttons Not Working
 
-## 📋 Step-by-Step Loading Process
+**Symptoms:** Buttons in the extension popup don't respond to clicks.
 
-### 1. **Open Chrome Extensions Page**
+**Solution:**
+1. **Check Console for Errors:**
+   - Right-click extension popup → Inspect
+   - Check Console tab for syntax errors
+   - Look for: `Uncaught SyntaxError: await is only valid in async functions`
+
+2. **Reload Extension:**
+   - Go to `chrome://extensions/`
+   - Find AiGuardian extension
+   - Click the refresh/reload button
+   - Reopen popup and test buttons
+
+3. **Verify Event Listeners:**
+   - Open popup DevTools Console
+   - Look for: `[Popup] Setting up event listeners...`
+   - Should see: `[Popup] Found [buttonName], attaching listener`
+
+**Recent Fix:** Added `async` keyword to `chrome.runtime.onMessage.addListener` callback to fix syntax error preventing script loading.
+
+### Authentication Issues
+
+**Symptoms:** User signs in but popup doesn't show authenticated state.
+
+**Solution:**
+1. **Check Storage:**
+   ```javascript
+   // In popup console
+   chrome.storage.local.get(['clerk_user', 'clerk_token'], (data) => {
+     console.log('Storage:', data);
+   });
+   ```
+
+2. **Manual Refresh:**
+   - Click "🔄 Refresh Auth" button in popup
+   - Or close and reopen popup
+
+3. **Check Diagnostic Panel:**
+   - Click "🔍 Status" button
+   - Verify "Auth State" shows correct status
+   - Click "🔄 Refresh" to update
+
+**Recent Fix:** Enhanced storage verification and message handling for auth callbacks.
+
+### Diagnostic Panel Not Updating
+
+**Symptoms:** Diagnostic panel shows stale information, refresh button doesn't update.
+
+**Solution:**
+1. **Check Console Logs:**
+   - Should see: `[Diagnostics] runDiagnostics() called`
+   - Should see: `[Diagnostics] Auth data from storage:`
+
+2. **Manual Refresh:**
+   - Click "🔄 Refresh" button in diagnostic panel
+   - Check console for any errors
+
+**Recent Fix:** Improved diagnostic refresh with better error handling and logging.
+
+### Extension Not Loading
+
+**Symptoms:** Extension doesn't appear in Chrome or shows errors.
+
+**Solution:**
+1. **Check Manifest:**
+   - Verify `manifest.json` is valid JSON
+   - Check for syntax errors
+
+2. **Check Service Worker:**
+   - Go to `chrome://extensions/`
+   - Find extension → Click "Service Worker" link
+   - Check console for errors
+
+3. **Verify File Structure:**
+   ```
+   extension-root/
+   ├── manifest.json
+   ├── src/
+   │   ├── popup.html
+   │   ├── popup.js
+   │   ├── service-worker.js
+   │   └── ...
+   └── assets/
+   ```
+
+### Connection Issues
+
+**Symptoms:** "Connection failed" error in popup.
+
+**Solution:**
+1. **Check Gateway URL:**
+   - Open extension options/settings
+   - Verify gateway URL is correct
+   - Default: `https://api.aiguardian.ai`
+
+2. **Test Connection:**
+   - Use diagnostic panel "🔄 Refresh" button
+   - Check "Backend" status
+
+3. **Check Network:**
+   - Verify internet connection
+   - Check firewall/proxy settings
+
+## Debugging Steps
+
+### 1. Check Console Logs
+
+**Popup Console:**
+- Right-click extension icon → Inspect popup
+- Check Console tab for errors
+
+**Service Worker Console:**
 - Go to `chrome://extensions/`
-- Make sure "Developer mode" is **ON** (toggle in top-right corner)
+- Find extension → Click "Service Worker"
+- Check Console tab
 
-### 2. **Load the Extension**
-- Click "Load unpacked"
-- Navigate to: `C:\Users\jimmy\.cursor\AI-Guardians-chrome-ext-1`
-- Select the folder and click "Select Folder"
+**Content Script Console:**
+- Open any webpage
+- Open DevTools → Console
+- Look for `[CS]` prefixed logs
 
-### 3. **Check for Errors**
-Look for any red error messages. Common errors and solutions:
+### 2. Check Storage State
 
-#### ❌ "Manifest file is missing or unreadable"
-- **Solution**: Make sure you selected the correct folder (AI-Guardians-chrome-ext-1)
-- **Check**: manifest.json should be in the root of the selected folder
+```javascript
+// Check sync storage (settings)
+chrome.storage.sync.get(null, (data) => {
+  console.log('Sync storage:', data);
+});
 
-#### ❌ "Service worker registration failed"
-- **Solution**: Check for JavaScript errors in service-worker.js
-- **Status**: ✅ Our service-worker.js syntax is valid
-
-#### ❌ "Content script injection failed"
-- **Solution**: Check for JavaScript errors in content.js
-- **Status**: ✅ Our content.js syntax is valid
-
-#### ❌ "Invalid manifest file"
-- **Solution**: Check manifest.json format
-- **Status**: ✅ Our manifest.json is valid
-
-## 🔍 Advanced Troubleshooting
-
-### Check Chrome Console for Errors
-1. Go to `chrome://extensions/`
-2. Find the AiGuardian extension (if it appears)
-3. Click "Inspect views: service worker" (if available)
-4. Check the Console tab for error messages
-
-### Verify File Structure
-The extension should have this structure:
-```
-AI-Guardians-chrome-ext-1/
-├── manifest.json
-├── src/
-│   ├── service-worker.js
-│   ├── content.js
-│   ├── popup.html
-│   ├── popup.js
-│   ├── popup.css
-│   ├── options.html
-│   └── options.js
-└── assets/
-    └── icons/
-        ├── icon-16.png
-        ├── icon-19.png
-        ├── icon-32.png
-        ├── icon-38.png
-        ├── icon-48.png
-        └── icon-128.png
+// Check local storage (auth, cache)
+chrome.storage.local.get(null, (data) => {
+  console.log('Local storage:', data);
+});
 ```
 
-### Test with Minimal Extension
-If the main extension doesn't work, try the minimal test extension:
-1. Go to `chrome://extensions/`
-2. Click "Load unpacked"
-3. Select the `AI-Guardians-chrome-ext-1` folder
-4. Look for any error messages
+### 3. Clear Storage (Reset)
 
-## 🚨 Common Issues & Solutions
+```javascript
+// Clear all storage
+chrome.storage.local.clear();
+chrome.storage.sync.clear();
 
-### Issue 1: Extension doesn't appear in list
-**Cause**: Wrong folder selected or manifest.json not found
-**Solution**: Make sure you select the `AI-Guardians-chrome-ext-1` folder (not a subfolder)
+// Then reload extension
+```
 
-### Issue 2: "This extension may be corrupted"
-**Cause**: File permissions or corrupted files
-**Solution**: 
-- Check file permissions
-- Try reloading the extension
-- Check for any file corruption
+### 4. Test Individual Components
 
-### Issue 3: "Service worker registration failed"
-**Cause**: JavaScript errors in service-worker.js
-**Solution**: 
-- Check Chrome console for errors
-- Verify all importScripts files exist
-- Check for syntax errors
+**Test Auth:**
+```javascript
+// In popup console
+const auth = new AiGuardianAuth();
+await auth.initialize();
+console.log('Auth initialized:', auth.isInitialized);
+```
 
-### Issue 4: "Content script injection failed"
-**Cause**: JavaScript errors in content.js
-**Solution**:
-- Check Chrome console for errors
-- Verify content script syntax
-- Check for missing dependencies
+**Test Gateway:**
+```javascript
+// In popup console
+const response = await sendMessageToBackground('TEST_GATEWAY_CONNECTION');
+console.log('Gateway test:', response);
+```
 
-## 🧪 Testing Once Loaded
+## Getting Help
 
-Once the extension loads successfully, you can test it:
+If issues persist:
 
-1. **Go to any website** (like Google.com)
-2. **Select text** (at least 10 characters)
-3. **Look for a badge** in the bottom-right corner
-4. **Check for text highlighting**
+1. **Collect Debug Information:**
+   - Console logs from popup, service worker, and content script
+   - Screenshot of error messages
+   - Steps to reproduce
 
-## 📞 Need Help?
+2. **Check Documentation:**
+   - `docs/guides/DEVELOPER_GUIDE.md` - Development setup
+   - `docs/guides/SETUP_GUIDE.md` - Installation guide
+   - `docs/technical/ERROR_HANDLING_OVERVIEW.md` - Error handling details
 
-If the extension still doesn't load:
+3. **Review Recent Changes:**
+   - Check git commit history
+   - Review recent fixes in `CLERK_AUTH_DEBUGGING_ENHANCEMENTS.md`
 
-1. **Check Chrome console** for specific error messages
-2. **Try the minimal test extension** first
-3. **Verify all file paths** are correct
-4. **Check Chrome version** (should be recent)
+## Known Issues
 
-## 🎯 Expected Behavior
+### Button Click Not Working
+- **Status:** ✅ Fixed
+- **Fix:** Added `async` to message listener callback
+- **Version:** v1.0.0
 
-When working correctly, the extension should:
-- ✅ Load without errors in Chrome extensions page
-- ✅ Show analysis badges when text is selected
-- ✅ Highlight selected text with bias colors
-- ✅ Respond to keyboard shortcuts (Ctrl+Shift+A)
-- ✅ Work on any website
+### Diagnostic Panel Not Updating
+- **Status:** ✅ Fixed  
+- **Fix:** Improved refresh handler with better error handling
+- **Version:** v1.0.0
 
----
-
-**Current Status**: All files are syntactically correct and properly structured. The issue is likely with the loading process or Chrome configuration.
+### Auth State Not Persisting
+- **Status:** ✅ Fixed
+- **Fix:** Enhanced storage verification and retry logic
+- **Version:** v1.0.0

@@ -16,6 +16,32 @@
     <p>Finally, AI tools for engineers who don't believe the hype</p>
   </div>
 
+  <!-- Diagnostic Panel -->
+  <div class="diagnostic-panel" id="diagnosticPanel" style="display: none;">
+    <div class="diagnostic-header">
+      <span class="diagnostic-title">🔍 Connection Status</span>
+      <button class="btn-close-diagnostic" id="closeDiagnostic">✕</button>
+    </div>
+    <div class="diagnostic-content" id="diagnosticContent">
+      <div class="diagnostic-item">
+        <span class="diagnostic-label">Backend:</span>
+        <span class="diagnostic-value" id="backendStatus">Checking...</span>
+      </div>
+      <div class="diagnostic-item">
+        <span class="diagnostic-label">Clerk Key:</span>
+        <span class="diagnostic-value" id="clerkKeyStatus">Checking...</span>
+      </div>
+      <div class="diagnostic-item">
+        <span class="diagnostic-label">Auth State:</span>
+        <span class="diagnostic-value" id="authStateStatus">Checking...</span>
+      </div>
+      <div class="diagnostic-actions">
+        <button class="btn btn-secondary btn-small" id="refreshDiagnostic">🔄 Refresh</button>
+        <button class="btn btn-secondary btn-small" id="openSettingsFromDiagnostic">⚙️ Open Settings</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Authentication Section -->
   <div class="auth-section" id="authSection">
     <div class="user-profile" id="userProfile" style="display: none;">
@@ -28,6 +54,9 @@
     <div class="auth-buttons" id="authButtons">
       <button class="btn btn-primary" id="signInBtn">🔐 Sign In</button>
       <button class="btn btn-secondary" id="signUpBtn">📝 Sign Up</button>
+      <button class="btn btn-secondary btn-small" id="syncAuthBtn" style="display: none;">🔄 Sync Auth</button>
+      <button class="btn btn-secondary btn-small" id="refreshAuthBtn" style="display: none;">🔄 Refresh Auth</button>
+      <button class="btn btn-secondary btn-small" id="showDiagnostic">🔍 Status</button>
     </div>
   </div>
 

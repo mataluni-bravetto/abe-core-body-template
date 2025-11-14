@@ -7,6 +7,9 @@ const Logger = {
   },
   error: function(message, err){
     try { console.error(`[ERROR] ${message}`, err); } catch(e) {}
+  },
+  debug: function(message, meta){
+    try { console.log(`[DEBUG] ${message}`, meta ?? ''); } catch(e) {}
   }
 };
 

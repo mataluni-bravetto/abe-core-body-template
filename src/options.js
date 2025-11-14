@@ -67,6 +67,16 @@
       'clerk_key_cached_at',
       'gateway_url'
     ], (data) => {
+      // Clean up any whitespace in stored key
+      if (data.clerk_publishable_key && typeof data.clerk_publishable_key === 'string') {
+        const trimmedKey = data.clerk_publishable_key.trim();
+        if (trimmedKey !== data.clerk_publishable_key) {
+          // Key has whitespace, save trimmed version
+          chrome.storage.sync.set({ clerk_publishable_key: trimmedKey });
+          data.clerk_publishable_key = trimmedKey;
+        }
+      }
+      
       // Update Clerk key status display
       updateClerkKeyStatus(data);
       
@@ -76,6 +86,12 @@
         gatewayInput.value = data.gateway_url;
       } else if (gatewayInput) {
         gatewayInput.value = 'https://api.aiguardian.ai';
+      }
+      
+      // Load Clerk key into input field (trimmed)
+      const clerkKeyInput = document.getElementById('clerk_publishable_key');
+      if (clerkKeyInput && data.clerk_publishable_key) {
+        clerkKeyInput.value = data.clerk_publishable_key.trim();
       }
     });
   }
@@ -120,7 +136,11 @@
    * Update Clerk publishable key
    */
   function updateClerkPublishableKey() {
-    const clerkKey = document.getElementById('clerk_publishable_key').value;
+    const clerkKey = document.getElementById('clerk_publishable_key').value.trim();
+    if (!clerkKey) {
+      Logger.warn('Empty Clerk key provided');
+      return;
+    }
     chrome.storage.sync.set({ 
       clerk_publishable_key: clerkKey,
       clerk_key_source: 'manual_config',
@@ -517,9 +537,18 @@
         // Test sign-up URL generation
         if (initialized && auth.publishableKey) {
           const redirectUrl = chrome.runtime.getURL('/src/clerk-callback.html');
-          const instanceDomain = auth.publishableKey.includes('pk_test_') ? 'accounts.clerk.dev' : 'accounts.clerk.com';
-          const signUpUrl = `https://${instanceDomain}/sign-up?__clerk_publishable_key=${encodeURIComponent(auth.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
-          debug += `\nSign-Up URL:\n${signUpUrl}\n`;
+          // Use the auth helper method to build the correct instance-specific URL
+          const signUpUrl = auth.buildClerkInstanceUrl(auth.publishableKey, 'sign-up', redirectUrl);
+          if (signUpUrl) {
+            debug += `\nSign-Up URL:\n${signUpUrl}\n`;
+          } else {
+            // Fallback if extraction fails
+            const keyParts = auth.publishableKey.split('_');
+            const keyType = keyParts.length >= 2 ? keyParts[1] : 'test';
+            const baseDomain = keyType === 'test' ? 'accounts.dev' : 'clerk.accounts.dev';
+            const fallbackUrl = `https://${baseDomain}/sign-up?__clerk_publishable_key=${encodeURIComponent(auth.publishableKey)}&redirect_url=${encodeURIComponent(redirectUrl)}`;
+            debug += `\nSign-Up URL (fallback):\n${fallbackUrl}\n`;
+          }
         } else if (!auth.publishableKey) {
           debug += `\n❌ Cannot generate sign-up URL - publishableKey is missing\n`;
         } else if (!initialized) {

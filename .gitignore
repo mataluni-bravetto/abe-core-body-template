@@ -106,3 +106,6 @@ logs
 # Temporary files
 *.tmp
 *.temp
+
+# Agent suite (embedded repository)
+agentsuite/

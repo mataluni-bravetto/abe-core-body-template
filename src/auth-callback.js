@@ -97,25 +97,56 @@ class AuthCallbackHandler {
         // Continue anyway - Clerk might have already processed it
       }
 
-      // Wait a moment for Clerk to finish processing
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Check if user is authenticated after redirect
+      // Wait for Clerk to finish processing and user to be available
+      // In development mode or OAuth flows, this can take longer
       let user = null;
-      try {
-        // Wait for Clerk to be ready (only if load() method exists)
-        if (typeof clerk.load === 'function') {
-          await clerk.load();
+      const maxRetries = 10;
+      const retryDelay = 500; // 500ms between retries
+      
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          // Ensure Clerk is loaded
+          if (typeof clerk.load === 'function' && !clerk.loaded) {
+            await clerk.load();
+          }
+          
+          // Check for user
+          user = clerk.user;
+          
+          if (user) {
+            Logger.info(`[AuthCallback] User found on attempt ${attempt + 1}:`, user.id);
+            break;
+          }
+          
+          // If no user yet, wait before retrying
+          if (attempt < maxRetries - 1) {
+            Logger.info(`[AuthCallback] No user yet, waiting ${retryDelay}ms before retry ${attempt + 2}/${maxRetries}...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+          }
+        } catch (e) {
+          Logger.warn(`[AuthCallback] Error getting user on attempt ${attempt + 1}:`, e.message);
+          if (attempt < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+          }
         }
-        user = clerk.user;
-      } catch (e) {
-        Logger.warn('[AuthCallback] Error getting user, retrying:', e.message);
-        // Try waiting a bit more for Clerk to initialize
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        if (typeof clerk.load === 'function') {
-          await clerk.load();
+      }
+      
+      // If still no user after retries, try checking session directly
+      if (!user) {
+        Logger.warn('[AuthCallback] No user found after retries, checking session directly...');
+        try {
+          const session = await clerk.session;
+          if (session) {
+            Logger.info('[AuthCallback] Session found, attempting to get user from session...');
+            // Try to reload Clerk to sync session
+            if (typeof clerk.load === 'function') {
+              await clerk.load();
+            }
+            user = clerk.user;
+          }
+        } catch (sessionError) {
+          Logger.warn('[AuthCallback] Error checking session:', sessionError.message);
         }
-        user = clerk.user;
       }
 
       if (user) {
@@ -125,22 +156,91 @@ class AuthCallbackHandler {
           const session = await clerk.session;
           if (session) {
             token = await session.getToken();
+            Logger.info('[AuthCallback] Session token retrieved');
           }
         } catch (e) {
           Logger.warn('[AuthCallback] Could not get token:', e);
         }
 
         // Store authentication state in extension storage
-        await this.storeAuthState(user, token);
+        Logger.info('[AuthCallback] Storing authentication state...');
+        Logger.info('[AuthCallback] User object:', {
+          id: user.id,
+          email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress,
+          hasToken: !!token,
+          userKeys: Object.keys(user).slice(0, 10)
+        });
         
+        try {
+          await this.storeAuthState(user, token);
+          Logger.info('[AuthCallback] storeAuthState() completed');
+        } catch (storeError) {
+          Logger.error('[AuthCallback] storeAuthState() failed:', {
+            error: storeError.message,
+            stack: storeError.stack
+          });
+          throw storeError;
+        }
+        
+        // Verify storage was written successfully - with multiple attempts
+        Logger.info('[AuthCallback] Starting storage verification...');
+        let stored = false;
+        const maxVerifyAttempts = 3;
+        const verifyDelay = 300;
+        
+        for (let attempt = 0; attempt < maxVerifyAttempts; attempt++) {
+          stored = await this.verifyStorage(user.id);
+          if (stored) {
+            Logger.info(`[AuthCallback] ✅ Storage verification successful on attempt ${attempt + 1}`);
+            break;
+          } else {
+            Logger.warn(`[AuthCallback] Storage verification failed on attempt ${attempt + 1}/${maxVerifyAttempts}`);
+            if (attempt < maxVerifyAttempts - 1) {
+              Logger.info(`[AuthCallback] Waiting ${verifyDelay}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, verifyDelay));
+            }
+          }
+        }
+        
+        if (!stored) {
+          Logger.error('[AuthCallback] Storage verification failed after all attempts - retrying storage write...');
+          // Retry storage write
+          try {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await this.storeAuthState(user, token);
+            Logger.info('[AuthCallback] Retry storage write completed');
+            
+            // Verify retry
+            stored = await this.verifyStorage(user.id);
+            if (!stored) {
+              Logger.error('[AuthCallback] Storage verification still failed after retry');
+              throw new Error('Failed to store authentication state after retry');
+            }
+          } catch (retryError) {
+            Logger.error('[AuthCallback] Retry storage write failed:', retryError);
+            throw new Error('Failed to store authentication state: ' + retryError.message);
+          }
+        }
+        
+        Logger.info('[AuthCallback] ✅ Authentication state stored and verified successfully');
         this.updateStatus('Authentication successful! Redirecting...');
 
-        // Wait a moment for UI update, then redirect
-        setTimeout(() => {
-          this.redirectToExtension(user);
-        }, 1500);
+        // Wait longer to ensure storage is fully persisted before closing
+        Logger.info('[AuthCallback] Waiting 2 seconds before redirecting to ensure storage persistence...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Final verification before redirecting
+        const finalVerify = await this.verifyStorage(user.id);
+        if (!finalVerify) {
+          Logger.error('[AuthCallback] ⚠️ Final verification failed - storage may not persist');
+        } else {
+          Logger.info('[AuthCallback] ✅ Final verification passed - storage confirmed');
+        }
+        
+        // Send message to service worker before closing (include token)
+        this.redirectToExtension(user, token);
       } else {
-        throw new Error('Authentication failed - no user session');
+        throw new Error('Authentication failed - no user session found after ' + maxRetries + ' attempts');
       }
 
     } catch (error) {
@@ -194,7 +294,7 @@ class AuthCallbackHandler {
    * Store authentication state in extension storage
    */
   async storeAuthState(user, token = null) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const dataToStore = {
         clerk_user: {
           id: user.id,
@@ -211,27 +311,153 @@ class AuthCallbackHandler {
         dataToStore.clerk_token = token;
       }
 
-      chrome.storage.local.set(dataToStore, resolve);
+      Logger.info('[AuthCallback] Writing to storage:', {
+        userId: dataToStore.clerk_user.id,
+        email: dataToStore.clerk_user.email,
+        hasToken: !!token,
+        dataKeys: Object.keys(dataToStore),
+        fullData: JSON.stringify(dataToStore, null, 2)
+      });
+
+      // Check if chrome.storage is available
+      if (!chrome.storage || !chrome.storage.local) {
+        const error = new Error('chrome.storage.local API not available');
+        Logger.error('[AuthCallback] Storage API not available:', error);
+        reject(error);
+        return;
+      }
+
+      chrome.storage.local.set(dataToStore, () => {
+        if (chrome.runtime.lastError) {
+          Logger.error('[AuthCallback] Storage error:', {
+            error: chrome.runtime.lastError.message,
+            code: chrome.runtime.lastError.message,
+            fullError: chrome.runtime.lastError
+          });
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          Logger.info('[AuthCallback] Storage write completed successfully');
+          // Immediately verify the write worked
+          chrome.storage.local.get(['clerk_user', 'clerk_token'], (verifyData) => {
+            if (chrome.runtime.lastError) {
+              Logger.error('[AuthCallback] Immediate verification read error:', chrome.runtime.lastError);
+            } else {
+              Logger.info('[AuthCallback] Immediate verification:', {
+                hasUser: !!verifyData.clerk_user,
+                userId: verifyData.clerk_user?.id,
+                hasToken: !!verifyData.clerk_token,
+                matches: verifyData.clerk_user?.id === dataToStore.clerk_user.id
+              });
+            }
+          });
+          resolve();
+        }
+      });
+    });
+  }
+
+  /**
+   * Verify that user was stored in extension storage
+   */
+  async verifyStorage(userId) {
+    return new Promise((resolve) => {
+      Logger.info('[AuthCallback] Starting storage verification for userId:', userId);
+      
+      // Check if chrome.storage is available
+      if (!chrome.storage || !chrome.storage.local) {
+        Logger.error('[AuthCallback] Storage API not available for verification');
+        resolve(false);
+        return;
+      }
+
+      chrome.storage.local.get(['clerk_user', 'clerk_token'], (data) => {
+        if (chrome.runtime.lastError) {
+          Logger.error('[AuthCallback] Storage read error during verification:', {
+            error: chrome.runtime.lastError.message,
+            fullError: chrome.runtime.lastError
+          });
+          resolve(false);
+        } else {
+          Logger.info('[AuthCallback] Verification read result:', {
+            hasUser: !!data.clerk_user,
+            hasToken: !!data.clerk_token,
+            userId: data.clerk_user?.id,
+            expectedUserId: userId,
+            matches: data.clerk_user?.id === userId,
+            fullData: JSON.stringify(data, null, 2)
+          });
+          
+          if (data.clerk_user && data.clerk_user.id === userId) {
+            Logger.info('[AuthCallback] ✅ Storage verification successful - user found and ID matches');
+            resolve(true);
+          } else {
+            Logger.warn('[AuthCallback] ❌ Storage verification failed - user not found or ID mismatch', {
+              expected: userId,
+              found: data.clerk_user?.id,
+              hasUser: !!data.clerk_user,
+              hasToken: !!data.clerk_token
+            });
+            resolve(false);
+          }
+        }
+      });
     });
   }
 
   /**
    * Redirect back to Chrome extension
    */
-  redirectToExtension(user) {
+  redirectToExtension(user, token = null) {
     try {
-      // Close this tab and notify extension
+      Logger.info('[AuthCallback] Sending AUTH_CALLBACK_SUCCESS message...', {
+        userId: user.id,
+        hasToken: !!token
+      });
+      
+      // Send message to service worker with user data and token
       chrome.runtime.sendMessage({ 
         type: 'AUTH_CALLBACK_SUCCESS',
-        user: user || null
-      }, () => {
-        // Close the callback tab
-        window.close();
+        user: {
+          id: user.id,
+          email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          username: user.username,
+          imageUrl: user.imageUrl || user.profileImageUrl
+        },
+        token: token
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          Logger.warn('[AuthCallback] Message send error (may be normal if popup closed):', chrome.runtime.lastError.message);
+        } else {
+          Logger.info('[AuthCallback] Message sent successfully');
+        }
+        
+        // Wait a moment before closing to ensure message is processed
+        setTimeout(() => {
+          Logger.info('[AuthCallback] Closing callback tab...');
+          // Try to close the tab
+          window.close();
+          
+          // If window.close() doesn't work (some browsers block it), show success message
+          setTimeout(() => {
+            this.updateStatus('✅ Authentication successful! You can close this tab.');
+            Logger.info('[AuthCallback] Tab close blocked - showing success message');
+          }, 500);
+        }, 500);
       });
     } catch (error) {
       Logger.error('[AuthCallback] Failed to redirect to extension:', error);
-      // Fallback: try to navigate to extension URL
-      window.location.href = chrome.runtime.getURL('/src/popup.html');
+      // Show success message even if message send fails
+      this.updateStatus('✅ Authentication successful! You can close this tab.');
+      // Fallback: try to navigate to extension URL after delay
+      setTimeout(() => {
+        try {
+          window.location.href = chrome.runtime.getURL('/src/popup.html');
+        } catch (navError) {
+          Logger.error('[AuthCallback] Navigation fallback failed:', navError);
+        }
+      }, 2000);
     }
   }
 
