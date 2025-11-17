@@ -312,6 +312,14 @@ class AuthCallbackHandler {
   async getClerkPublishableKey() {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({ type: 'GET_CLERK_KEY' }, (response) => {
+        if (chrome.runtime.lastError) {
+          Logger.error('[AuthCallback] Failed to get Clerk publishable key:', {
+            error: chrome.runtime.lastError.message,
+            fullError: chrome.runtime.lastError
+          });
+          resolve(null);
+          return;
+        }
         resolve(response?.key || null);
       });
     });
