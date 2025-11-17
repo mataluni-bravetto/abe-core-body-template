@@ -489,6 +489,57 @@
       // Show diagnostic panel on error
       showDiagnosticPanel();
     }
+    
+    // Set up periodic auth check AFTER auth is initialized
+    // This handles cases where user signs in in another tab
+    setupPeriodicAuthCheck();
+  }
+
+  /**
+   * Set up periodic authentication check
+   * This runs after auth is initialized to detect when users sign in via another tab
+   */
+  function setupPeriodicAuthCheck() {
+    // Clear any existing interval first
+    if (authCheckInterval) {
+      clearInterval(authCheckInterval);
+      authCheckInterval = null;
+    }
+    
+    // Only set up interval if auth is initialized and user is not authenticated
+    if (auth && !auth.isAuthenticated()) {
+      Logger.info('[Popup] Setting up periodic auth check interval');
+      authCheckInterval = setInterval(async () => {
+        if (auth) {
+          try {
+            await auth.checkUserSession();
+            if (auth.isAuthenticated()) {
+              Logger.info('[Popup] Authentication detected via periodic check - updating UI');
+              updateAuthUI();
+              // Clear interval once authenticated
+              if (authCheckInterval) {
+                clearInterval(authCheckInterval);
+                authCheckInterval = null;
+                Logger.info('[Popup] Periodic auth check interval cleared - user is authenticated');
+              }
+            }
+          } catch (err) {
+            Logger.warn('[Popup] Error during periodic auth check:', err);
+          }
+        } else {
+          // Auth object no longer exists, clear interval
+          if (authCheckInterval) {
+            clearInterval(authCheckInterval);
+            authCheckInterval = null;
+          }
+        }
+      }, 2000); // Check every 2 seconds
+    } else {
+      Logger.info('[Popup] Skipping periodic auth check setup:', {
+        hasAuth: !!auth,
+        isAuthenticated: auth ? auth.isAuthenticated() : false
+      });
+    }
   }
 
   /**
@@ -861,23 +912,6 @@
       console.log('[Popup] Auth CTA button listener attached');
     } else {
       console.warn('[Popup] authCtaBtn not found in DOM');
-    }
-
-    // Periodically check for authentication when not authenticated
-    // This handles cases where user signs in in another tab
-    if (auth && !auth.isAuthenticated()) {
-      authCheckInterval = setInterval(async () => {
-        if (auth) {
-          await auth.checkUserSession();
-          if (auth.isAuthenticated()) {
-            updateAuthUI();
-            if (authCheckInterval) {
-              clearInterval(authCheckInterval);
-              authCheckInterval = null;
-            }
-          }
-        }
-      }, 2000); // Check every 2 seconds
     }
     
     // Clean up interval when popup closes
