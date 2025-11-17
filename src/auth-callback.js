@@ -537,8 +537,12 @@ class AuthCallbackHandler {
         error: 'redirect_uri_mismatch',
         errorDescription: errorDescription,
         errorType: 'AUTH_OAUTH_REDIRECT_URI_MISMATCH'
-      }).catch(() => {
-        // Ignore if no listener
+      }, (response) => {
+        // Handle errors in callback - chrome.runtime.sendMessage uses callbacks, not Promises
+        if (chrome.runtime.lastError) {
+          // Ignore if no listener (this is expected if popup is closed)
+          Logger.debug('[AuthCallback] sendMessage error (may be normal if no listener):', chrome.runtime.lastError.message);
+        }
       });
     } catch (e) {
       Logger.warn('[AuthCallback] Failed to send error message:', e);
