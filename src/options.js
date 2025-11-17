@@ -355,7 +355,15 @@
     testButton.disabled = true;
     testButton.textContent = '🔄 Verifying...';
     resultElement.style.display = 'block';
-    resultElement.innerHTML = '<div style="color: rgba(249, 249, 249, 0.7);">Verifying OAuth configuration...</div>';
+    
+    // Clear existing content and create loading message safely
+    while (resultElement.firstChild) {
+      resultElement.removeChild(resultElement.firstChild);
+    }
+    const loadingDiv = document.createElement('div');
+    loadingDiv.style.color = 'rgba(249, 249, 249, 0.7)';
+    loadingDiv.textContent = 'Verifying OAuth configuration...';
+    resultElement.appendChild(loadingDiv);
     
     try {
       // Get Clerk publishable key
@@ -377,14 +385,25 @@
       }
       
       if (!publishableKey) {
-        resultElement.innerHTML = `
-          <div style="color: #FF5757; margin-bottom: 8px;">
-            <strong>❌ Clerk Publishable Key Not Configured</strong>
-          </div>
-          <div style="color: rgba(249, 249, 249, 0.7); font-size: 11px; margin-bottom: 8px;">
-            Clerk publishable key is required for OAuth to work. Configure it in the Authentication section above.
-          </div>
-        `;
+        // Build error message safely using DOM methods
+        while (resultElement.firstChild) {
+          resultElement.removeChild(resultElement.firstChild);
+        }
+        
+        const errorTitle = document.createElement('div');
+        errorTitle.style.color = '#FF5757';
+        errorTitle.style.marginBottom = '8px';
+        errorTitle.style.fontWeight = '600';
+        errorTitle.textContent = '❌ Clerk Publishable Key Not Configured';
+        
+        const errorMessage = document.createElement('div');
+        errorMessage.style.color = 'rgba(249, 249, 249, 0.7)';
+        errorMessage.style.fontSize = '11px';
+        errorMessage.style.marginBottom = '8px';
+        errorMessage.textContent = 'Clerk publishable key is required for OAuth to work. Configure it in the Authentication section above.';
+        
+        resultElement.appendChild(errorTitle);
+        resultElement.appendChild(errorMessage);
         return;
       }
       
@@ -469,8 +488,13 @@
         });
       }
       
-      // Build result HTML
-      let resultHTML = '<div style="line-height: 1.6;">';
+      // Build result DOM safely without innerHTML
+      while (resultElement.firstChild) {
+        resultElement.removeChild(resultElement.firstChild);
+      }
+      
+      const container = document.createElement('div');
+      container.style.lineHeight = '1.6';
       
       results.forEach((result, index) => {
         const statusIcon = result.status === 'ok' ? '✅' : 
@@ -480,55 +504,171 @@
                            result.status === 'warning' ? '#FFB800' : 
                            result.status === 'info' ? '#33B8FF' : '#FF5757';
         
-        resultHTML += `
-          <div style="margin-bottom: ${index < results.length - 1 ? '12px' : '0'}; padding-bottom: ${index < results.length - 1 ? '12px' : '0'}; border-bottom: ${index < results.length - 1 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'};">
-            <div style="display: flex; align-items: flex-start; gap: 8px;">
-              <span style="font-size: 14px;">${statusIcon}</span>
-              <div style="flex: 1;">
-                <div style="font-weight: 600; color: ${statusColor}; margin-bottom: 4px;">${result.name}</div>
-                ${result.isUri ? 
-                  `<div style="font-family: monospace; font-size: 11px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin-top: 4px; word-break: break-all;">${result.message}</div>` :
-                  `<div style="font-size: 12px; color: rgba(249, 249, 249, 0.8);">${result.message}</div>`
-                }
-              </div>
-            </div>
-          </div>
-        `;
+        const resultDiv = document.createElement('div');
+        if (index < results.length - 1) {
+          resultDiv.style.marginBottom = '12px';
+          resultDiv.style.paddingBottom = '12px';
+          resultDiv.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+        }
+        
+        const flexContainer = document.createElement('div');
+        flexContainer.style.display = 'flex';
+        flexContainer.style.alignItems = 'flex-start';
+        flexContainer.style.gap = '8px';
+        
+        const iconSpan = document.createElement('span');
+        iconSpan.style.fontSize = '14px';
+        iconSpan.textContent = statusIcon;
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.style.flex = '1';
+        
+        const nameDiv = document.createElement('div');
+        nameDiv.style.fontWeight = '600';
+        nameDiv.style.color = statusColor;
+        nameDiv.style.marginBottom = '4px';
+        nameDiv.textContent = result.name;
+        
+        if (result.isUri) {
+          // For URI display, use monospace code block
+          const uriDiv = document.createElement('div');
+          uriDiv.style.fontFamily = 'monospace';
+          uriDiv.style.fontSize = '11px';
+          uriDiv.style.background = 'rgba(0,0,0,0.3)';
+          uriDiv.style.padding = '8px';
+          uriDiv.style.borderRadius = '4px';
+          uriDiv.style.marginTop = '4px';
+          uriDiv.style.wordBreak = 'break-all';
+          uriDiv.textContent = result.message; // Safe: textContent escapes HTML
+          contentDiv.appendChild(nameDiv);
+          contentDiv.appendChild(uriDiv);
+        } else {
+          const messageDiv = document.createElement('div');
+          messageDiv.style.fontSize = '12px';
+          messageDiv.style.color = 'rgba(249, 249, 249, 0.8)';
+          messageDiv.textContent = result.message; // Safe: textContent escapes HTML
+          contentDiv.appendChild(nameDiv);
+          contentDiv.appendChild(messageDiv);
+        }
+        
+        flexContainer.appendChild(iconSpan);
+        flexContainer.appendChild(contentDiv);
+        resultDiv.appendChild(flexContainer);
+        container.appendChild(resultDiv);
       });
       
-      // Add instructions
-      resultHTML += `
-        <div style="margin-top: 16px; padding: 12px; background: rgba(51, 184, 255, 0.1); border-radius: 8px; border: 1px solid rgba(51, 184, 255, 0.3);">
-          <div style="font-weight: 600; color: #33B8FF; margin-bottom: 8px; font-size: 12px;">📋 Next Steps</div>
-          <div style="font-size: 11px; color: rgba(249, 249, 249, 0.8); line-height: 1.6;">
-            ${redirectUri ? `
-              1. Go to <a href="https://console.cloud.google.com/" target="_blank" style="color: #33B8FF;">Google Cloud Console</a><br>
-              2. Navigate to APIs & Services → Credentials<br>
-              3. Find your OAuth 2.0 Client ID (matches Clerk Dashboard)<br>
-              4. Add authorized redirect URI: <code style="background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 2px;">${redirectUri}</code><br>
-              5. Save and wait 1-2 minutes for changes to propagate<br>
-              <br>
-              See <a href="https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md" target="_blank" style="color: #33B8FF;">full documentation</a> for detailed steps.
-            ` : `
-              See <a href="https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md" target="_blank" style="color: #33B8FF;">OAuth Configuration Guide</a> for setup instructions.
-            `}
-          </div>
-        </div>
-      `;
+      // Add instructions section safely
+      const instructionsDiv = document.createElement('div');
+      instructionsDiv.style.marginTop = '16px';
+      instructionsDiv.style.padding = '12px';
+      instructionsDiv.style.background = 'rgba(51, 184, 255, 0.1)';
+      instructionsDiv.style.borderRadius = '8px';
+      instructionsDiv.style.border = '1px solid rgba(51, 184, 255, 0.3)';
       
-      resultHTML += '</div>';
-      resultElement.innerHTML = resultHTML;
+      const instructionsTitle = document.createElement('div');
+      instructionsTitle.style.fontWeight = '600';
+      instructionsTitle.style.color = '#33B8FF';
+      instructionsTitle.style.marginBottom = '8px';
+      instructionsTitle.style.fontSize = '12px';
+      instructionsTitle.textContent = '📋 Next Steps';
+      
+      const instructionsContent = document.createElement('div');
+      instructionsContent.style.fontSize = '11px';
+      instructionsContent.style.color = 'rgba(249, 249, 249, 0.8)';
+      instructionsContent.style.lineHeight = '1.6';
+      
+      if (redirectUri) {
+        // Build instructions with links safely
+        const step1 = document.createTextNode('1. Go to ');
+        const link1 = document.createElement('a');
+        link1.href = 'https://console.cloud.google.com/';
+        link1.target = '_blank';
+        link1.style.color = '#33B8FF';
+        link1.textContent = 'Google Cloud Console';
+        
+        const step2 = document.createTextNode('2. Navigate to APIs & Services → Credentials');
+        const step2Br = document.createElement('br');
+        
+        const step3 = document.createTextNode('3. Find your OAuth 2.0 Client ID (matches Clerk Dashboard)');
+        const step3Br = document.createElement('br');
+        
+        const step4a = document.createTextNode('4. Add authorized redirect URI: ');
+        const codeEl = document.createElement('code');
+        codeEl.style.background = 'rgba(0,0,0,0.3)';
+        codeEl.style.padding = '2px 4px';
+        codeEl.style.borderRadius = '2px';
+        codeEl.textContent = redirectUri; // Safe: textContent escapes HTML
+        
+        const step4Br = document.createElement('br');
+        const step5 = document.createTextNode('5. Save and wait 1-2 minutes for changes to propagate');
+        const step5Br = document.createElement('br');
+        const step5Br2 = document.createElement('br');
+        
+        const step6a = document.createTextNode('See ');
+        const link2 = document.createElement('a');
+        link2.href = 'https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md';
+        link2.target = '_blank';
+        link2.style.color = '#33B8FF';
+        link2.textContent = 'full documentation';
+        const step6b = document.createTextNode(' for detailed steps.');
+        
+        instructionsContent.appendChild(step1);
+        instructionsContent.appendChild(link1);
+        instructionsContent.appendChild(step2Br);
+        instructionsContent.appendChild(step2);
+        instructionsContent.appendChild(step3Br);
+        instructionsContent.appendChild(step3);
+        instructionsContent.appendChild(step4Br);
+        instructionsContent.appendChild(step4a);
+        instructionsContent.appendChild(codeEl);
+        instructionsContent.appendChild(step4Br);
+        instructionsContent.appendChild(step5);
+        instructionsContent.appendChild(step5Br);
+        instructionsContent.appendChild(step5Br2);
+        instructionsContent.appendChild(step6a);
+        instructionsContent.appendChild(link2);
+        instructionsContent.appendChild(step6b);
+      } else {
+        const step1a = document.createTextNode('See ');
+        const link = document.createElement('a');
+        link.href = 'https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md';
+        link.target = '_blank';
+        link.style.color = '#33B8FF';
+        link.textContent = 'OAuth Configuration Guide';
+        const step1b = document.createTextNode(' for setup instructions.');
+        
+        instructionsContent.appendChild(step1a);
+        instructionsContent.appendChild(link);
+        instructionsContent.appendChild(step1b);
+      }
+      
+      instructionsDiv.appendChild(instructionsTitle);
+      instructionsDiv.appendChild(instructionsContent);
+      container.appendChild(instructionsDiv);
+      resultElement.appendChild(container);
       
       Logger.info('[OAuth Test] Configuration verification completed');
     } catch (error) {
-      resultElement.innerHTML = `
-        <div style="color: #FF5757;">
-          <strong>❌ Verification Failed</strong>
-        </div>
-        <div style="color: rgba(249, 249, 249, 0.7); font-size: 11px; margin-top: 8px;">
-          Error: ${error.message || 'Unknown error'}
-        </div>
-      `;
+      // Build error message safely using DOM methods
+      while (resultElement.firstChild) {
+        resultElement.removeChild(resultElement.firstChild);
+      }
+      
+      const errorTitle = document.createElement('div');
+      errorTitle.style.color = '#FF5757';
+      errorTitle.style.fontWeight = '600';
+      errorTitle.textContent = '❌ Verification Failed';
+      
+      const errorMessage = document.createElement('div');
+      errorMessage.style.color = 'rgba(249, 249, 249, 0.7)';
+      errorMessage.style.fontSize = '11px';
+      errorMessage.style.marginTop = '8px';
+      // Safe: textContent escapes HTML, preventing XSS from error.message
+      errorMessage.textContent = `Error: ${error.message || 'Unknown error'}`;
+      
+      resultElement.appendChild(errorTitle);
+      resultElement.appendChild(errorMessage);
+      
       Logger.error('[OAuth Test] Verification failed:', error);
     } finally {
       testButton.disabled = false;
