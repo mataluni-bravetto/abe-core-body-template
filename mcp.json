@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "Chrome DevTools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"],
+      "env": {}
+    },
+    "Playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "env": {}
+    },
+    "ChromeDebug": {
+      "command": "npx",
+      "args": ["-y", "@dynamicu/chromedebug-mcp@latest"],
+      "env": {}
+    },
+    "Blueprint": {
+      "command": "npx",
+      "args": ["-y", "@railsblueprint/blueprint-mcp@latest"],
+      "env": {}
+    }
+  }
+}
