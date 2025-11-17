@@ -94,6 +94,29 @@
    */
   function initializePopup() {
     Logger.info('Initializing AiGuardian popup');
+
+    // Hide developer-only auth UI in production unless SHOW_DEV_UI is enabled
+    try {
+      const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
+      if (!isDevUI) {
+        const authSection = document.getElementById('authSection');
+        if (authSection) {
+          authSection.style.display = 'none';
+        }
+      }
+    } catch (e) {
+      Logger.warn('[Popup] Failed to apply dev UI flag', e);
+    }
+
+    // Always show main content container so public users still see status/analysis UI
+    try {
+      const mainContent = document.querySelector('.main-content');
+      if (mainContent) {
+        mainContent.style.display = 'block';
+      }
+    } catch (e) {
+      Logger.warn('[Popup] Failed to show main content', e);
+    }
   }
 
   /**
@@ -455,10 +478,10 @@
       return;
     }
 
+    // If dev UI is disabled, do not show any auth controls at all
+    const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
     const userProfile = document.getElementById('userProfile');
     const authButtons = document.getElementById('authButtons');
-    const syncAuthBtn = document.getElementById('syncAuthBtn');
-    const refreshAuthBtn = document.getElementById('refreshAuthBtn');
     const userAvatar = document.getElementById('userAvatar');
     const userName = document.getElementById('userName');
     const mainContent = document.querySelector('.main-content');
@@ -466,6 +489,15 @@
 
     // Check if authenticated (either via auth object or storage)
     const isAuth = auth ? auth.isAuthenticated() : hasStoredUser;
+
+    // In non-dev mode, hide all auth UI regardless of auth state, but still allow
+    // backend + Clerk auto-config to function behind the scenes.
+    if (!isDevUI) {
+      if (userProfile) userProfile.style.display = 'none';
+      if (authButtons) authButtons.style.display = 'none';
+      // Main content visibility is handled elsewhere; nothing to do here.
+      return;
+    }
     
     if (isAuth) {
       // Get user data - from auth object if available, otherwise from storage
@@ -495,8 +527,17 @@
       }
 
       if (userAvatar) {
+        // Clear any existing content
+        while (userAvatar.firstChild) {
+          userAvatar.removeChild(userAvatar.firstChild);
+        }
+
         if (avatarUrl) {
-          userAvatar.innerHTML = `<img src="${avatarUrl}" alt="User Avatar">`;
+          // Create avatar image element safely without using innerHTML
+          const img = document.createElement('img');
+          img.src = avatarUrl;
+          img.alt = 'User Avatar';
+          userAvatar.appendChild(img);
         } else {
           // Show initials as fallback
           const initials = generateUserInitials(displayName);
@@ -510,8 +551,6 @@
 
       userProfile.style.display = 'flex';
       authButtons.style.display = 'none';
-      if (syncAuthBtn) syncAuthBtn.style.display = 'none';
-      if (refreshAuthBtn) refreshAuthBtn.style.display = 'none';
       
       // Show main content and analysis section when authenticated
       if (mainContent) {
@@ -524,15 +563,6 @@
       // Show auth buttons
       userProfile.style.display = 'none';
       authButtons.style.display = 'flex';
-      
-      // Show sync button if user might have signed in on Clerk's page
-      if (syncAuthBtn) {
-        syncAuthBtn.style.display = 'inline-block';
-      }
-      // Show refresh button to manually check for auth
-      if (refreshAuthBtn) {
-        refreshAuthBtn.style.display = 'inline-block';
-      }
       
       // Show main content (contains status section and guard services - should be visible to all)
       // Only hide analysis section when not authenticated
@@ -551,12 +581,22 @@
   function showAuthNotConfigured() {
     const authSection = document.getElementById('authSection');
     if (authSection) {
-      authSection.innerHTML = `
-        <div style="text-align: center; color: rgba(249, 249, 249, 0.7); font-size: 12px;">
-          Authentication not configured.<br>
-          Add Clerk publishable key in settings.
-        </div>
-      `;
+      // Clear any existing content
+      while (authSection.firstChild) {
+        authSection.removeChild(authSection.firstChild);
+      }
+
+      // Build message safely without using innerHTML
+      const wrapper = document.createElement('div');
+      wrapper.style.textAlign = 'center';
+      wrapper.style.color = 'rgba(249, 249, 249, 0.7)';
+      wrapper.style.fontSize = '12px';
+
+      wrapper.appendChild(document.createTextNode('Authentication not configured.'));
+      wrapper.appendChild(document.createElement('br'));
+      wrapper.appendChild(document.createTextNode('Add Clerk publishable key in settings.'));
+
+      authSection.appendChild(wrapper);
     }
   }
 
@@ -659,7 +699,7 @@
           const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
           const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
           // Redirect to landing page where Stripe payment processing occurs
-          const upgradeUrl = `${baseUrl}/subscribe` || 'https://aiguardian.ai/subscribe';
+          const upgradeUrl = `${baseUrl}/subscribe` || 'https://www.aiguardian.ai/subscribe';
 
           chrome.tabs.create({ url: upgradeUrl });
           window.close();
@@ -677,174 +717,49 @@
       eventListeners.push({ element: upgradeBtn, event: 'click', handler: clickHandler });
     }
 
-    // Sign In button
-    const signInBtn = document.getElementById('signInBtn');
-    if (signInBtn) {
-      console.log('[Popup] Found signInBtn, attaching listener');
+    // Unified auth CTA button (sign in / sign up)
+    const authCtaBtn = document.getElementById('authCtaBtn');
+    // Hide auth CTA entirely when dev UI is disabled
+    const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
+    if (!isDevUI && authCtaBtn) {
+      authCtaBtn.style.display = 'none';
+    }
+    if (authCtaBtn && isDevUI) {
+      console.log('[Popup] Found authCtaBtn, attaching listener');
       const clickHandler = async () => {
         try {
-          if (auth) {
-            await auth.signIn();
-            // Close popup after redirecting to auth
-            window.close();
+          // Instead of driving Clerk directly from the extension, open the
+          // AiGuardian landing page, which already hosts the Clerk login.
+          // The content script running on that page will detect the Clerk
+          // session (via CLERK_AUTH_DETECTED) and sync auth state back to
+          // the extension.
+          const landingUrl = 'https://www.aiguardian.ai';
+
+          if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+            chrome.tabs.create({ url: landingUrl });
+            Logger.info('[Popup] Opened landing page for sign-in:', landingUrl);
           } else {
-            if (errorHandler) {
-              errorHandler.showError('AUTH_NOT_CONFIGURED');
-            } else {
-              showFallbackError('Authentication not configured. Please check settings.');
-            }
+            // Fallback for non-extension contexts
+            window.open(landingUrl, '_blank');
           }
+
+          // Close popup after opening landing page
+          window.close();
         } catch (err) {
-          console.error('Failed to sign in', err);
+          Logger.error('[Popup] Auth CTA (landing link) failed', err);
           if (errorHandler) {
             errorHandler.showError('AUTH_SIGN_IN_FAILED');
           } else {
-            showFallbackError('Sign in failed. Please try again.');
+            showFallbackError('Failed to open AiGuardian site. Please try again.');
           }
         }
       };
 
-      signInBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: signInBtn, event: 'click', handler: clickHandler });
-      console.log('[Popup] Sign In button listener attached');
+      authCtaBtn.addEventListener('click', clickHandler);
+      eventListeners.push({ element: authCtaBtn, event: 'click', handler: clickHandler });
+      console.log('[Popup] Auth CTA button listener attached');
     } else {
-      console.error('[Popup] ERROR: signInBtn not found in DOM!');
-    }
-
-    // Refresh Auth button - shown when not authenticated
-    const refreshAuthBtn = document.getElementById('refreshAuthBtn');
-    if (refreshAuthBtn) {
-      console.log('[Popup] Found refreshAuthBtn, attaching listener');
-      const clickHandler = async () => {
-        try {
-          refreshAuthBtn.textContent = '⏳ Checking...';
-          refreshAuthBtn.disabled = true;
-          
-          // Re-check auth state
-          if (auth) {
-            await auth.checkUserSession();
-          } else {
-            // If auth not initialized, try to initialize it
-            try {
-              auth = new AiGuardianAuth();
-              await auth.initialize();
-              await auth.checkUserSession();
-            } catch (err) {
-              Logger.error('Failed to initialize auth on refresh', err);
-              if (errorHandler) {
-                errorHandler.showError('AUTH_NOT_CONFIGURED');
-              } else {
-                showFallbackError('Authentication not configured. Please check settings.');
-              }
-              return;
-            }
-          }
-          
-          // Update UI to reflect current auth state
-          await updateAuthUI();
-          
-          // Show success message if now authenticated
-          if (auth && auth.isAuthenticated()) {
-            showSuccess('✅ Authentication refreshed');
-          } else {
-            showSuccess('ℹ️ Still not authenticated. Please sign in.');
-          }
-        } catch (err) {
-          Logger.error('Failed to refresh auth', err);
-          if (errorHandler) {
-            errorHandler.showError('AUTH_REFRESH_FAILED');
-          } else {
-            showFallbackError('Failed to refresh authentication. Please try again.');
-          }
-        } finally {
-          refreshAuthBtn.textContent = '🔄 Refresh Auth';
-          refreshAuthBtn.disabled = false;
-        }
-      };
-      
-      refreshAuthBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: refreshAuthBtn, event: 'click', handler: clickHandler });
-      console.log('[Popup] Refresh Auth button listener attached');
-    } else {
-      console.warn('[Popup] refreshAuthBtn not found in DOM');
-    }
-
-    // Sign Up button
-    const signUpBtn = document.getElementById('signUpBtn');
-    if (signUpBtn) {
-      console.log('[Popup] Found signUpBtn, attaching listener');
-      const clickHandler = async () => {
-        Logger.info('[Popup] Sign Up button clicked');
-        Logger.info('[Popup] Auth object exists:', !!auth);
-        
-        try {
-          // Wait a moment for auth to initialize if it's still initializing
-          if (!auth) {
-            Logger.warn('[Popup] Auth not initialized yet, waiting...');
-            await new Promise(resolve => setTimeout(resolve, 500));
-            if (!auth) {
-              console.error('[Popup] Auth object still null after wait');
-              if (errorHandler) {
-                errorHandler.showError('AUTH_NOT_CONFIGURED');
-              } else {
-                showFallbackError('Authentication not configured. Please check settings.');
-              }
-              return;
-            }
-          }
-
-          // Double-check auth is initialized
-          if (!auth.isInitialized) {
-            console.warn('[Popup] Auth not initialized, attempting to initialize...');
-            const initialized = await auth.initialize();
-            if (!initialized) {
-              console.error('[Popup] Failed to initialize auth');
-              if (errorHandler) {
-                errorHandler.showError('AUTH_NOT_CONFIGURED');
-              } else {
-                showFallbackError('Authentication not configured. Please check settings.');
-              }
-              return;
-            }
-          }
-          
-          Logger.info('[Popup] Auth initialized, calling auth.signUp()');
-          Logger.info('[Popup] Auth state:', {
-            isInitialized: auth.isInitialized,
-            hasClerk: !!auth.clerk,
-            hasPublishableKey: !!auth.publishableKey
-          });
-          
-          await auth.signUp();
-          Logger.info('[Popup] auth.signUp() completed successfully');
-          
-          // Small delay before closing to ensure tab opens
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Close popup after redirecting to auth
-          window.close();
-        } catch (err) {
-          Logger.error('[Popup] Sign-up failed with error:', {
-            message: err.message,
-            stack: err.stack,
-            name: err.name,
-            error: err
-          });
-          console.error('[Popup] Full error object:', err);
-          console.error('[Popup] Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-          if (errorHandler) {
-            errorHandler.showError('AUTH_SIGN_UP_FAILED');
-          } else {
-            showFallbackError('Sign up failed. Please try again.');
-          }
-        }
-      };
-
-      signUpBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: signUpBtn, event: 'click', handler: clickHandler });
-      console.log('[Popup] Sign Up button listener attached');
-    } else {
-      console.error('[Popup] ERROR: signUpBtn not found in DOM!');
+      console.warn('[Popup] authCtaBtn not found in DOM');
     }
 
     // Periodically check for authentication when not authenticated
@@ -1095,6 +1010,14 @@
 
     if (!section) return;
 
+    // For free tier, hide the subscription card unless the user is close to limits
+    const isFreeTier = !subscription.tier || subscription.tier === 'free' || subscription.tier.toUpperCase() === 'FREE';
+    const usagePct = usage && typeof usage.usage_percentage === 'number' ? usage.usage_percentage : null;
+    if (isFreeTier && (usagePct === null || usagePct < 80)) {
+      section.style.display = 'none';
+      return;
+    }
+
     // Show subscription section
     section.style.display = 'block';
 
@@ -1153,33 +1076,36 @@
    * Requires authentication
    */
   async function triggerAnalysis() {
+    const statusLine = document.getElementById('analysisStatusLine');
+
     // Check authentication first
     if (!auth || !auth.isAuthenticated()) {
+      const message = 'Please sign in on aiguardian.ai before running analysis.';
+      if (statusLine) {
+        statusLine.textContent = `Last analysis: failed – ${message}`;
+      }
       if (errorHandler) {
-        errorHandler.showError('AUTH_REQUIRED');
+        errorHandler.showErrorFromException(new Error(message));
       } else {
-        showFallbackError('Please sign in to use analysis features.');
+        showFallbackError(message);
       }
-      // Prompt sign in
+
+      // Open landing page for sign-in; content script will detect Clerk auth
+      const landingUrl = 'https://www.aiguardian.ai';
       try {
-        if (auth) {
-          await auth.signIn();
-          window.close();
+        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+          chrome.tabs.create({ url: landingUrl });
         } else {
-          if (errorHandler) {
-            errorHandler.showError('AUTH_NOT_CONFIGURED');
-          } else {
-            showFallbackError('Authentication not configured. Please check settings.');
-          }
+          window.open(landingUrl, '_blank');
         }
-      } catch (err) {
-        console.error('Failed to sign in', err);
-        if (errorHandler) {
-          errorHandler.showError('AUTH_SIGN_IN_FAILED');
-        } else {
-          showFallbackError('Sign in failed. Please try again.');
-        }
+      } catch (e) {
+        Logger.warn('[Popup] Failed to open landing page for sign-in', e);
       }
+
+      // Delay closing the popup to allow users to read the error message
+      setTimeout(() => {
+        window.close();
+      }, 2000); // 2 second delay
       return;
     }
 
@@ -1189,6 +1115,9 @@
     if (analyzeBtn) {
       analyzeBtn.textContent = '⏳ Analyzing...';
       analyzeBtn.disabled = true;
+    }
+    if (statusLine) {
+      statusLine.textContent = 'Analyzing selected text…';
     }
     
     try {
@@ -1203,12 +1132,29 @@
       if (response && response.success) {
         updateAnalysisResult(response);
         showSuccess('✅ Analysis complete!');
+        if (statusLine) {
+          const scoreText = typeof response.score === 'number' ? ` (score: ${response.score.toFixed(2)})` : '';
+          statusLine.textContent = `Last analysis: success${scoreText}`;
+        }
         Logger.info('Analysis completed successfully');
       } else {
+        const errorMessage = response && response.error
+          ? response.error
+          : 'Please select some text on the page to analyze.';
+
+        if (statusLine) {
+          statusLine.textContent = `Last analysis: failed – ${errorMessage}`;
+        }
+
         if (errorHandler) {
-          errorHandler.showError('ANALYSIS_NO_SELECTION');
+          // Surface the actual error when we have one (e.g. auth required)
+          if (response && response.error) {
+            errorHandler.showErrorFromException(new Error(errorMessage));
+          } else {
+            errorHandler.showError('ANALYSIS_NO_SELECTION');
+          }
         } else {
-          showFallbackError('Please select some text on the page to analyze.');
+          showFallbackError(errorMessage);
         }
       }
     } catch (err) {

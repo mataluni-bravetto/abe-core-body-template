@@ -52,10 +52,7 @@
       </div>
     </div>
     <div class="auth-buttons" id="authButtons">
-      <button class="btn btn-primary" id="signInBtn">🔐 Sign In</button>
-      <button class="btn btn-secondary" id="signUpBtn">📝 Sign Up</button>
-      <button class="btn btn-secondary btn-small" id="syncAuthBtn" style="display: none;">🔄 Sync Auth</button>
-      <button class="btn btn-secondary btn-small" id="refreshAuthBtn" style="display: none;">🔄 Refresh Auth</button>
+      <button class="btn btn-primary" id="authCtaBtn">🔐 Sign in or sign up</button>
       <button class="btn btn-secondary btn-small" id="toggleStatusBtn">🔍 Status</button>
     </div>
   </div>
@@ -69,7 +66,7 @@
         <div class="status-indicator" id="statusIndicator"></div>
       </div>
       <div class="status-details" id="statusDetails">
-        We don't claim perfect security. We claim transparent failure logging.
+        Checking AiGuardian connection…
       </div>
     </div>
 
@@ -83,6 +80,9 @@
         </div>
         <div class="bias-type" id="biasType">Select text and analyze to see results</div>
         <div class="confidence">Uncertainty: <span id="confidence">—</span></div>
+      </div>
+      <div class="analysis-status" id="analysisStatusLine" style="margin-top: 8px; font-size: 11px; color: rgba(249, 249, 249, 0.75);">
+        No analysis run yet.
       </div>
     </div>
 
@@ -121,7 +121,7 @@
   <div class="footer">
     <div class="footer-text">AiGuardian v1.0.0</div>
     <div class="footer-links">
-      <a href="https://aiguardian.ai" target="_blank" class="footer-link">🌐 Website</a>
+      <a href="https://www.aiguardian.ai" target="_blank" class="footer-link">🌐 Website</a>
       <a href="#" class="footer-link" id="settingsLink">⚙️ Settings</a>
     </div>
   </div>

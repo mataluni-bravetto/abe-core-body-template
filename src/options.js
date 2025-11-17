@@ -21,6 +21,19 @@
    */
   function initializeOptions() {
     Logger.info('Options page initialized');
+
+    // Apply dev UI flag: in production, hide Clerk + backend config panels
+    try {
+      const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
+      if (!isDevUI) {
+        const authSections = document.querySelectorAll('.section[data-dev-ui="auth"], .section[data-dev-ui="backend"]');
+        authSections.forEach((el) => {
+          el.style.display = 'none';
+        });
+      }
+    } catch (e) {
+      Logger.warn('[Options] Failed to apply dev UI flag', e);
+    }
   }
 
   /**
@@ -300,7 +313,7 @@
       
       const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
       const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
-      const manageUrl = `${baseUrl}/subscription` || 'https://aiguardian.ai/subscription';
+      const manageUrl = `${baseUrl}/subscription` || 'https://www.aiguardian.ai/subscription';
       
       chrome.tabs.create({ url: manageUrl });
     } catch (err) {
@@ -320,7 +333,7 @@
       
       const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
       const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
-      const upgradeUrl = `${baseUrl}/subscribe` || 'https://aiguardian.ai/subscribe';
+      const upgradeUrl = `${baseUrl}/subscribe` || 'https://www.aiguardian.ai/subscribe';
       
       chrome.tabs.create({ url: upgradeUrl });
     } catch (err) {
@@ -407,12 +420,31 @@
         statusElement.textContent = 'Connected';
         statusElement.className = 'status connected';
         resultElement.style.color = '#33B8FF';
-        resultElement.innerHTML = `
-          ✅ <strong>Connection Successful!</strong><br>
-          Response Time: ${responseTime}ms<br>
-          Status: ${response.status} ${response.statusText}<br>
-          ${responseData.status ? `Backend Status: ${responseData.status}` : ''}
-        `;
+
+        // Build a safe, structured success message without using innerHTML
+        while (resultElement.firstChild) {
+          resultElement.removeChild(resultElement.firstChild);
+        }
+
+        const title = document.createElement('div');
+        title.innerText = '✅ Connection Successful!';
+        title.style.fontWeight = '600';
+
+        const timeInfo = document.createElement('div');
+        timeInfo.innerText = `Response Time: ${responseTime}ms`;
+
+        const statusInfo = document.createElement('div');
+        statusInfo.innerText = `Status: ${response.status} ${response.statusText}`;
+
+        resultElement.appendChild(title);
+        resultElement.appendChild(timeInfo);
+        resultElement.appendChild(statusInfo);
+
+        if (responseData.status) {
+          const backendStatus = document.createElement('div');
+          backendStatus.innerText = `Backend Status: ${responseData.status}`;
+          resultElement.appendChild(backendStatus);
+        }
         
         // Save the gateway URL if test succeeds
         chrome.storage.sync.set({ gateway_url: gatewayUrl }, () => {
@@ -443,17 +475,39 @@
         troubleshootingTips = '• Update backend ALLOWED_ORIGINS to include chrome-extension://*<br>• Check backend CORS configuration';
       } else {
         errorMessage = error.message || 'Unknown error';
-        troubleshootingTips = '• Check browser console (F12) for details<br>• Verify backend logs<br>• Test endpoint directly: <a href="' + healthUrl + '" target="_blank">' + healthUrl + '</a>';
+        troubleshootingTips = '• Check browser console (F12) for details\n• Verify backend logs\n• Test endpoint directly: ' + healthUrl;
       }
       
-      resultElement.innerHTML = `
-        ❌ <strong>Connection Failed</strong><br>
-        ${errorMessage}<br><br>
-        <strong>Troubleshooting:</strong><br>
-        <div style="font-size: 11px; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
-          ${troubleshootingTips}
-        </div>
-      `;
+      // Build a safe, structured error message without using innerHTML
+      while (resultElement.firstChild) {
+        resultElement.removeChild(resultElement.firstChild);
+      }
+
+      const title = document.createElement('div');
+      title.innerText = '❌ Connection Failed';
+      title.style.fontWeight = '600';
+
+      const messageEl = document.createElement('div');
+      messageEl.innerText = errorMessage;
+
+      const tipsLabel = document.createElement('div');
+      tipsLabel.style.marginTop = '8px';
+      tipsLabel.style.fontWeight = '600';
+      tipsLabel.innerText = 'Troubleshooting:';
+
+      const tipsBox = document.createElement('div');
+      tipsBox.style.fontSize = '11px';
+      tipsBox.style.marginTop = '8px';
+      tipsBox.style.padding = '8px';
+      tipsBox.style.background = 'rgba(0,0,0,0.2)';
+      tipsBox.style.borderRadius = '4px';
+      tipsBox.innerHTML = troubleshootingTips;
+
+      resultElement.appendChild(title);
+      resultElement.appendChild(messageEl);
+      resultElement.appendChild(tipsLabel);
+      resultElement.appendChild(tipsBox);
+
       Logger.error('Backend connection test failed', { gatewayUrl, healthUrl, error: error.message, errorName: error.name });
     } finally {
       testButton.disabled = false;

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "Chrome DevTools": {
+      "command": "npx chrome-devtools-mcp@latest",
+      "env": {},
+      "args": []
+    }
+  }
+}

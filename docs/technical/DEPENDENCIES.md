@@ -125,15 +125,29 @@ options.js
 
 ### **3. string-optimizer.js**
 
-**Purpose:** Efficient string operations  
+**Purpose:** Efficient string operations with bounds checking  
 **Dependencies:** `constants.js`  
 **Dependents:** `gateway.js`, `service-worker.js`  
 **Type:** Utility  
 
 **Exports:**
-- `StringOptimizer.truncate(str, maxLength)` - Truncate strings
-- `StringOptimizer.sanitize(str)` - Basic sanitization
-- `StringOptimizer.compress(str)` - String compression
+- `StringOptimizer` class (instance methods)
+- `stringOptimizer` global instance
+- Bound global functions: `optimizedReplace`, `safeSubstring`, `optimizedSanitize`, `removeHtmlTags`, `truncateWithEllipsis`, `isValidString`, `getSafeLength`, `safeConcat`, `safeSplit`, `safeTrim`
+
+**Methods:**
+- `optimizedReplace(str, pattern, replacement, maxLength)` - Optimized string replacement
+- `safeSubstring(str, start, end, maxLength)` - Safe substring with bounds checking
+- `optimizedSanitize(str, maxLength)` - Remove dangerous content (XSS prevention)
+- `removeHtmlTags(str, maxLength)` - Remove HTML tags
+- `truncateWithEllipsis(str, maxLength, ellipsis)` - Truncate with ellipsis
+- `isValidString(value, maxLength)` - Validate string
+- `getSafeLength(str, maxLength)` - Get safe string length
+- `safeConcat(strings, maxLength, separator)` - Safe concatenation
+- `safeSplit(str, separator, maxLength)` - Safe string splitting
+- `safeTrim(str, maxLength)` - Safe string trimming
+
+**Note:** Methods are instance methods (not static). Use `stringOptimizer.methodName()` or the bound global functions.
 
 **Size:** ~3KB  
 **Load Time:** <1ms  

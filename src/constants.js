@@ -70,6 +70,50 @@ const SUCCESS_MESSAGES = {
 };
 
 /**
+ * Feature flags / environment detection
+ */
+// Basic runtime heuristic: treat extension as "development" when built with NODE_ENV=development
+// or when a special chrome.storage flag is present (see options.js for overrides).
+// Note: process.env.NODE_ENV may be undefined in MV3 runtime; we guard access defensively.
+// This flag is intentionally simple and is used only for gating developer-facing UI, not logic.
+const SHOW_DEV_UI = (function() {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development') {
+      return true;
+    }
+  } catch (e) {
+    // Ignore - process may not exist in extension contexts
+  }
+  // Fallback: allow an override via chrome.storage.local flag "show_dev_ui"
+  // Initialize window property to undefined (will be set by async callback)
+  if (typeof window !== 'undefined') {
+    window.__AIG_SHOW_DEV_UI = undefined;
+  }
+  // Check storage asynchronously - callback will set window.__AIG_SHOW_DEV_UI
+  // Code that uses this flag checks both SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['show_dev_ui'], (data) => {
+        if (typeof window !== 'undefined') {
+          if (typeof data.show_dev_ui === 'boolean') {
+            window.__AIG_SHOW_DEV_UI = data.show_dev_ui;
+          } else {
+            // Explicitly set to false if not present in storage
+            window.__AIG_SHOW_DEV_UI = false;
+          }
+        }
+      });
+    }
+  } catch (e) {
+    // Ignore storage errors; default remains false unless process.env says otherwise
+    if (typeof window !== 'undefined') {
+      window.__AIG_SHOW_DEV_UI = false;
+    }
+  }
+  return false;
+})();
+
+/**
  * Default Configuration Values
  * ALIGNED WITH BACKEND: AIGuards-Backend codeguardians-gateway
  */

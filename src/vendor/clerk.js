@@ -5656,12 +5656,11 @@ Message:${this.message}`, Object.setPrototypeOf(this, e3.prototype), this.code =
           }, a.g = function() {
             if ("object" == typeof globalThis)
               return globalThis;
-            try {
-              return this || new Function("return this")();
-            } catch (e2) {
-              if ("object" == typeof window)
-                return window;
-            }
+            if ("object" == typeof self)
+              return self;
+            if ("object" == typeof window)
+              return window;
+            throw new Error("Global object not found");
           }(), a.o = function(e2, t2) {
             return Object.prototype.hasOwnProperty.call(e2, t2);
           }, n = {}, r = "@clerk/clerk-js:", a.l = function(e2, t2, i2, o2) {

@@ -134,6 +134,12 @@ class SimpleTestRunner {
       });
     }
 
+    // Expose results to the browser harness so Puppeteer can detect completion
+    if (typeof window !== 'undefined') {
+      window.__AiGuardianTestResults = this.results;
+      window.__AiGuardianTestsCompleted = true;
+    }
+
     return this.results;
   }
 }

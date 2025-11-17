@@ -1,3 +1,5 @@
+@import url('../assets/brand/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css');
+
 /* AiGuardian Popup Styles - Brand Aligned */
 
 /* CSS Reset for extension popup */
@@ -8,7 +10,6 @@
 }
 
 /* Fallback fonts if import fails */
-@import url('../assets/brand/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css');
 
 body {
   width: 380px;

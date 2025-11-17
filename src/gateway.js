@@ -380,25 +380,8 @@ class AiGuardianGateway {
       this.handleError(error, { endpoint, payload });
       throw error;
     }
-    // Sanitize payload data
+    // Sanitize payload data (after validation - sanitization should only make data safer, not invalid)
     payload = this.sanitizeRequestData(payload);
-    
-    try {
-      this.validateRequest(endpoint, payload);
-    } catch (error) {
-      Logger.error('[Gateway] Request validation failed', {
-        context: {
-          file: 'src/gateway.js',
-          endpoint,
-          error: {
-            message: error.message,
-            stack: error.stack
-          }
-        }
-      });
-      this.handleError(error, { endpoint, payload });
-      throw error;
-    }
 
     // Get Clerk session token for authenticated requests (user-based auth only)
     // This is retrieved once and used for both subscription check and API request
@@ -452,11 +435,11 @@ class AiGuardianGateway {
     // All guard services now use unified /api/v1/guards/process endpoint
     const endpointMapping = {
       'analyze': 'api/v1/guards/process',      // Unified guard processing endpoint
-      'health': 'health/live',                  // Liveness probe
-      'health-ready': 'health/ready',           // Readiness probe
-      'guards': 'api/v1/guards/services',       // Service discovery endpoint
-      'logging': 'api/v1/logging',              // Central logging (if implemented)
-      'config': 'api/v1/config'                 // Configuration endpoint
+      'health': 'health/live',                 // Liveness probe
+      'health-ready': 'health/ready',          // Readiness probe
+      'guards': 'api/v1/guards/services',      // Service discovery endpoint
+      'logging': 'api/v1/logging',             // Central logging (if implemented)
+      'config': 'api/v1/config/config'         // Configuration endpoint (public config)
     };
     
     const mappedEndpoint = endpointMapping[endpoint] || endpoint;
@@ -757,30 +740,77 @@ class AiGuardianGateway {
   }
 
   /**
-   * Validate API response data
+   * Validate and normalize API response data from the backend.
+   *
+   * For the analyze endpoint, the backend returns a standard envelope:
+   *   { success: boolean, data: { ...guard specific... }, processing_time, ... }
+   *
+   * The extension UI expects a simpler shape:
+   *   { success, score, analysis, raw }
+   *
+   * This method bridges that gap so callers (service worker/content script)
+   * don't need to know backend-specific fields.
    */
   validateApiResponse(response, endpoint) {
     const errors = [];
+    let transformedResponse = null;
     
-    if (!response) {
-      errors.push('Response is null or undefined');
-      return { isValid: false, errors };
+    if (!response || typeof response !== 'object') {
+      errors.push('Response is null, undefined, or not an object');
+      return { isValid: false, errors, transformedResponse };
     }
     
     // Validate response structure based on endpoint
     if (endpoint === 'analyze') {
-      // Ensure response has required fields from backend
-      if (!response.hasOwnProperty('score') && !response.hasOwnProperty('overall_score')) {
-        errors.push('Response missing score field');
+      // Expect backend envelope: { success, data, ... }
+      if (typeof response.success !== 'boolean') {
+        errors.push('Response missing success boolean');
       }
-      if (!response.hasOwnProperty('analysis') && !response.hasOwnProperty('guards')) {
-        errors.push('Response missing analysis data');
+      if (!response.hasOwnProperty('data')) {
+        errors.push('Response missing data field');
       }
+
+      const data = response.data || {};
+
+      // Derive a generic score for the UI from common guard fields.
+      let score = 0;
+      if (typeof data.bias_score === 'number') {
+        score = data.bias_score;                 // BiasGuard
+      } else if (typeof data.trust_score === 'number') {
+        score = data.trust_score;                // TrustGuard
+      } else if (typeof data.confidence === 'number') {
+        score = data.confidence;                 // TokenGuard-style confidence
+      } else if (typeof data.score === 'number') {
+        score = data.score;                      // Fallback generic score
+      }
+
+      // Clamp score into [0, 1] if it looks like a 0-1 value; ignore NaN
+      if (typeof score === 'number' && !Number.isNaN(score)) {
+        if (score < 0) score = 0;
+        if (score > 1) score = 1;
+      } else {
+        score = 0;
+      }
+
+      transformedResponse = {
+        success: !!response.success,
+        score,
+        // Flatten data into an analysis object but preserve important envelope fields
+        analysis: {
+          ...data,
+          service_type: response.service_type,
+          processing_time: response.processing_time,
+          metadata: response.metadata
+        },
+        // Preserve the full backend response for debugging/advanced use
+        raw: response
+      };
     }
     
     return {
       isValid: errors.length === 0,
-      errors: errors
+      errors,
+      transformedResponse
     };
   }
 
@@ -878,4 +908,8 @@ class AiGuardianGateway {
 }
 
 // Export for use in other modules
-window.AiGuardianGateway = AiGuardianGateway;
+// Works in both service worker (global scope) and window contexts
+if (typeof window !== 'undefined') {
+  window.AiGuardianGateway = AiGuardianGateway;
+}
+// In service worker context, the class is already available globally via importScripts

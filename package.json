@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Finally, AI tools for engineers who don't believe the hype. Transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers.",
   "author": "AiGuardian Team",
-  "homepage": "https://aiguardian.ai",
+  "homepage": "https://www.aiguardian.ai",
   "license": "MIT",
   "scripts": {
     "test:unit": "node scripts/run-unit-tests.cjs",

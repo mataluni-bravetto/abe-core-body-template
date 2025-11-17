@@ -416,10 +416,14 @@
 
   // Detect Clerk authentication on accounts.dev pages
   // When Clerk redirects to /default-redirect, extract session info
+  // Check if we're on a Clerk account page OR the AiGuardian landing page
+  // The landing page (www.aiguardian.ai) embeds Clerk SDK for authentication
   const isClerkPage = window.location.hostname.includes('accounts.dev') || 
                       window.location.hostname.includes('clerk.accounts.dev') ||
                       window.location.hostname.includes('accounts.clerk.com') ||
-                      window.location.hostname.includes('accounts.clerk.dev');
+                      window.location.hostname.includes('accounts.clerk.dev') ||
+                      window.location.hostname === 'www.aiguardian.ai' ||
+                      window.location.hostname === 'aiguardian.ai';
   
   // Shared flag to prevent duplicate detection - must be at top level
   let userDetected = false;
@@ -657,7 +661,7 @@
                 hasCookies: hasAuthCookies
               });
               
-              const userData = {
+              const authUserPayload = {
                 id: 'signed-in-user-' + Date.now(), // Generate unique ID
                 email: emailMatch ? emailMatch[0] : null,
                 firstName: firstName,
@@ -667,15 +671,15 @@
               };
               
               Logger.info('[CS] Attempting to send CLERK_AUTH_DETECTED message:', {
-                userId: userData.id,
-                email: userData.email,
-                firstName: userData.firstName,
-                lastName: userData.lastName
+                userId: authUserPayload.id,
+                email: authUserPayload.email,
+                firstName: authUserPayload.firstName,
+                lastName: authUserPayload.lastName
               });
               
               try {
                 Logger.info('[CS] About to call chrome.runtime.sendMessage');
-                console.log('[CS] Sending message now:', { type: 'CLERK_AUTH_DETECTED', user: userData });
+                console.log('[CS] Sending message now:', { type: 'CLERK_AUTH_DETECTED', user: authUserPayload });
                 
                 // Ensure service worker is active by checking runtime
                 if (!chrome.runtime.id) {
@@ -686,7 +690,7 @@
                 
                 chrome.runtime.sendMessage({
                   type: 'CLERK_AUTH_DETECTED',
-                  user: userData,
+                  user: authUserPayload,
                   token: null
                 }, (response) => {
                   // Check if callback was called (might be undefined if service worker didn't respond)
@@ -1211,7 +1215,11 @@
         }
         
       case 'ANALYZE_SELECTION':
-        const selection = window.getSelection()?.toString()?.trim() || "";
+        const rawSelection = window.getSelection();
+        const selection = rawSelection?.toString()?.trim() || "";
+        const range = rawSelection && rawSelection.rangeCount > 0
+          ? rawSelection.getRangeAt(0).cloneRange()
+          : null;
 
         if (selection.length < CONFIG.minSelectionLength) {
           sendResponse({
@@ -1239,6 +1247,15 @@
                 error: chrome.runtime.lastError.message
               });
               return;
+            }
+
+            // If analysis succeeded, also show the in-page badge/highlight
+            if (response && response.success) {
+              try {
+                displayAnalysisResults(response, range);
+              } catch (e) {
+                Logger.error('[CS] Failed to display analysis results from popup trigger:', e);
+              }
             }
 
             // Forward response back to popup

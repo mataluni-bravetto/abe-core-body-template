@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Finally, AI tools for engineers who don't believe the hype. Transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers.",
   "author": "AiGuardian",
-  "homepage_url": "https://aiguardian.ai",
+  "homepage_url": "https://www.aiguardian.ai",
   "permissions": [
     "storage",
     "alarms",

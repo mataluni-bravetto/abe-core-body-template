@@ -5,7 +5,7 @@
  * Provides sign in, sign up, and user session management
  *
  * IMPORTANT: Payment and subscription management is handled through Stripe
- * on the landing page (https://aiguardian.ai). Users who sign up through
+ * on the landing page (https://www.aiguardian.ai). Users who sign up through
  * the landing page will have their accounts automatically recognized here.
  * The extension does NOT handle payments - it only displays subscription
  * status fetched from the backend API.

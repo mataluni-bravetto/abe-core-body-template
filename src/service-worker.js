@@ -9,12 +9,14 @@
  */
 
 // Import the AiGuardian Gateway and dependencies
-importScripts('src/constants.js');
-importScripts('src/logging.js');
-importScripts('src/string-optimizer.js');
-importScripts('src/cache-manager.js');
-importScripts('src/subscription-service.js');
-importScripts('src/gateway.js');
+// NOTE: Paths in importScripts are relative to this file's location (src/),
+// so we reference sibling files directly without a leading src/ segment.
+importScripts('constants.js');
+importScripts('logging.js');
+importScripts('string-optimizer.js');
+importScripts('cache-manager.js');
+importScripts('subscription-service.js');
+importScripts('gateway.js');
 
 let gateway = null;
 
@@ -235,7 +237,7 @@ try {
     const allowedOrigins = [
       'chrome-extension://',
       'https://api.aiguardian.ai',
-      'https://aiguardian.ai',
+      'https://www.aiguardian.ai',
       'https://localhost',
       'https://127.0.0.1'
     ];
@@ -718,7 +720,8 @@ try {
         throw new Error("AiGuardian Gateway not initialized");
       }
 
-      const diagnostics = gateway.getDiagnostics();
+      // getDiagnostics is async; await it to avoid sending a Promise to the UI
+      const diagnostics = await gateway.getDiagnostics();
       sendResponse({ success: true, diagnostics });
     } catch (err) {
       Logger.error("[BG] Failed to get diagnostics:", err);
