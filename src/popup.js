@@ -19,7 +19,7 @@
   let errorHandler = null;
 
   // Ensure DOM is ready before initializing
-  function initialize() {
+  async function initialize() {
     try {
       initializePopup();
       
@@ -37,7 +37,7 @@
       
       // Initialize auth (defensive - won't fail initialization)
       try {
-        initializeAuth();
+        await initializeAuth();
       } catch (err) {
         Logger.error('Auth initialization failed (non-critical)', err);
         // Continue - user can still use buttons
@@ -45,7 +45,7 @@
       
       // Initialize onboarding (defensive)
       try {
-        initializeOnboarding();
+        await initializeOnboarding();
       } catch (err) {
         Logger.error('Onboarding initialization failed (non-critical)', err);
       }
