@@ -537,6 +537,95 @@
   }
 
   /**
+   * Safely parse HTML string and create DOM elements
+   * Parses simple HTML (br, code, a tags) and creates proper DOM elements
+   * @param {string} htmlString - HTML string to parse
+   * @param {HTMLElement} container - Container element to append parsed content to
+   */
+  function parseHtmlToElements(htmlString, container) {
+    if (!htmlString || typeof htmlString !== 'string') {
+      return;
+    }
+
+    // Split by HTML tags while preserving them
+    const parts = htmlString.split(/(<[^>]+>)/);
+    
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      
+      // Skip empty strings
+      if (!part) continue;
+      
+      // Handle HTML tags
+      if (part.startsWith('<')) {
+        // Handle <br> tags
+        if (part.match(/^<br\s*\/?>$/i)) {
+          container.appendChild(document.createElement('br'));
+        }
+        // Handle <code> tags
+        else if (part.match(/^<code>/i)) {
+          const codeEl = document.createElement('code');
+          codeEl.style.fontFamily = 'monospace';
+          codeEl.style.background = 'rgba(0,0,0,0.3)';
+          codeEl.style.padding = '2px 4px';
+          codeEl.style.borderRadius = '2px';
+          
+          // Get content until closing tag
+          let codeContent = '';
+          i++;
+          while (i < parts.length && !parts[i].match(/^<\/code>$/i)) {
+            codeContent += parts[i];
+            i++;
+          }
+          codeEl.textContent = codeContent;
+          container.appendChild(codeEl);
+        }
+        // Handle <a> tags
+        else if (part.match(/^<a\s+/i)) {
+          const linkMatch = part.match(/href=["']([^"']+)["']/i);
+          const targetMatch = part.match(/target=["']([^"']+)["']/i);
+          
+          if (linkMatch) {
+            const linkEl = document.createElement('a');
+            linkEl.href = linkMatch[1];
+            linkEl.target = targetMatch ? targetMatch[1] : '_blank';
+            linkEl.style.color = '#33B8FF';
+            linkEl.style.textDecoration = 'underline';
+            linkEl.style.cursor = 'pointer';
+            
+            // Get link text until closing tag
+            let linkText = '';
+            i++;
+            while (i < parts.length && !parts[i].match(/^<\/a>$/i)) {
+              linkText += parts[i];
+              i++;
+            }
+            linkEl.textContent = linkText || linkMatch[1];
+            container.appendChild(linkEl);
+          }
+        }
+        // Handle closing tags (skip them, already handled)
+        else if (part.match(/^<\//)) {
+          continue;
+        }
+      }
+      // Handle text content
+      else {
+        // Handle newlines in plain text (for cases without <br>)
+        const textParts = part.split(/\n/);
+        for (let j = 0; j < textParts.length; j++) {
+          if (textParts[j]) {
+            container.appendChild(document.createTextNode(textParts[j]));
+          }
+          if (j < textParts.length - 1) {
+            container.appendChild(document.createElement('br'));
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * Test backend connection
    */
   async function testBackendConnection() {
@@ -696,13 +785,8 @@
       tipsBox.style.padding = '8px';
       tipsBox.style.background = 'rgba(0,0,0,0.2)';
       tipsBox.style.borderRadius = '4px';
-      tipsBox.textContent = troubleshootingTips.replace(/<[^>]*>/g, ''); // A quick fix would be to strip HTML, but creating elements is better.
-      // A more robust fix:
-      // const link = document.createElement('a');
-      // link.href = healthUrl;
-      // link.target = '_blank';
-      // link.textContent = healthUrl;
-      // tipsBox.append('• Test URL in browser: ', link);
+      // Parse HTML and create proper DOM elements (preserves links, code formatting, and line breaks)
+      parseHtmlToElements(troubleshootingTips, tipsBox);
 
       resultElement.appendChild(title);
       resultElement.appendChild(messageEl);
