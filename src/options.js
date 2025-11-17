@@ -677,6 +677,86 @@
   }
 
   /**
+   * Sanitize URL for safe use in href attributes
+   * Prevents XSS by blocking dangerous URL schemes (javascript:, data:, etc.)
+   * @param {string} url - URL to sanitize
+   * @returns {string|null} - Sanitized URL or null if invalid/dangerous
+   */
+  function sanitizeUrlForHref(url) {
+    if (!url || typeof url !== 'string') {
+      return null;
+    }
+
+    try {
+      // Trim whitespace
+      url = url.trim();
+      
+      // Check for dangerous URL schemes (case-insensitive)
+      const dangerousSchemes = ['javascript:', 'data:', 'vbscript:', 'file:', 'about:'];
+      const lowerUrl = url.toLowerCase();
+      
+      for (const scheme of dangerousSchemes) {
+        if (lowerUrl.startsWith(scheme)) {
+          Logger.warn('[Options] Blocked dangerous URL scheme:', scheme);
+          return null;
+        }
+      }
+      
+      // Try to parse as URL to validate format
+      // If it's a relative URL, make it absolute for validation
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(url);
+      } catch (e) {
+        // If URL parsing fails, it might be a relative URL
+        // For relative URLs, we'll allow them but still check for dangerous schemes
+        // Relative URLs starting with // are protocol-relative and should be blocked
+        if (url.startsWith('//')) {
+          Logger.warn('[Options] Blocked protocol-relative URL');
+          return null;
+        }
+        // Allow relative URLs (they're safe when used in same-origin context)
+        // But still escape HTML entities for display
+        return url;
+      }
+      
+      // Only allow http and https protocols
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        Logger.warn('[Options] Blocked non-HTTP(S) URL protocol:', parsedUrl.protocol);
+        return null;
+      }
+      
+      // Return the validated URL
+      return parsedUrl.toString();
+    } catch (error) {
+      Logger.error('[Options] URL sanitization error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Escape HTML entities for safe text display
+   * @param {string} text - Text to escape
+   * @returns {string} - Escaped text
+   */
+  function escapeHtml(text) {
+    if (!text || typeof text !== 'string') {
+      return '';
+    }
+    
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;'
+    };
+    
+    return text.replace(/[&<>"'/]/g, (char) => map[char]);
+  }
+
+  /**
    * Safely parse HTML string and create DOM elements
    * Parses simple HTML (br, code, a tags) and creates proper DOM elements
    * @param {string} htmlString - HTML string to parse
@@ -726,22 +806,40 @@
           const targetMatch = part.match(/target=["']([^"']+)["']/i);
           
           if (linkMatch) {
-            const linkEl = document.createElement('a');
-            linkEl.href = linkMatch[1];
-            linkEl.target = targetMatch ? targetMatch[1] : '_blank';
-            linkEl.style.color = '#33B8FF';
-            linkEl.style.textDecoration = 'underline';
-            linkEl.style.cursor = 'pointer';
+            // Sanitize URL to prevent XSS
+            const sanitizedUrl = sanitizeUrlForHref(linkMatch[1]);
             
-            // Get link text until closing tag
-            let linkText = '';
-            i++;
-            while (i < parts.length && !parts[i].match(/^<\/a>$/i)) {
-              linkText += parts[i];
+            if (sanitizedUrl) {
+              const linkEl = document.createElement('a');
+              linkEl.href = sanitizedUrl;
+              linkEl.target = targetMatch ? targetMatch[1] : '_blank';
+              linkEl.style.color = '#33B8FF';
+              linkEl.style.textDecoration = 'underline';
+              linkEl.style.cursor = 'pointer';
+              
+              // Get link text until closing tag
+              let linkText = '';
               i++;
+              while (i < parts.length && !parts[i].match(/^<\/a>$/i)) {
+                linkText += parts[i];
+                i++;
+              }
+              // Escape HTML entities in link text for safe display
+              linkEl.textContent = linkText || sanitizedUrl;
+              container.appendChild(linkEl);
+            } else {
+              // If URL is dangerous/invalid, create a span with escaped text instead
+              const spanEl = document.createElement('span');
+              spanEl.style.color = '#FF5757';
+              spanEl.textContent = '[Invalid URL]';
+              container.appendChild(spanEl);
+              
+              // Still need to skip link text until closing tag
+              i++;
+              while (i < parts.length && !parts[i].match(/^<\/a>$/i)) {
+                i++;
+              }
             }
-            linkEl.textContent = linkText || linkMatch[1];
-            container.appendChild(linkEl);
           }
         }
         // Handle closing tags (skip them, already handled)
@@ -893,13 +991,25 @@
         troubleshootingTips = '• Check if backend is running<br>• Verify network connectivity<br>• Check firewall settings';
       } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         errorMessage = 'Network error - backend may not be reachable';
-        troubleshootingTips = '• Verify backend is running: <code>curl ' + healthUrl + '</code><br>• Check Gateway URL is correct<br>• Test URL in browser: <a href="' + healthUrl + '" target="_blank">' + healthUrl + '</a><br>• Check network/firewall settings';
+        // Sanitize URL for safe use in HTML (prevent XSS)
+        const sanitizedHealthUrl = sanitizeUrlForHref(healthUrl);
+        const escapedHealthUrl = escapeHtml(healthUrl);
+        
+        if (sanitizedHealthUrl) {
+          // Use sanitized URL in href attribute and escaped URL for display
+          troubleshootingTips = '• Verify backend is running: <code>curl ' + escapedHealthUrl + '</code><br>• Check Gateway URL is correct<br>• Test URL in browser: <a href="' + sanitizedHealthUrl + '" target="_blank">' + escapedHealthUrl + '</a><br>• Check network/firewall settings';
+        } else {
+          // If URL is invalid/dangerous, don't create a link, just show escaped text
+          troubleshootingTips = '• Verify backend is running: <code>curl ' + escapedHealthUrl + '</code><br>• Check Gateway URL is correct<br>• Invalid Gateway URL detected<br>• Check network/firewall settings';
+        }
       } else if (error.message.includes('CORS')) {
         errorMessage = 'CORS error - backend may not allow extension origin';
         troubleshootingTips = '• Update backend ALLOWED_ORIGINS to include chrome-extension://*<br>• Check backend CORS configuration';
       } else {
         errorMessage = error.message || 'Unknown error';
-        troubleshootingTips = '• Check browser console (F12) for details\n• Verify backend logs\n• Test endpoint directly: ' + healthUrl;
+        // Escape URL for safe text display (prevent XSS)
+        const escapedHealthUrl = escapeHtml(healthUrl);
+        troubleshootingTips = '• Check browser console (F12) for details\n• Verify backend logs\n• Test endpoint directly: ' + escapedHealthUrl;
       }
       
       // Build a safe, structured error message without using innerHTML
