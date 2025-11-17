@@ -915,11 +915,13 @@
     }
     
     // Clean up interval when popup closes
-    window.addEventListener('beforeunload', () => {
+    const beforeUnloadHandler = () => {
       if (authCheckInterval) {
         clearInterval(authCheckInterval);
       }
-    });
+    };
+    window.addEventListener('beforeunload', beforeUnloadHandler);
+    eventListeners.push({ element: window, event: 'beforeunload', handler: beforeUnloadHandler });
 
     // Sign Out button
     const signOutBtn = document.getElementById('signOutBtn');
