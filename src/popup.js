@@ -52,9 +52,9 @@
       
       // Load status (defensive)
       try {
-        loadSystemStatus();
-        loadGuardServices();
-        loadSubscriptionStatus();
+        await loadSystemStatus();
+        await loadGuardServices();
+        await loadSubscriptionStatus();
       } catch (err) {
         Logger.error('Status loading failed (non-critical)', err);
       }
@@ -515,7 +515,7 @@
             await auth.checkUserSession();
             if (auth.isAuthenticated()) {
               Logger.info('[Popup] Authentication detected via periodic check - updating UI');
-              updateAuthUI();
+              await updateAuthUI();
               // Clear interval once authenticated
               if (authCheckInterval) {
                 clearInterval(authCheckInterval);
