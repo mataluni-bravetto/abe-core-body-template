@@ -12,6 +12,11 @@
  */
 
 class AiGuardianGateway {
+  constructor() {
+    this.isInitialized = false;
+    this._initializing = false;
+  }
+
   /**
    * Sanitizes request data to prevent XSS and injection attacks
    * @function sanitizeRequestData
@@ -300,6 +305,20 @@ class AiGuardianGateway {
    * Client only needs to know gateway URL and API key
    */
   async initializeGateway() {
+    // Prevent concurrent initialization
+    if (this._initializing) {
+      // Wait for ongoing initialization to complete
+      while (this._initializing) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return;
+    }
+
+    if (this.isInitialized) {
+      return; // Already initialized
+    }
+
+    this._initializing = true;
     try {
       // Load configuration from storage
       await this.loadConfiguration();
@@ -313,9 +332,14 @@ class AiGuardianGateway {
         Logger.info('[Gateway] Subscription service initialized');
       }
 
+      this.isInitialized = true;
       Logger.info('[Gateway] Initialized unified gateway connection');
     } catch (err) {
       Logger.error('[Gateway] Initialization failed', err);
+      this.isInitialized = false;
+      throw err; // Re-throw to allow caller to handle
+    } finally {
+      this._initializing = false;
     }
   }
 

@@ -58,6 +58,15 @@ try {
       gateway = new AiGuardianGateway();
     }
     
+    // CRITICAL: Initialize gateway connection
+    try {
+      await gateway.initializeGateway();
+      Logger.info("[BG] Gateway initialized successfully");
+    } catch (err) {
+      Logger.error("[BG] Gateway initialization failed:", err);
+      // Continue anyway - gateway will retry on first use
+    }
+    
     // Create context menus
     createContextMenus();
   })();
@@ -528,6 +537,28 @@ try {
     try {
       Logger.info("[BG] Text analysis request received:", text?.substring(0, 50) + "...");
       
+      // CRITICAL: Ensure gateway exists and is initialized
+      if (!gateway) {
+        Logger.warn("[BG] Gateway not initialized, creating new instance...");
+        gateway = new AiGuardianGateway();
+      }
+      
+      // Ensure gateway is initialized before processing request
+      if (!gateway.isInitialized) {
+        Logger.info("[BG] Gateway not initialized, initializing now...");
+        try {
+          await gateway.initializeGateway();
+        } catch (initError) {
+          Logger.error("[BG] Gateway initialization failed:", initError);
+          sendResponse({ 
+            success: false, 
+            error: "Gateway initialization failed. Please refresh the extension and try again.",
+            status: 500
+          });
+          return;
+        }
+      }
+      
       // TRACER BULLET: Use AI Guardians Gateway for analysis
       try {
         const analysisResult = await gateway.analyzeText(text);
@@ -673,10 +704,24 @@ try {
 
       // Use simplified gateway status (just connected or not)
       const status = await gateway.getGatewayStatus();
-      sendResponse({ success: true, status });
+      // Transform status to match expected format: { gateway_connected: boolean }
+      const transformedStatus = {
+        gateway_connected: status.connected || false,
+        gateway_url: status.gateway_url,
+        last_check: status.last_check,
+        error: status.error || null
+      };
+      sendResponse({ success: true, status: transformedStatus });
     } catch (err) {
       Logger.error("[BG] Failed to get guard status:", err);
-      sendResponse({ success: false, error: err.message });
+      sendResponse({ 
+        success: false, 
+        error: err.message,
+        status: {
+          gateway_connected: false,
+          error: err.message
+        }
+      });
     }
   }
 
