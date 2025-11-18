@@ -314,7 +314,7 @@
       
       const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
       const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
-      const manageUrl = `${baseUrl}/subscription` || 'https://www.aiguardian.ai/subscription';
+      const manageUrl = baseUrl ? `${baseUrl}/subscription` : 'https://www.aiguardian.ai/subscription';
       
       chrome.tabs.create({ url: manageUrl });
     } catch (err) {
@@ -334,7 +334,7 @@
       
       const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
       const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
-      const upgradeUrl = `${baseUrl}/subscribe` || 'https://www.aiguardian.ai/subscribe';
+      const upgradeUrl = baseUrl ? `${baseUrl}/subscribe` : 'https://www.aiguardian.ai/subscribe';
       
       chrome.tabs.create({ url: upgradeUrl });
     } catch (err) {
