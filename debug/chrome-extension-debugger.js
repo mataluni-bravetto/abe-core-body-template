@@ -52,7 +52,10 @@ class ChromeExtensionDebugger {
       await this.checkNetworkConnectivity();
       await this.checkAuthentication();
       await this.checkGatewayStatus();
+      await this.checkGuardServices(); // NEW: Test actual guard service endpoints
+      await this.checkTokenRefresh(); // NEW: Check token refresh logic
       await this.checkErrorHandling();
+      await this.checkTestFiles(); // NEW: Check for missing test files
       await this.checkPerformance();
       await this.checkProductionReadiness();
       
@@ -407,6 +410,318 @@ class ChromeExtensionDebugger {
   }
 
   /**
+   * Check guard services functionality (CRITICAL FOR PUBLICATION)
+   * Tests actual guard service endpoints to detect 403 errors
+   */
+  async checkGuardServices() {
+    console.log('🛡️  Checking guard services...');
+    const diagnostic = {
+      name: 'Guard Services',
+      status: 'unknown',
+      details: {},
+      issues: [],
+      serviceResults: {}
+    };
+
+    try {
+      // Guard services to test (from constants.js)
+      const guardServices = [
+        { name: 'BiasGuard', type: 'biasguard', enabled: true },
+        { name: 'TrustGuard', type: 'trustguard', enabled: true },
+        { name: 'ContextGuard', type: 'contextguard', enabled: true },
+        { name: 'TokenGuard', type: 'tokenguard', enabled: false },
+        { name: 'HealthGuard', type: 'healthguard', enabled: false }
+      ];
+
+      let hasErrors = false;
+      let hasWarnings = false;
+
+      // Get Clerk token for authenticated requests
+      let clerkToken = null;
+      try {
+        if (typeof gateway !== 'undefined' && gateway.getClerkSessionToken) {
+          clerkToken = await gateway.getClerkSessionToken();
+        } else {
+          // Try to get from storage
+          const stored = await new Promise((resolve) => {
+            chrome.storage.local.get(['clerk_token'], (data) => {
+              resolve(data.clerk_token || null);
+            });
+          });
+          clerkToken = stored;
+        }
+      } catch (e) {
+        // Token retrieval failed - will test without auth
+      }
+
+      // Test each enabled guard service
+      for (const service of guardServices.filter(s => s.enabled)) {
+        const serviceResult = {
+          name: service.name,
+          type: service.type,
+          status: 'unknown',
+          error: null,
+          statusCode: null,
+          responseTime: null,
+          authenticated: !!clerkToken
+        };
+
+        try {
+          // Test guard service via gateway analyze endpoint
+          const testPayload = {
+            text: 'This is a test message for guard service validation.',
+            services: [service.type]
+          };
+
+          const gatewayUrl = typeof gateway !== 'undefined' && gateway.config 
+            ? gateway.config.gatewayUrl 
+            : 'https://api.aiguardian.ai';
+
+          const url = `${gatewayUrl}/api/v1/guards/process`;
+          const startTime = Date.now();
+
+          const headers = {
+            'Content-Type': 'application/json',
+            'X-Extension-Version': chrome.runtime.getManifest().version,
+            'X-Request-ID': `debug_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          };
+
+          if (clerkToken) {
+            headers['Authorization'] = `Bearer ${clerkToken}`;
+          }
+
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(testPayload)
+          });
+
+          serviceResult.responseTime = Date.now() - startTime;
+          serviceResult.statusCode = response.status;
+
+          if (response.status === 403) {
+            serviceResult.status = 'error';
+            serviceResult.error = '403 Forbidden - Authentication required';
+            diagnostic.issues.push(`${service.name}: 403 Forbidden (authentication failure)`);
+            hasErrors = true;
+          } else if (response.status === 401) {
+            serviceResult.status = 'warning';
+            serviceResult.error = '401 Unauthorized - Token expired or invalid';
+            diagnostic.issues.push(`${service.name}: 401 Unauthorized (token issue)`);
+            hasWarnings = true;
+          } else if (response.status === 200) {
+            serviceResult.status = 'ok';
+            try {
+              const data = await response.json();
+              serviceResult.details = { hasResponse: true, responseKeys: Object.keys(data) };
+            } catch (e) {
+              // Response not JSON, but status is OK
+            }
+          } else {
+            serviceResult.status = 'warning';
+            serviceResult.error = `Unexpected status: ${response.status}`;
+            diagnostic.issues.push(`${service.name}: Unexpected status ${response.status}`);
+            hasWarnings = true;
+          }
+        } catch (error) {
+          serviceResult.status = 'error';
+          serviceResult.error = error.message;
+          diagnostic.issues.push(`${service.name}: ${error.message}`);
+          hasErrors = true;
+        }
+
+        diagnostic.serviceResults[service.type] = serviceResult;
+      }
+
+      // Determine overall status
+      if (hasErrors) {
+        diagnostic.status = 'error';
+      } else if (hasWarnings) {
+        diagnostic.status = 'warning';
+      } else {
+        diagnostic.status = 'ok';
+      }
+
+      // Add summary
+      diagnostic.details = {
+        totalServices: guardServices.length,
+        enabledServices: guardServices.filter(s => s.enabled).length,
+        testedServices: guardServices.filter(s => s.enabled).length,
+        authenticated: !!clerkToken,
+        summary: {
+          ok: Object.values(diagnostic.serviceResults).filter(r => r.status === 'ok').length,
+          warning: Object.values(diagnostic.serviceResults).filter(r => r.status === 'warning').length,
+          error: Object.values(diagnostic.serviceResults).filter(r => r.status === 'error').length
+        }
+      };
+
+      console.log(`  ✅ Guard services check complete: ${diagnostic.status.toUpperCase()}`);
+      if (diagnostic.issues.length > 0) {
+        console.log(`  ⚠️  Issues: ${diagnostic.issues.join(', ')}`);
+      }
+    } catch (error) {
+      diagnostic.status = 'error';
+      diagnostic.issues.push(`Guard services check failed: ${error.message}`);
+      console.error('  ❌ Guard services check failed:', error);
+    }
+
+    this.results.diagnostics.guardServices = diagnostic;
+  }
+
+  /**
+   * Check token refresh logic (CRITICAL FOR PUBLICATION)
+   * Validates that token refresh is implemented for expired tokens
+   */
+  async checkTokenRefresh() {
+    console.log('🔄 Checking token refresh logic...');
+    const diagnostic = {
+      name: 'Token Refresh',
+      status: 'unknown',
+      details: {},
+      issues: []
+    };
+
+    try {
+      const checks = {
+        hasRefreshMethod: false,
+        has401Handler: false,
+        hasRetryLogic: false,
+        checksExpiration: false
+      };
+
+      // Check gateway.js for token refresh logic
+      if (typeof gateway !== 'undefined') {
+        // Check if gateway has refresh method
+        if (typeof gateway.refreshToken === 'function' || 
+            typeof gateway.refreshClerkToken === 'function' ||
+            typeof gateway.handleTokenRefresh === 'function') {
+          checks.hasRefreshMethod = true;
+        }
+
+        // Check if gateway handles 401 errors
+        if (typeof gateway.handle401Error === 'function' ||
+            typeof gateway.retryWithRefresh === 'function') {
+          checks.has401Handler = true;
+        }
+      }
+
+      // Check auth.js for refresh logic
+      if (typeof auth !== 'undefined' && auth !== null) {
+        if (typeof auth.refreshToken === 'function' ||
+            typeof auth.refreshSession === 'function') {
+          checks.hasRefreshMethod = true;
+        }
+      }
+
+      // Check if token expiration is checked before use
+      const authDiag = this.results.diagnostics.authentication;
+      if (authDiag && authDiag.details.tokenExpiration) {
+        checks.checksExpiration = true;
+      }
+
+      diagnostic.details.checks = checks;
+
+      // Determine status
+      const allChecks = Object.values(checks);
+      const passedChecks = allChecks.filter(c => c === true).length;
+
+      if (passedChecks === 0) {
+        diagnostic.status = 'error';
+        diagnostic.issues.push('No token refresh logic detected - tokens will expire without refresh');
+        diagnostic.issues.push('No 401 error handler detected - expired tokens will fail requests');
+      } else if (passedChecks < 2) {
+        diagnostic.status = 'warning';
+        diagnostic.issues.push('Token refresh logic incomplete - some scenarios may not be handled');
+      } else {
+        diagnostic.status = 'ok';
+      }
+
+      // Add specific recommendations
+      if (!checks.hasRefreshMethod) {
+        diagnostic.issues.push('Missing: Token refresh method (should refresh on expiration)');
+      }
+      if (!checks.has401Handler) {
+        diagnostic.issues.push('Missing: 401 error handler (should retry with refreshed token)');
+      }
+      if (!checks.checksExpiration) {
+        diagnostic.issues.push('Missing: Proactive expiration check (should refresh before expiration)');
+      }
+
+      console.log(`  ✅ Token refresh check complete: ${diagnostic.status.toUpperCase()}`);
+      if (diagnostic.issues.length > 0) {
+        console.log(`  ⚠️  Issues: ${diagnostic.issues.join(', ')}`);
+      }
+    } catch (error) {
+      diagnostic.status = 'error';
+      diagnostic.issues.push(`Token refresh check failed: ${error.message}`);
+      console.error('  ❌ Token refresh check failed:', error);
+    }
+
+    this.results.diagnostics.tokenRefresh = diagnostic;
+  }
+
+  /**
+   * Check for missing test files (CRITICAL FOR PUBLICATION)
+   */
+  async checkTestFiles() {
+    console.log('🧪 Checking test files...');
+    const diagnostic = {
+      name: 'Test Files',
+      status: 'unknown',
+      details: {},
+      issues: []
+    };
+
+    try {
+      const requiredTests = [
+        { name: 'smoke-test.js', path: 'tests/smoke-test.js', required: true },
+        { name: 'integration-test.js', path: 'tests/integration-test.js', required: false }
+      ];
+
+      const testResults = {};
+
+      // Check package.json for test scripts
+      try {
+        const manifest = chrome.runtime.getManifest();
+        // Note: Can't directly read package.json in extension context
+        // This is a best-effort check
+        testResults.packageJsonCheck = 'Cannot verify in extension context';
+      } catch (e) {
+        // Ignore
+      }
+
+      // Check if smoke test is referenced in setup script
+      // Note: Can't directly read files in extension context
+      // This check is informational
+      diagnostic.details.note = 'File existence check requires file system access (not available in extension context)';
+      diagnostic.details.expectedFiles = requiredTests.map(t => t.path);
+
+      // Check if tests directory structure exists (via message passing if possible)
+      diagnostic.details.checks = {
+        smokeTestExists: 'Cannot verify (requires file system)',
+        integrationTestExists: 'Cannot verify (requires file system)',
+        testScriptsConfigured: 'Check package.json manually'
+      };
+
+      // Mark as warning since we can't verify
+      diagnostic.status = 'warning';
+      diagnostic.issues.push('Cannot verify test file existence in extension context');
+      diagnostic.issues.push('Verify manually: tests/smoke-test.js should exist (referenced in setup script)');
+
+      console.log(`  ✅ Test files check complete: ${diagnostic.status.toUpperCase()}`);
+      if (diagnostic.issues.length > 0) {
+        console.log(`  ⚠️  Issues: ${diagnostic.issues.join(', ')}`);
+      }
+    } catch (error) {
+      diagnostic.status = 'error';
+      diagnostic.issues.push(`Test files check failed: ${error.message}`);
+      console.error('  ❌ Test files check failed:', error);
+    }
+
+    this.results.diagnostics.testFiles = diagnostic;
+  }
+
+  /**
    * Check error handling
    */
   async checkErrorHandling() {
@@ -445,7 +760,27 @@ class ChromeExtensionDebugger {
       ];
 
       diagnostic.details.commonErrorPatterns = commonErrors;
-      diagnostic.status = 'ok';
+
+      // Check guard services diagnostic for 403 errors (CRITICAL)
+      const guardServicesDiag = this.results.diagnostics.guardServices;
+      if (guardServicesDiag && guardServicesDiag.status === 'error') {
+        const has403Errors = guardServicesDiag.issues.some(i => i.includes('403'));
+        if (has403Errors) {
+          diagnostic.issues.push('CRITICAL: Guard services returning 403 Forbidden (authentication failure)');
+          diagnostic.status = 'error';
+        }
+      }
+
+      // Check token refresh diagnostic
+      const tokenRefreshDiag = this.results.diagnostics.tokenRefresh;
+      if (tokenRefreshDiag && tokenRefreshDiag.status === 'error') {
+        diagnostic.issues.push('CRITICAL: Token refresh logic missing (poor UX on token expiration)');
+        if (diagnostic.status !== 'error') diagnostic.status = 'warning';
+      }
+
+      if (diagnostic.status === 'unknown') {
+        diagnostic.status = 'ok';
+      }
 
       console.log(`  ✅ Error handling check complete: ${diagnostic.status.toUpperCase()}`);
     } catch (error) {
@@ -597,6 +932,36 @@ class ChromeExtensionDebugger {
       checks.push({ name: 'Performance', status: 'pass' });
     }
 
+    // Check 6: Guard Services (CRITICAL FOR PUBLICATION)
+    const guardServicesDiag = this.results.diagnostics.guardServices;
+    if (guardServicesDiag && guardServicesDiag.status === 'error') {
+      checks.push({ name: 'Guard Services', status: 'fail', message: 'Guard services failing (403 errors)' });
+      diagnostic.issues.push('CRITICAL: Guard services non-functional');
+    } else if (guardServicesDiag && guardServicesDiag.status === 'warning') {
+      checks.push({ name: 'Guard Services', status: 'warning', message: 'Guard services have warnings' });
+    } else if (guardServicesDiag) {
+      checks.push({ name: 'Guard Services', status: 'pass' });
+    }
+
+    // Check 7: Token Refresh (CRITICAL FOR PUBLICATION)
+    const tokenRefreshDiag = this.results.diagnostics.tokenRefresh;
+    if (tokenRefreshDiag && tokenRefreshDiag.status === 'error') {
+      checks.push({ name: 'Token Refresh', status: 'fail', message: 'Token refresh logic missing' });
+      diagnostic.issues.push('CRITICAL: No token refresh on expiration');
+    } else if (tokenRefreshDiag && tokenRefreshDiag.status === 'warning') {
+      checks.push({ name: 'Token Refresh', status: 'warning', message: 'Token refresh incomplete' });
+    } else if (tokenRefreshDiag) {
+      checks.push({ name: 'Token Refresh', status: 'pass' });
+    }
+
+    // Check 8: Test Files (HIGH PRIORITY)
+    const testFilesDiag = this.results.diagnostics.testFiles;
+    if (testFilesDiag && testFilesDiag.status === 'warning') {
+      checks.push({ name: 'Test Files', status: 'warning', message: 'Test files verification incomplete' });
+    } else if (testFilesDiag) {
+      checks.push({ name: 'Test Files', status: 'pass' });
+    }
+
     diagnostic.details.checks = checks;
 
     // Determine overall status
@@ -660,6 +1025,42 @@ class ChromeExtensionDebugger {
         priority: 'MEDIUM',
         message: 'Implement token refresh logic',
         action: 'Add automatic token refresh on 401 errors'
+      });
+    }
+
+    // Guard Services recommendations (CRITICAL)
+    const guardServicesDiag = this.results.diagnostics.guardServices;
+    if (guardServicesDiag && guardServicesDiag.status === 'error') {
+      const has403Errors = guardServicesDiag.issues.some(i => i.includes('403'));
+      if (has403Errors) {
+        recommendations.push({
+          category: 'Guard Services',
+          priority: 'CRITICAL',
+          message: 'Fix guard services authentication - all services returning 403 Forbidden',
+          action: 'Configure backend gateway to authenticate with guard services. Add API keys or service-to-service authentication.'
+        });
+      }
+    }
+
+    // Token Refresh recommendations (CRITICAL)
+    const tokenRefreshDiag = this.results.diagnostics.tokenRefresh;
+    if (tokenRefreshDiag && tokenRefreshDiag.status === 'error') {
+      recommendations.push({
+        category: 'Token Refresh',
+        priority: 'CRITICAL',
+        message: 'Implement token refresh logic - tokens expire without automatic refresh',
+        action: 'Add token refresh method, 401 error handler, and retry logic in gateway.js'
+      });
+    }
+
+    // Test Files recommendations (HIGH)
+    const testFilesDiag = this.results.diagnostics.testFiles;
+    if (testFilesDiag && testFilesDiag.status === 'warning') {
+      recommendations.push({
+        category: 'Testing',
+        priority: 'HIGH',
+        message: 'Create missing smoke test file',
+        action: 'Create tests/smoke-test.js or remove smoke test from setup script'
       });
     }
 
@@ -741,15 +1142,15 @@ class ChromeExtensionDebugger {
 // Auto-run if in service worker context
 if (typeof importScripts !== 'undefined') {
   // Service worker context
-  const debugger = new ChromeExtensionDebugger('service-worker');
+  const extensionDebugger = new ChromeExtensionDebugger('service-worker');
   window.ChromeExtensionDebugger = ChromeExtensionDebugger;
-  window.runDiagnostics = () => debugger.runAllDiagnostics();
+  window.runDiagnostics = () => extensionDebugger.runAllDiagnostics();
   console.log('🔍 Chrome Extension Debugger loaded. Run: runDiagnostics()');
 } else if (typeof window !== 'undefined') {
   // Window context (popup, options, content script)
   window.ChromeExtensionDebugger = ChromeExtensionDebugger;
-  const debugger = new ChromeExtensionDebugger();
-  window.runDiagnostics = () => debugger.runAllDiagnostics();
+  const extensionDebugger = new ChromeExtensionDebugger();
+  window.runDiagnostics = () => extensionDebugger.runAllDiagnostics();
   console.log('🔍 Chrome Extension Debugger loaded. Run: runDiagnostics()');
 }
 

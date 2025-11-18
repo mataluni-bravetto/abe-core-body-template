@@ -242,6 +242,19 @@ class AiGuardianGateway {
     this.cacheManager = new CacheManager();
     this.subscriptionService = null; // Will be initialized after gateway is ready
 
+    // EPISTEMIC: Circuit breaker for resilience (fail-fast on backend outages)
+    if (typeof CircuitBreaker !== 'undefined') {
+      this.circuitBreaker = new CircuitBreaker({
+        failureThreshold: 5,
+        resetTimeout: 60000, // 1 minute cooldown
+        timeout: API_CONFIG.TIMEOUT
+      });
+      Logger.info('[Gateway] Circuit breaker initialized');
+    } else {
+      Logger.warn('[Gateway] CircuitBreaker not available - resilience reduced');
+      this.circuitBreaker = null;
+    }
+
     this.initializeGateway();
   }
 
@@ -503,133 +516,227 @@ class AiGuardianGateway {
       body: JSON.stringify(payload)
     };
 
-    let lastError;
-    for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
-      try {
-        this.logger.trace(`Attempt ${attempt}/${this.config.retryAttempts}`, {
-          requestId,
-          endpoint: mappedEndpoint,
-          attempt
-        });
-        
-        const response = await fetch(url, requestOptions);
-        const responseTime = Date.now() - startTime;
-        
-        if (!response.ok) {
-          // Try to parse JSON error response first
-          let errorData = null;
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            try {
-              errorData = await response.json();
-            } catch (e) {
-              // If JSON parsing fails, fall back to text
+    // EPISTEMIC: Wrap fetch in circuit breaker for resilience
+    const executeRequest = async () => {
+      let lastError;
+      for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
+        try {
+          this.logger.trace(`Attempt ${attempt}/${this.config.retryAttempts}`, {
+            requestId,
+            endpoint: mappedEndpoint,
+            attempt
+          });
+          
+          const response = await fetch(url, requestOptions);
+          const responseTime = Date.now() - startTime;
+          
+          if (!response.ok) {
+            // EPISTEMIC: Handle 401 with mutex-protected token refresh
+            if (response.status === 401 && clerkToken) {
+              // Check if Web Locks API is available for mutex
+              if (typeof navigator !== 'undefined' && navigator.locks) {
+                try {
+                  // Acquire lock for token refresh to prevent thundering herd
+                  const refreshedResponse = await navigator.locks.request('token_refresh', async (lock) => {
+                    // Check if token was already refreshed by another request
+                    const currentToken = await this.getClerkSessionToken();
+                    if (currentToken === clerkToken) {
+                      // We're the first - refresh token
+                      const newToken = await this.refreshClerkToken();
+                      if (newToken) {
+                        // Update headers with new token
+                        const newHeaders = { ...headers, 'Authorization': 'Bearer ' + newToken };
+                        const newRequestOptions = { ...requestOptions, headers: newHeaders };
+                        // Retry request with new token
+                        const retryResponse = await fetch(url, newRequestOptions);
+                        if (retryResponse.ok) {
+                          return retryResponse;
+                        }
+                      }
+                    } else {
+                      // Another request refreshed - use new token
+                      const newHeaders = { ...headers, 'Authorization': 'Bearer ' + currentToken };
+                      const newRequestOptions = { ...requestOptions, headers: newHeaders };
+                      const retryResponse = await fetch(url, newRequestOptions);
+                      if (retryResponse.ok) {
+                        return retryResponse;
+                      }
+                    }
+                    // If refresh/retry failed, return original response
+                    return response;
+                  });
+                  
+                  // If we got a successful refreshed response, process it
+                  if (refreshedResponse && refreshedResponse.ok) {
+                    const result = await refreshedResponse.json();
+                    const validationResult = this.validateApiResponse(result, endpoint);
+                    const finalResult = validationResult.transformedResponse || result;
+                    this.traceStats.successes++;
+                    this.traceStats.totalResponseTime += (Date.now() - startTime);
+                    this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
+                    return finalResult;
+                  }
+                } catch (refreshError) {
+                  Logger.warn('[Gateway] Token refresh mutex failed, continuing with error handling:', refreshError);
+                }
+              }
+            }
+            
+            // EPISTEMIC: Handle 403 Forbidden explicitly
+            if (response.status === 403) {
+              Logger.error('[Gateway] 403 Forbidden - Authentication/Authorization failed', {
+                requestId,
+                endpoint: mappedEndpoint
+              });
+              const errorResponse = {
+                success: false,
+                error: 'Access denied. Please check your authentication and try again.',
+                status: 403,
+                requiresAuth: true
+              };
+              if (endpoint === 'analyze') {
+                return errorResponse;
+              }
+              throw new Error(errorResponse.error);
+            }
+            
+            // Try to parse JSON error response first
+            let errorData = null;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              try {
+                errorData = await response.json();
+              } catch (e) {
+                // If JSON parsing fails, fall back to text
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+              }
+            } else {
               const errorText = await response.text();
               throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
             }
+            
+            // Create error response object that will be properly handled
+            const errorResponse = {
+              success: false,
+              error: errorData?.detail || errorData?.error || errorData?.message || `HTTP ${response.status}: ${response.statusText}`,
+              status: response.status,
+              ...errorData
+            };
+            
+            // For analyze endpoint, return error response structure instead of throwing
+            // This allows the caller to handle it gracefully
+            if (endpoint === 'analyze') {
+              return errorResponse;
+            }
+            
+            // For other endpoints, throw error
+            throw new Error(errorResponse.error);
+          }
+          
+          const result = await response.json();
+          
+          // Validate response data
+          const validationResult = this.validateApiResponse(result, endpoint);
+          if (!validationResult.isValid) {
+            this.logger.warn('API response validation failed', {
+              requestId,
+              endpoint: mappedEndpoint,
+              validationErrors: validationResult.errors
+            });
+          }
+          
+          // Use transformed response if available (for mock API)
+          // If validation failed but we have a transformed response, use it
+          // Otherwise use the original result
+          const finalResult = validationResult.transformedResponse || result;
+          
+          // Update trace stats only if result is successful
+          const isSuccess = finalResult && finalResult.success !== false && !finalResult.error;
+          if (isSuccess) {
+            this.traceStats.successes++;
+            this.traceStats.totalResponseTime += responseTime;
+            this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
+            
+            this.logger.info('Gateway request successful', {
+              requestId,
+              endpoint: mappedEndpoint,
+              attempt,
+              responseTime,
+              statusCode: response.status,
+              responseSize: JSON.stringify(finalResult).length
+            });
           } else {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+            // Log warning for unsuccessful responses
+            this.logger.warn('Gateway request returned error response', {
+              requestId,
+              endpoint: mappedEndpoint,
+              attempt,
+              responseTime,
+              statusCode: response.status,
+              error: finalResult?.error
+            });
           }
           
-          // Create error response object that will be properly handled
-          const errorResponse = {
-            success: false,
-            error: errorData?.detail || errorData?.error || errorData?.message || `HTTP ${response.status}: ${response.statusText}`,
-            status: response.status,
-            ...errorData
-          };
+          return finalResult;
+        } catch (err) {
+          lastError = err;
+          const responseTime = Date.now() - startTime;
           
-          // For analyze endpoint, return error response structure instead of throwing
-          // This allows the caller to handle it gracefully
-          if (endpoint === 'analyze') {
-            return errorResponse;
+          this.logger.error('Gateway request failed', {
+            requestId,
+            endpoint: mappedEndpoint,
+            attempt,
+            error: err.message,
+            responseTime,
+            errorType: err.name
+          });
+          
+          if (attempt < this.config.retryAttempts) {
+            const delayTime = this.config.retryDelay * attempt;
+            this.logger.trace(`Retrying in ${delayTime}ms`, {
+              requestId,
+              attempt,
+              nextAttempt: attempt + 1
+            });
+            await this.delay(delayTime);
           }
-          
-          // For other endpoints, throw error
-          throw new Error(errorResponse.error);
-        }
-        
-        const result = await response.json();
-        
-        // Validate response data
-        const validationResult = this.validateApiResponse(result, endpoint);
-        if (!validationResult.isValid) {
-          this.logger.warn('API response validation failed', {
-            requestId,
-            endpoint: mappedEndpoint,
-            validationErrors: validationResult.errors
-          });
-        }
-        
-        // Use transformed response if available (for mock API)
-        // If validation failed but we have a transformed response, use it
-        // Otherwise use the original result
-        const finalResult = validationResult.transformedResponse || result;
-        
-        // Update trace stats only if result is successful
-        const isSuccess = finalResult && finalResult.success !== false && !finalResult.error;
-        if (isSuccess) {
-          this.traceStats.successes++;
-          this.traceStats.totalResponseTime += responseTime;
-          this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
-          
-          this.logger.info('Gateway request successful', {
-            requestId,
-            endpoint: mappedEndpoint,
-            attempt,
-            responseTime,
-            statusCode: response.status,
-            responseSize: JSON.stringify(finalResult).length
-          });
-        } else {
-          // Log warning for unsuccessful responses
-          this.logger.warn('Gateway request returned error response', {
-            requestId,
-            endpoint: mappedEndpoint,
-            attempt,
-            responseTime,
-            statusCode: response.status,
-            error: finalResult?.error
-          });
-        }
-        
-        return finalResult;
-      } catch (err) {
-        lastError = err;
-        const responseTime = Date.now() - startTime;
-        
-        this.logger.error('Gateway request failed', {
-          requestId,
-          endpoint: mappedEndpoint,
-          attempt,
-          error: err.message,
-          responseTime,
-          errorType: err.name
-        });
-        
-        if (attempt < this.config.retryAttempts) {
-          const delayTime = this.config.retryDelay * attempt;
-          this.logger.trace(`Retrying in ${delayTime}ms`, {
-            requestId,
-            attempt,
-            nextAttempt: attempt + 1
-          });
-          await this.delay(delayTime);
         }
       }
+      
+      // Final failure
+      this.traceStats.failures++;
+      this.logger.error('All retry attempts failed', {
+        requestId,
+        endpoint: mappedEndpoint,
+        totalAttempts: this.config.retryAttempts,
+        finalError: lastError.message
+      });
+      
+      throw lastError;
+    };
+
+    // Execute with circuit breaker if available
+    if (this.circuitBreaker) {
+      try {
+        return await this.circuitBreaker.execute(executeRequest, {
+          requestId,
+          endpoint: mappedEndpoint,
+          url
+        });
+      } catch (error) {
+        // Circuit breaker error (OPEN state)
+        if (error.message.includes('Circuit breaker is OPEN')) {
+          this.traceStats.failures++;
+          throw error;
+        }
+        // Re-throw other errors
+        throw error;
+      }
+    } else {
+      // Fallback to direct execution if circuit breaker not available
+      return await executeRequest();
     }
-    
-    // Final failure
-    this.traceStats.failures++;
-    this.logger.error('All retry attempts failed', {
-      requestId,
-      endpoint: mappedEndpoint,
-      totalAttempts: this.config.retryAttempts,
-      finalError: lastError.message
-    });
-    
-    throw lastError;
   }
 
   /**
@@ -789,18 +896,33 @@ class AiGuardianGateway {
 
   /**
    * Update client configuration (simplified)
+   * EPISTEMIC: Uses mutex protection to prevent race conditions
    */
   async updateConfiguration(newConfig) {
     this.config = { ...this.config, ...newConfig };
 
-    await new Promise((resolve) => {
-      chrome.storage.sync.set({
-        gateway_url: this.config.gatewayUrl,
-        api_key: this.config.apiKey,
-        timeout: this.config.timeout,
-        retry_attempts: this.config.retryAttempts
-      }, resolve);
-    });
+    // EPISTEMIC: Use mutex for storage updates to prevent race conditions
+    if (typeof MutexHelper !== 'undefined') {
+      await MutexHelper.withLock('config_update', async () => {
+        await new Promise((resolve) => {
+          chrome.storage.sync.set({
+            gateway_url: this.config.gatewayUrl,
+            api_key: this.config.apiKey,
+            timeout: this.config.timeout,
+            retry_attempts: this.config.retryAttempts
+          }, resolve);
+        });
+      });
+    } else {
+      await new Promise((resolve) => {
+        chrome.storage.sync.set({
+          gateway_url: this.config.gatewayUrl,
+          api_key: this.config.apiKey,
+          timeout: this.config.timeout,
+          retry_attempts: this.config.retryAttempts
+        }, resolve);
+      });
+    }
 
     // Log configuration update with explicit error handling
     if (this.centralLogger) {
@@ -810,6 +932,30 @@ class AiGuardianGateway {
         Logger.warn('[Gateway] Central logging failed, continuing:', logError);
       }
     }
+  }
+
+  /**
+   * EPISTEMIC: Check storage quota before writes
+   * Prevents silent failures when quota is exceeded
+   */
+  async checkStorageQuota() {
+    return new Promise((resolve) => {
+      chrome.storage.local.getBytesInUse(null, (bytes) => {
+        const quota = chrome.storage.local.QUOTA_BYTES || 5242880; // 5MB default
+        const usagePercent = (bytes / quota) * 100;
+        
+        if (usagePercent > 90) {
+          Logger.warn('[Gateway] Storage quota nearly exceeded', {
+            bytes,
+            quota,
+            usagePercent: usagePercent.toFixed(2) + '%',
+            remainingBytes: quota - bytes
+          });
+        }
+        
+        resolve({ bytes, quota, usagePercent, remainingBytes: quota - bytes });
+      });
+    });
   }
 
   /**
@@ -997,6 +1143,40 @@ class AiGuardianGateway {
   }
 
   /**
+   * EPISTEMIC: Refresh Clerk session token
+   * Used for automatic token refresh on 401 errors with mutex protection
+   * 
+   * @returns {Promise<string|null>} New token or null if refresh failed
+   */
+  async refreshClerkToken() {
+    try {
+      // Try to get fresh token from Clerk SDK (if in window context)
+      if (typeof window !== 'undefined' && window.Clerk) {
+        const clerk = window.Clerk;
+        if (typeof clerk.load === 'function' && !clerk.loaded) {
+          await clerk.load();
+        }
+        const session = await clerk.session;
+        if (session) {
+          const newToken = await session.getToken();
+          if (newToken) {
+            await this.storeClerkToken(newToken);
+            Logger.info('[Gateway] Token refreshed successfully');
+            return newToken;
+          }
+        }
+      }
+      
+      // Fallback: return null (user must re-authenticate)
+      Logger.warn('[Gateway] Token refresh failed - user must re-authenticate');
+      return null;
+    } catch (error) {
+      Logger.error('[Gateway] Token refresh error:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get stored Clerk token from chrome.storage.local
    */
   async getStoredClerkToken() {
@@ -1009,11 +1189,17 @@ class AiGuardianGateway {
 
   /**
    * Store Clerk token in chrome.storage.local
+   * EPISTEMIC: Uses mutex protection to prevent race conditions
    */
   async storeClerkToken(token) {
-    return new Promise((resolve) => {
-      chrome.storage.local.set({ clerk_token: token }, resolve);
-    });
+    // Use mutex if available, otherwise fallback to direct storage
+    if (typeof MutexHelper !== 'undefined') {
+      return await MutexHelper.updateStorage('clerk_token', () => token, 'local');
+    } else {
+      return new Promise((resolve) => {
+        chrome.storage.local.set({ clerk_token: token }, resolve);
+      });
+    }
   }
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));

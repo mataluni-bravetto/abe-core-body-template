@@ -16,6 +16,8 @@ importScripts('logging.js');
 importScripts('string-optimizer.js');
 importScripts('cache-manager.js');
 importScripts('subscription-service.js');
+importScripts('mutex-helper.js'); // EPISTEMIC: Mutex patterns for race condition prevention
+importScripts('circuit-breaker.js'); // EPISTEMIC: Circuit breaker for resilience
 importScripts('gateway.js');
 
 let gateway = null;
@@ -610,26 +612,38 @@ try {
 
   /**
    * TRACER BULLET: Save analysis to history
+   * EPISTEMIC: Uses mutex protection to prevent race conditions
    */
-  function saveToHistory(text, analysis) {
-    chrome.storage.sync.get(['analysis_history'], (data) => {
-      const history = data.analysis_history || [];
-      
-      // Add new entry
-      history.unshift({
+  async function saveToHistory(text, analysis) {
+    // EPISTEMIC: Use mutex-protected array append to prevent race conditions
+    if (typeof MutexHelper !== 'undefined') {
+      await MutexHelper.appendToArray('analysis_history', {
         text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
         fullText: text,
         analysis: analysis,
         timestamp: new Date().toISOString()
+      }, 50, 'sync'); // Keep last 50 entries, use sync storage
+    } else {
+      // Fallback to direct storage (race condition risk)
+      chrome.storage.sync.get(['analysis_history'], (data) => {
+        const history = data.analysis_history || [];
+        
+        // Add new entry
+        history.unshift({
+          text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+          fullText: text,
+          analysis: analysis,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Keep only last 50 entries
+        if (history.length > 50) {
+          history.pop();
+        }
+        
+        chrome.storage.sync.set({ analysis_history: history });
       });
-      
-      // Keep only last 50 entries
-      if (history.length > 50) {
-        history.pop();
-      }
-      
-      chrome.storage.sync.set({ analysis_history: history });
-    });
+    }
   }
 
   /**

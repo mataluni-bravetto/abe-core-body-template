@@ -1,0 +1,22 @@
+QUARANTINED CLONE - DEV BRANCH ONLY
+====================================
+This repository is quarantined to prevent drift.
+
+Clone Date: 2025-11-18 15:17:53
+Branch: dev
+Source: https://github.com/bravetto/AiGuardian-Chrome-Ext/tree/dev
+
+QUARANTINE MEASURES:
+- Single-branch clone (dev only)
+- Isolated directory: AiGuardian-Chrome-Ext-dev
+- Git config locked to dev branch only
+
+DO NOT:
+- Push changes directly
+- Merge other branches
+- Modify remote configuration
+
+TO UPDATE:
+- Pull from origin/dev only
+- Create new branch for changes if needed
+
