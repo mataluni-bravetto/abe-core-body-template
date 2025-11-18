@@ -45,7 +45,8 @@
       { id: 'refresh_subscription', event: 'click', handler: refreshSubscriptionInfo },
       { id: 'manage_subscription', event: 'click', handler: manageSubscription },
       { id: 'upgrade_subscription', event: 'click', handler: upgradeSubscription },
-      { id: 'test_connection', event: 'click', handler: testBackendConnection }
+      { id: 'test_connection', event: 'click', handler: testBackendConnection },
+      { id: 'test_oauth_config', event: 'click', handler: testOAuthConfiguration }
     ];
 
     elements.forEach(({ id, event, handler }) => {
@@ -313,7 +314,7 @@
       
       const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
       const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
-      const manageUrl = `${baseUrl}/subscription` || 'https://www.aiguardian.ai/subscription';
+      const manageUrl = baseUrl ? `${baseUrl}/subscription` : 'https://www.aiguardian.ai/subscription';
       
       chrome.tabs.create({ url: manageUrl });
     } catch (err) {
@@ -333,11 +334,532 @@
       
       const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
       const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
-      const upgradeUrl = `${baseUrl}/subscribe` || 'https://www.aiguardian.ai/subscribe';
+      const upgradeUrl = baseUrl ? `${baseUrl}/subscribe` : 'https://www.aiguardian.ai/subscribe';
       
       chrome.tabs.create({ url: upgradeUrl });
     } catch (err) {
       Logger.error('Failed to open upgrade page', err);
+    }
+  }
+
+  /**
+   * Test OAuth configuration
+   */
+  async function testOAuthConfiguration() {
+    const resultElement = document.getElementById('oauth_config_result');
+    const testButton = document.getElementById('test_oauth_config');
+    
+    if (!resultElement || !testButton) return;
+    
+    // Update UI to show testing state
+    testButton.disabled = true;
+    testButton.textContent = '🔄 Verifying...';
+    resultElement.style.display = 'block';
+    
+    // Clear existing content and create loading message safely
+    while (resultElement.firstChild) {
+      resultElement.removeChild(resultElement.firstChild);
+    }
+    const loadingDiv = document.createElement('div');
+    loadingDiv.style.color = 'rgba(249, 249, 249, 0.7)';
+    loadingDiv.textContent = 'Verifying OAuth configuration...';
+    resultElement.appendChild(loadingDiv);
+    
+    try {
+      // Get Clerk publishable key
+      const syncData = await new Promise((resolve) => {
+        chrome.storage.sync.get(['clerk_publishable_key'], resolve);
+      });
+      
+      let publishableKey = syncData.clerk_publishable_key;
+      
+      // If no key in storage, try fetching from backend
+      if (!publishableKey) {
+        try {
+          const auth = new AiGuardianAuth();
+          const settings = await auth.getSettings();
+          publishableKey = settings.clerk_publishable_key;
+        } catch (e) {
+          Logger.warn('[OAuth Test] Failed to fetch key from backend:', e);
+        }
+      }
+      
+      if (!publishableKey) {
+        // Build error message safely using DOM methods
+        while (resultElement.firstChild) {
+          resultElement.removeChild(resultElement.firstChild);
+        }
+        
+        const errorTitle = document.createElement('div');
+        errorTitle.style.color = '#FF5757';
+        errorTitle.style.marginBottom = '8px';
+        errorTitle.style.fontWeight = '600';
+        errorTitle.textContent = '❌ Clerk Publishable Key Not Configured';
+        
+        const errorMessage = document.createElement('div');
+        errorMessage.style.color = 'rgba(249, 249, 249, 0.7)';
+        errorMessage.style.fontSize = '11px';
+        errorMessage.style.marginBottom = '8px';
+        errorMessage.textContent = 'Clerk publishable key is required for OAuth to work. Configure it in the Authentication section above.';
+        
+        resultElement.appendChild(errorTitle);
+        resultElement.appendChild(errorMessage);
+        return;
+      }
+      
+      // Extract instance ID from publishable key to determine Clerk instance URL
+      let instanceDomain = null;
+      let redirectUri = null;
+      
+      try {
+        const keyParts = publishableKey.split('_');
+        if (keyParts.length >= 3) {
+          const keyType = keyParts[1]; // 'test' or 'live'
+          const encodedInstance = keyParts.slice(2).join('_');
+          
+          // Decode base64 to get instance identifier
+          let decodedInstance;
+          if (typeof atob !== 'undefined') {
+            decodedInstance = atob(encodedInstance);
+          } else if (typeof Buffer !== 'undefined') {
+            decodedInstance = Buffer.from(encodedInstance, 'base64').toString('utf-8');
+          }
+          
+          if (decodedInstance) {
+            const instanceMatch = decodedInstance.match(/^([^.]+)/);
+            if (instanceMatch) {
+              const instanceId = instanceMatch[1];
+              instanceDomain = keyType === 'test' 
+                ? `${instanceId}.accounts.dev`
+                : `${instanceId}.clerk.accounts.dev`;
+              
+              // Determine redirect URI based on instance
+              if (keyType === 'test') {
+                redirectUri = `https://${instanceDomain}/v1/oauth_callback`;
+              } else {
+                // Production uses clerk.aiguardian.ai
+                redirectUri = 'https://clerk.aiguardian.ai/v1/oauth_callback';
+              }
+            }
+          }
+        }
+      } catch (e) {
+        Logger.warn('[OAuth Test] Failed to extract instance info:', e);
+      }
+      
+      // Build diagnostic results
+      const results = [];
+      
+      // Check 1: Clerk key configured
+      results.push({
+        name: 'Clerk Publishable Key',
+        status: 'ok',
+        message: 'Clerk publishable key is configured'
+      });
+      
+      // Check 2: Instance domain detected
+      if (instanceDomain) {
+        results.push({
+          name: 'Clerk Instance',
+          status: 'ok',
+          message: `Detected instance: ${instanceDomain}`
+        });
+      } else {
+        results.push({
+          name: 'Clerk Instance',
+          status: 'warning',
+          message: 'Could not determine Clerk instance from publishable key'
+        });
+      }
+      
+      // Check 3: Redirect URI
+      if (redirectUri) {
+        results.push({
+          name: 'Required Redirect URI',
+          status: 'info',
+          message: redirectUri,
+          isUri: true
+        });
+      } else {
+        results.push({
+          name: 'Required Redirect URI',
+          status: 'warning',
+          message: 'Could not determine redirect URI (check documentation)'
+        });
+      }
+      
+      // Build result DOM safely without innerHTML
+      while (resultElement.firstChild) {
+        resultElement.removeChild(resultElement.firstChild);
+      }
+      
+      const container = document.createElement('div');
+      container.style.lineHeight = '1.6';
+      
+      results.forEach((result, index) => {
+        const statusIcon = result.status === 'ok' ? '✅' : 
+                          result.status === 'warning' ? '⚠️' : 
+                          result.status === 'info' ? 'ℹ️' : '❌';
+        const statusColor = result.status === 'ok' ? '#33B8FF' : 
+                           result.status === 'warning' ? '#FFB800' : 
+                           result.status === 'info' ? '#33B8FF' : '#FF5757';
+        
+        const resultDiv = document.createElement('div');
+        if (index < results.length - 1) {
+          resultDiv.style.marginBottom = '12px';
+          resultDiv.style.paddingBottom = '12px';
+          resultDiv.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+        }
+        
+        const flexContainer = document.createElement('div');
+        flexContainer.style.display = 'flex';
+        flexContainer.style.alignItems = 'flex-start';
+        flexContainer.style.gap = '8px';
+        
+        const iconSpan = document.createElement('span');
+        iconSpan.style.fontSize = '14px';
+        iconSpan.textContent = statusIcon;
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.style.flex = '1';
+        
+        const nameDiv = document.createElement('div');
+        nameDiv.style.fontWeight = '600';
+        nameDiv.style.color = statusColor;
+        nameDiv.style.marginBottom = '4px';
+        nameDiv.textContent = result.name;
+        
+        if (result.isUri) {
+          // For URI display, use monospace code block
+          const uriDiv = document.createElement('div');
+          uriDiv.style.fontFamily = 'monospace';
+          uriDiv.style.fontSize = '11px';
+          uriDiv.style.background = 'rgba(0,0,0,0.3)';
+          uriDiv.style.padding = '8px';
+          uriDiv.style.borderRadius = '4px';
+          uriDiv.style.marginTop = '4px';
+          uriDiv.style.wordBreak = 'break-all';
+          uriDiv.textContent = result.message; // Safe: textContent escapes HTML
+          contentDiv.appendChild(nameDiv);
+          contentDiv.appendChild(uriDiv);
+        } else {
+          const messageDiv = document.createElement('div');
+          messageDiv.style.fontSize = '12px';
+          messageDiv.style.color = 'rgba(249, 249, 249, 0.8)';
+          messageDiv.textContent = result.message; // Safe: textContent escapes HTML
+          contentDiv.appendChild(nameDiv);
+          contentDiv.appendChild(messageDiv);
+        }
+        
+        flexContainer.appendChild(iconSpan);
+        flexContainer.appendChild(contentDiv);
+        resultDiv.appendChild(flexContainer);
+        container.appendChild(resultDiv);
+      });
+      
+      // Add instructions section safely
+      const instructionsDiv = document.createElement('div');
+      instructionsDiv.style.marginTop = '16px';
+      instructionsDiv.style.padding = '12px';
+      instructionsDiv.style.background = 'rgba(51, 184, 255, 0.1)';
+      instructionsDiv.style.borderRadius = '8px';
+      instructionsDiv.style.border = '1px solid rgba(51, 184, 255, 0.3)';
+      
+      const instructionsTitle = document.createElement('div');
+      instructionsTitle.style.fontWeight = '600';
+      instructionsTitle.style.color = '#33B8FF';
+      instructionsTitle.style.marginBottom = '8px';
+      instructionsTitle.style.fontSize = '12px';
+      instructionsTitle.textContent = '📋 Next Steps';
+      
+      const instructionsContent = document.createElement('div');
+      instructionsContent.style.fontSize = '11px';
+      instructionsContent.style.color = 'rgba(249, 249, 249, 0.8)';
+      instructionsContent.style.lineHeight = '1.6';
+      
+      if (redirectUri) {
+        // Build instructions with links safely
+        const step1 = document.createTextNode('1. Go to ');
+        const link1 = document.createElement('a');
+        link1.href = 'https://console.cloud.google.com/';
+        link1.target = '_blank';
+        link1.style.color = '#33B8FF';
+        link1.textContent = 'Google Cloud Console';
+        
+        const step2 = document.createTextNode('2. Navigate to APIs & Services → Credentials');
+        const step2Br = document.createElement('br');
+        
+        const step3 = document.createTextNode('3. Find your OAuth 2.0 Client ID (matches Clerk Dashboard)');
+        const step3Br = document.createElement('br');
+        
+        const step4a = document.createTextNode('4. Add authorized redirect URI: ');
+        const codeEl = document.createElement('code');
+        codeEl.style.background = 'rgba(0,0,0,0.3)';
+        codeEl.style.padding = '2px 4px';
+        codeEl.style.borderRadius = '2px';
+        codeEl.textContent = redirectUri; // Safe: textContent escapes HTML
+        
+        const step4Br = document.createElement('br');
+        const step5 = document.createTextNode('5. Save and wait 1-2 minutes for changes to propagate');
+        const step5Br = document.createElement('br');
+        const step5Br2 = document.createElement('br');
+        
+        const step6a = document.createTextNode('See ');
+        const link2 = document.createElement('a');
+        link2.href = 'https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md';
+        link2.target = '_blank';
+        link2.style.color = '#33B8FF';
+        link2.textContent = 'full documentation';
+        const step6b = document.createTextNode(' for detailed steps.');
+        
+        instructionsContent.appendChild(step1);
+        instructionsContent.appendChild(link1);
+        instructionsContent.appendChild(step2Br);
+        instructionsContent.appendChild(step2);
+        instructionsContent.appendChild(step3Br);
+        instructionsContent.appendChild(step3);
+        instructionsContent.appendChild(step4Br);
+        instructionsContent.appendChild(step4a);
+        instructionsContent.appendChild(codeEl);
+        instructionsContent.appendChild(step4Br);
+        instructionsContent.appendChild(step5);
+        instructionsContent.appendChild(step5Br);
+        instructionsContent.appendChild(step5Br2);
+        instructionsContent.appendChild(step6a);
+        instructionsContent.appendChild(link2);
+        instructionsContent.appendChild(step6b);
+      } else {
+        const step1a = document.createTextNode('See ');
+        const link = document.createElement('a');
+        link.href = 'https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md';
+        link.target = '_blank';
+        link.style.color = '#33B8FF';
+        link.textContent = 'OAuth Configuration Guide';
+        const step1b = document.createTextNode(' for setup instructions.');
+        
+        instructionsContent.appendChild(step1a);
+        instructionsContent.appendChild(link);
+        instructionsContent.appendChild(step1b);
+      }
+      
+      instructionsDiv.appendChild(instructionsTitle);
+      instructionsDiv.appendChild(instructionsContent);
+      container.appendChild(instructionsDiv);
+      resultElement.appendChild(container);
+      
+      Logger.info('[OAuth Test] Configuration verification completed');
+    } catch (error) {
+      // Build error message safely using DOM methods
+      while (resultElement.firstChild) {
+        resultElement.removeChild(resultElement.firstChild);
+      }
+      
+      const errorTitle = document.createElement('div');
+      errorTitle.style.color = '#FF5757';
+      errorTitle.style.fontWeight = '600';
+      errorTitle.textContent = '❌ Verification Failed';
+      
+      const errorMessage = document.createElement('div');
+      errorMessage.style.color = 'rgba(249, 249, 249, 0.7)';
+      errorMessage.style.fontSize = '11px';
+      errorMessage.style.marginTop = '8px';
+      // Safe: textContent escapes HTML, preventing XSS from error.message
+      errorMessage.textContent = `Error: ${error.message || 'Unknown error'}`;
+      
+      resultElement.appendChild(errorTitle);
+      resultElement.appendChild(errorMessage);
+      
+      Logger.error('[OAuth Test] Verification failed:', error);
+    } finally {
+      testButton.disabled = false;
+      testButton.textContent = '🔍 Verify OAuth Configuration';
+    }
+  }
+
+  /**
+   * Sanitize URL for safe use in href attributes
+   * Prevents XSS by blocking dangerous URL schemes (javascript:, data:, etc.)
+   * @param {string} url - URL to sanitize
+   * @returns {string|null} - Sanitized URL or null if invalid/dangerous
+   */
+  function sanitizeUrlForHref(url) {
+    if (!url || typeof url !== 'string') {
+      return null;
+    }
+
+    try {
+      // Trim whitespace
+      url = url.trim();
+      
+      // Check for dangerous URL schemes (case-insensitive)
+      const dangerousSchemes = ['javascript:', 'data:', 'vbscript:', 'file:', 'about:'];
+      const lowerUrl = url.toLowerCase();
+      
+      for (const scheme of dangerousSchemes) {
+        if (lowerUrl.startsWith(scheme)) {
+          Logger.warn('[Options] Blocked dangerous URL scheme:', scheme);
+          return null;
+        }
+      }
+      
+      // Try to parse as URL to validate format
+      // If it's a relative URL, make it absolute for validation
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(url);
+      } catch (e) {
+        // If URL parsing fails, it might be a relative URL
+        // For relative URLs, we'll allow them but still check for dangerous schemes
+        // Relative URLs starting with // are protocol-relative and should be blocked
+        if (url.startsWith('//')) {
+          Logger.warn('[Options] Blocked protocol-relative URL');
+          return null;
+        }
+        // Allow relative URLs (they're safe when used in same-origin context)
+        // But still escape HTML entities for display
+        return url;
+      }
+      
+      // Only allow http and https protocols
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        Logger.warn('[Options] Blocked non-HTTP(S) URL protocol:', parsedUrl.protocol);
+        return null;
+      }
+      
+      // Return the validated URL
+      return parsedUrl.toString();
+    } catch (error) {
+      Logger.error('[Options] URL sanitization error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Escape HTML entities for safe text display
+   * @param {string} text - Text to escape
+   * @returns {string} - Escaped text
+   */
+  function escapeHtml(text) {
+    if (!text || typeof text !== 'string') {
+      return '';
+    }
+    
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;',
+      '/': '&#x2F;'
+    };
+    
+    return text.replace(/[&<>"'/]/g, (char) => map[char]);
+  }
+
+  /**
+   * Safely parse HTML string and create DOM elements
+   * Parses simple HTML (br, code, a tags) and creates proper DOM elements
+   * @param {string} htmlString - HTML string to parse
+   * @param {HTMLElement} container - Container element to append parsed content to
+   */
+  function parseHtmlToElements(htmlString, container) {
+    if (!htmlString || typeof htmlString !== 'string') {
+      return;
+    }
+
+    // Split by HTML tags while preserving them
+    const parts = htmlString.split(/(<[^>]+>)/);
+    
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      
+      // Skip empty strings
+      if (!part) continue;
+      
+      // Handle HTML tags
+      if (part.startsWith('<')) {
+        // Handle <br> tags
+        if (part.match(/^<br\s*\/?>$/i)) {
+          container.appendChild(document.createElement('br'));
+        }
+        // Handle <code> tags
+        else if (part.match(/^<code>/i)) {
+          const codeEl = document.createElement('code');
+          codeEl.style.fontFamily = 'monospace';
+          codeEl.style.background = 'rgba(0,0,0,0.3)';
+          codeEl.style.padding = '2px 4px';
+          codeEl.style.borderRadius = '2px';
+          
+          // Get content until closing tag
+          let codeContent = '';
+          i++;
+          while (i < parts.length && !parts[i].match(/^<\/code>$/i)) {
+            codeContent += parts[i];
+            i++;
+          }
+          codeEl.textContent = codeContent;
+          container.appendChild(codeEl);
+        }
+        // Handle <a> tags
+        else if (part.match(/^<a\s+/i)) {
+          const linkMatch = part.match(/href=["']([^"']+)["']/i);
+          const targetMatch = part.match(/target=["']([^"']+)["']/i);
+          
+          if (linkMatch) {
+            // Sanitize URL to prevent XSS
+            const sanitizedUrl = sanitizeUrlForHref(linkMatch[1]);
+            
+            if (sanitizedUrl) {
+              const linkEl = document.createElement('a');
+              linkEl.href = sanitizedUrl;
+              linkEl.target = targetMatch ? targetMatch[1] : '_blank';
+              linkEl.style.color = '#33B8FF';
+              linkEl.style.textDecoration = 'underline';
+              linkEl.style.cursor = 'pointer';
+              
+              // Get link text until closing tag
+              let linkText = '';
+              i++;
+              while (i < parts.length && !parts[i].match(/^<\/a>$/i)) {
+                linkText += parts[i];
+                i++;
+              }
+              // Escape HTML entities in link text for safe display
+              linkEl.textContent = linkText || sanitizedUrl;
+              container.appendChild(linkEl);
+            } else {
+              // If URL is dangerous/invalid, create a span with escaped text instead
+              const spanEl = document.createElement('span');
+              spanEl.style.color = '#FF5757';
+              spanEl.textContent = '[Invalid URL]';
+              container.appendChild(spanEl);
+              
+              // Still need to skip link text until closing tag
+              i++;
+              while (i < parts.length && !parts[i].match(/^<\/a>$/i)) {
+                i++;
+              }
+            }
+          }
+        }
+        // Handle closing tags (skip them, already handled)
+        else if (part.match(/^<\//)) {
+          continue;
+        }
+      }
+      // Handle text content
+      else {
+        // Handle newlines in plain text (for cases without <br>)
+        const textParts = part.split(/\n/);
+        for (let j = 0; j < textParts.length; j++) {
+          if (textParts[j]) {
+            container.appendChild(document.createTextNode(textParts[j]));
+          }
+          if (j < textParts.length - 1) {
+            container.appendChild(document.createElement('br'));
+          }
+        }
+      }
     }
   }
 
@@ -469,13 +991,25 @@
         troubleshootingTips = '• Check if backend is running<br>• Verify network connectivity<br>• Check firewall settings';
       } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         errorMessage = 'Network error - backend may not be reachable';
-        troubleshootingTips = '• Verify backend is running: <code>curl ' + healthUrl + '</code><br>• Check Gateway URL is correct<br>• Test URL in browser: <a href="' + healthUrl + '" target="_blank">' + healthUrl + '</a><br>• Check network/firewall settings';
+        // Sanitize URL for safe use in HTML (prevent XSS)
+        const sanitizedHealthUrl = sanitizeUrlForHref(healthUrl);
+        const escapedHealthUrl = escapeHtml(healthUrl);
+        
+        if (sanitizedHealthUrl) {
+          // Use sanitized URL in href attribute and escaped URL for display
+          troubleshootingTips = '• Verify backend is running: <code>curl ' + escapedHealthUrl + '</code><br>• Check Gateway URL is correct<br>• Test URL in browser: <a href="' + sanitizedHealthUrl + '" target="_blank">' + escapedHealthUrl + '</a><br>• Check network/firewall settings';
+        } else {
+          // If URL is invalid/dangerous, don't create a link, just show escaped text
+          troubleshootingTips = '• Verify backend is running: <code>curl ' + escapedHealthUrl + '</code><br>• Check Gateway URL is correct<br>• Invalid Gateway URL detected<br>• Check network/firewall settings';
+        }
       } else if (error.message.includes('CORS')) {
         errorMessage = 'CORS error - backend may not allow extension origin';
         troubleshootingTips = '• Update backend ALLOWED_ORIGINS to include chrome-extension://*<br>• Check backend CORS configuration';
       } else {
         errorMessage = error.message || 'Unknown error';
-        troubleshootingTips = '• Check browser console (F12) for details\n• Verify backend logs\n• Test endpoint directly: ' + healthUrl;
+        // Escape URL for safe text display (prevent XSS)
+        const escapedHealthUrl = escapeHtml(healthUrl);
+        troubleshootingTips = '• Check browser console (F12) for details\n• Verify backend logs\n• Test endpoint directly: ' + escapedHealthUrl;
       }
       
       // Build a safe, structured error message without using innerHTML
@@ -501,7 +1035,8 @@
       tipsBox.style.padding = '8px';
       tipsBox.style.background = 'rgba(0,0,0,0.2)';
       tipsBox.style.borderRadius = '4px';
-      tipsBox.innerHTML = troubleshootingTips;
+      // Parse HTML and create proper DOM elements (preserves links, code formatting, and line breaks)
+      parseHtmlToElements(troubleshootingTips, tipsBox);
 
       resultElement.appendChild(title);
       resultElement.appendChild(messageEl);

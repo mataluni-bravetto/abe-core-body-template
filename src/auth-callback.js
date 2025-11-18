@@ -24,6 +24,33 @@ class AuthCallbackHandler {
       // Clerk redirects back with various parameters in URL or hash
       const urlParams = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      
+      // Check for OAuth errors first (before checking for successful callback)
+      const hasOAuthError = urlParams.has('error') || 
+                            hashParams.has('error') ||
+                            urlParams.has('error_description') ||
+                            hashParams.has('error_description');
+      
+      if (hasOAuthError) {
+        const error = urlParams.get('error') || hashParams.get('error') || 'unknown_error';
+        const errorDescription = urlParams.get('error_description') || hashParams.get('error_description') || '';
+        Logger.error('[AuthCallback] OAuth error detected:', { error, errorDescription });
+        
+        // Check if it's a redirect URI mismatch error
+        if (error === 'redirect_uri_mismatch' || 
+            errorDescription.includes('redirect_uri_mismatch') ||
+            errorDescription.includes('redirect URI') ||
+            errorDescription.includes('OAuth 2.0 policy') ||
+            errorDescription.includes('register the redirect URI')) {
+          await this.handleOAuthRedirectUriError(errorDescription);
+          return;
+        }
+        
+        // Handle other OAuth errors
+        this.showError(`OAuth error: ${error}. ${errorDescription}`);
+        return;
+      }
+      
       const isCallback = urlParams.has('code') || 
                         urlParams.has('token') || 
                         urlParams.has('__clerk_redirect_url') ||
@@ -285,6 +312,14 @@ class AuthCallbackHandler {
   async getClerkPublishableKey() {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({ type: 'GET_CLERK_KEY' }, (response) => {
+        if (chrome.runtime.lastError) {
+          Logger.error('[AuthCallback] Failed to get Clerk publishable key:', {
+            error: chrome.runtime.lastError.message,
+            fullError: chrome.runtime.lastError
+          });
+          resolve(null);
+          return;
+        }
         resolve(response?.key || null);
       });
     });
@@ -468,6 +503,107 @@ class AuthCallbackHandler {
     const statusEl = document.getElementById('status');
     if (statusEl) {
       statusEl.textContent = message;
+    }
+  }
+
+  /**
+   * Handle OAuth redirect URI mismatch error
+   */
+  async handleOAuthRedirectUriError(errorDescription) {
+    Logger.error('[AuthCallback] Handling OAuth redirect URI mismatch error');
+    
+    this.updateStatus('OAuth Configuration Error');
+    
+    // Store OAuth error in chrome.storage.local for persistence
+    // This allows popup to check for errors even if it wasn't open when error occurred
+    try {
+      await chrome.storage.local.set({
+        oauth_error: {
+          type: 'AUTH_OAUTH_REDIRECT_URI_MISMATCH',
+          error: 'redirect_uri_mismatch',
+          errorDescription: errorDescription,
+          timestamp: Date.now()
+        }
+      });
+      Logger.info('[AuthCallback] OAuth error stored in chrome.storage.local');
+    } catch (storageError) {
+      Logger.warn('[AuthCallback] Failed to store OAuth error:', storageError);
+    }
+    
+    // Send error message to extension (for immediate display if popup is open)
+    try {
+      chrome.runtime.sendMessage({
+        type: 'AUTH_ERROR',
+        error: 'redirect_uri_mismatch',
+        errorDescription: errorDescription,
+        errorType: 'AUTH_OAUTH_REDIRECT_URI_MISMATCH'
+      }, (response) => {
+        // Handle errors in callback - chrome.runtime.sendMessage uses callbacks, not Promises
+        if (chrome.runtime.lastError) {
+          // Ignore if no listener (this is expected if popup is closed)
+          Logger.debug('[AuthCallback] sendMessage error (may be normal if no listener):', chrome.runtime.lastError.message);
+        }
+      });
+    } catch (e) {
+      Logger.warn('[AuthCallback] Failed to send error message:', e);
+    }
+    
+    // Show detailed error message to user
+    const errorEl = document.getElementById('error');
+    const statusEl = document.getElementById('status');
+    
+    if (errorEl) {
+      // Build detailed error message
+      const errorMessage = document.createElement('div');
+      errorMessage.style.cssText = 'color: #FF5757; margin: 16px 0; line-height: 1.6;';
+      
+      const title = document.createElement('div');
+      title.style.cssText = 'font-weight: 600; margin-bottom: 8px; font-size: 14px;';
+      title.textContent = 'OAuth Configuration Error';
+      
+      const description = document.createElement('div');
+      description.style.cssText = 'font-size: 12px; margin-bottom: 12px;';
+      description.textContent = 'Google OAuth redirect URI is not configured. The redirect URI must be registered in Google Cloud Console.';
+      
+      const redirectUri = document.createElement('div');
+      redirectUri.style.cssText = 'font-size: 11px; font-family: monospace; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin: 8px 0; word-break: break-all;';
+      redirectUri.textContent = 'Required redirect URI: https://clerk.aiguardian.ai/v1/oauth_callback';
+      
+      const instructions = document.createElement('div');
+      instructions.style.cssText = 'font-size: 12px; margin-top: 12px;';
+      
+      // Create link element programmatically to avoid XSS risks
+      const docLink = document.createElement('a');
+      docLink.href = 'https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md';
+      docLink.target = '_blank';
+      docLink.style.color = '#33B8FF';
+      docLink.textContent = 'documentation';
+      
+      instructions.textContent = 'See ';
+      instructions.appendChild(docLink);
+      instructions.append(' for configuration steps.');
+      
+      errorMessage.appendChild(title);
+      errorMessage.appendChild(description);
+      errorMessage.appendChild(redirectUri);
+      errorMessage.appendChild(instructions);
+      
+      // Clear existing content
+      while (errorEl.firstChild) {
+        errorEl.removeChild(errorEl.firstChild);
+      }
+      errorEl.appendChild(errorMessage);
+      errorEl.style.display = 'block';
+    }
+    
+    if (statusEl) {
+      statusEl.textContent = 'Configuration required';
+    }
+    
+    // Hide spinner
+    const spinner = document.querySelector('.spinner');
+    if (spinner) {
+      spinner.style.display = 'none';
     }
   }
 
