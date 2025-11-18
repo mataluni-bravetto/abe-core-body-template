@@ -533,11 +533,31 @@ try {
         const analysisResult = await gateway.analyzeText(text);
         Logger.info("[BG] Analysis result received:", analysisResult);
 
-        // Save to analysis history
-        saveToHistory(text, analysisResult);
-
-        // Save as last analysis for copy feature
-        chrome.storage.local.set({ last_analysis: analysisResult });
+        // Only save successful analyses to history
+        // Check if result is successful and has valid data (not an error response)
+        if (analysisResult && 
+            analysisResult.success !== false && 
+            !analysisResult.error &&
+            (analysisResult.score !== undefined || analysisResult.analysis)) {
+          // Additional validation: ensure score is not default error value
+          const hasValidScore = analysisResult.score === undefined || 
+                                (typeof analysisResult.score === 'number' && analysisResult.score >= 0);
+          
+          if (hasValidScore) {
+            saveToHistory(text, analysisResult);
+            // Save as last analysis for copy feature
+            chrome.storage.local.set({ last_analysis: analysisResult });
+          } else {
+            Logger.warn("[BG] Analysis result has invalid score, not saving to history:", analysisResult);
+          }
+        } else {
+          Logger.warn("[BG] Analysis result indicates failure or error, not saving to history:", {
+            success: analysisResult?.success,
+            error: analysisResult?.error,
+            hasScore: analysisResult?.score !== undefined,
+            hasAnalysis: !!analysisResult?.analysis
+          });
+        }
 
         sendResponse(analysisResult);
       } catch (error) {

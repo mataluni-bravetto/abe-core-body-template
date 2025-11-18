@@ -462,19 +462,23 @@
             });
             Logger.info('[Popup] Storage changed', { clerk_user: changes.clerk_user });
             
+            // Immediately update UI from storage without waiting for auth object sync
+            // This ensures UI updates as soon as user signs in on landing page
+            Logger.info('[Popup] Immediately updating UI from storage change');
+            updateAuthUI();
+            
+            // Stop periodic checking if we're now authenticated
+            if (changes.clerk_user.newValue && authCheckInterval) {
+              clearInterval(authCheckInterval);
+              authCheckInterval = null;
+              Logger.info('[Popup] Stopped periodic auth check - user authenticated');
+            }
+            
+            // Also sync with auth object in background (non-blocking)
             if (auth) {
-              auth.checkUserSession().then(() => {
-                updateAuthUI();
-                // Stop periodic checking if we're now authenticated
-                if (authCheckInterval) {
-                  clearInterval(authCheckInterval);
-                  authCheckInterval = null;
-                }
+              auth.checkUserSession().catch((err) => {
+                Logger.warn('[Popup] Background auth sync failed (non-critical):', err);
               });
-            } else {
-              // If auth not initialized, update UI directly from storage
-              Logger.info('[Popup] Auth not initialized, updating UI directly from storage');
-              updateAuthUI();
             }
           }
         });

@@ -90,17 +90,20 @@
       (response) => {
         if (chrome.runtime.lastError) {
           Logger.error("[CS] Runtime error:", chrome.runtime.lastError);
-          showErrorBadge("Analysis failed. Please try again or check your connection.", "error");
+          showErrorBadge("Extension error. Please refresh the page and try again.", "error");
           return;
         }
 
-        if (!response || !response.success) {
-          Logger.error("[CS] Analysis failed:", response?.error);
-          showErrorBadge("Analysis failed. Please try again or check your connection.", "error");
+        // Check for error responses - displayAnalysisResults will handle them, but we can provide
+        // early feedback here. However, let displayAnalysisResults handle error display for consistency
+        if (!response) {
+          Logger.error("[CS] No response received from service worker");
+          showErrorBadge("No response from extension. Please try again.", "error");
           return;
         }
 
         // TRACER BULLET: Display results with enhanced UI and pass the range for highlighting
+        // displayAnalysisResults now handles error responses internally
         displayAnalysisResults(response, range);
       }
     );
@@ -116,8 +119,38 @@
    * @returns {void}
    */
   function displayAnalysisResults(response, range) {
+    // Check for error responses first - don't display "Score: 0%" for failed analyses
+    if (!response || response.success === false || response.error) {
+      // Determine appropriate error message
+      let errorMessage = response?.error || "Analysis failed. Please sign in.";
+      
+      // Provide more specific error messages based on error type
+      if (response?.status === 401 || errorMessage.includes('Unauthorized') || errorMessage.includes('authenticated')) {
+        errorMessage = "Please sign in on aiguardian.ai to analyze text.";
+      } else if (response?.status === 403 || errorMessage.includes('Forbidden')) {
+        errorMessage = "Access denied. Please check your subscription.";
+      } else if (response?.status === 429 || errorMessage.includes('rate limit')) {
+        errorMessage = "Rate limit exceeded. Please try again later.";
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+        errorMessage = "Request timed out. Please try again.";
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        errorMessage = "Network error. Please check your connection.";
+      }
+      
+      Logger.error("[CS] Analysis failed:", errorMessage);
+      showErrorBadge(errorMessage, "error");
+      return;
+    }
+    
+    // Validate that we have a valid score before displaying
+    if (response.score === undefined || response.score === null) {
+      Logger.warn("[CS] Analysis response missing score:", response);
+      showErrorBadge("Analysis incomplete. Please try again.", "warning");
+      return;
+    }
+    
     // TRACER BULLET: Highlight the text on the page
-    if (range) {
+    if (range && typeof response.score === 'number') {
       highlightSelection(range, response.score);
     }
     

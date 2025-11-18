@@ -492,8 +492,38 @@ class AiGuardianGateway {
         const responseTime = Date.now() - startTime;
         
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+          // Try to parse JSON error response first
+          let errorData = null;
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            try {
+              errorData = await response.json();
+            } catch (e) {
+              // If JSON parsing fails, fall back to text
+              const errorText = await response.text();
+              throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+            }
+          } else {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+          }
+          
+          // Create error response object that will be properly handled
+          const errorResponse = {
+            success: false,
+            error: errorData?.detail || errorData?.error || errorData?.message || `HTTP ${response.status}: ${response.statusText}`,
+            status: response.status,
+            ...errorData
+          };
+          
+          // For analyze endpoint, return error response structure instead of throwing
+          // This allows the caller to handle it gracefully
+          if (endpoint === 'analyze') {
+            return errorResponse;
+          }
+          
+          // For other endpoints, throw error
+          throw new Error(errorResponse.error);
         }
         
         const result = await response.json();
@@ -509,21 +539,36 @@ class AiGuardianGateway {
         }
         
         // Use transformed response if available (for mock API)
+        // If validation failed but we have a transformed response, use it
+        // Otherwise use the original result
         const finalResult = validationResult.transformedResponse || result;
         
-        // Update trace stats
-        this.traceStats.successes++;
-        this.traceStats.totalResponseTime += responseTime;
-        this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
-        
-        this.logger.info('Gateway request successful', {
-          requestId,
-          endpoint: mappedEndpoint,
-          attempt,
-          responseTime,
-          statusCode: response.status,
-          responseSize: JSON.stringify(finalResult).length
-        });
+        // Update trace stats only if result is successful
+        const isSuccess = finalResult && finalResult.success !== false && !finalResult.error;
+        if (isSuccess) {
+          this.traceStats.successes++;
+          this.traceStats.totalResponseTime += responseTime;
+          this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
+          
+          this.logger.info('Gateway request successful', {
+            requestId,
+            endpoint: mappedEndpoint,
+            attempt,
+            responseTime,
+            statusCode: response.status,
+            responseSize: JSON.stringify(finalResult).length
+          });
+        } else {
+          // Log warning for unsuccessful responses
+          this.logger.warn('Gateway request returned error response', {
+            requestId,
+            endpoint: mappedEndpoint,
+            attempt,
+            responseTime,
+            statusCode: response.status,
+            error: finalResult?.error
+          });
+        }
         
         return finalResult;
       } catch (err) {
@@ -666,17 +711,42 @@ class AiGuardianGateway {
   /**
    * Test unified gateway connection
    * Simple health check - alive or not
+   * Includes timeout handling and better error reporting
    */
   async testGatewayConnection() {
+    const timeout = 5000; // 5 second timeout
+    const healthUrl = this.config.gatewayUrl + '/health/live';
+    
     try {
-      const response = await fetch(this.config.gatewayUrl + '/health/live', {
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const response = await fetch(healthUrl, {
         method: 'GET',
         headers: {
           'X-Extension-Version': chrome.runtime.getManifest().version
-        }
+        },
+        signal: controller.signal
       });
-      return response.ok;
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        return true;
+      } else {
+        Logger.warn('[Gateway] Health check returned non-OK status:', response.status);
+        return false;
+      }
     } catch (err) {
+      // Handle different error types
+      if (err.name === 'AbortError') {
+        Logger.warn('[Gateway] Health check timed out after', timeout, 'ms');
+      } else if (err.message && err.message.includes('Failed to fetch')) {
+        Logger.warn('[Gateway] Health check failed - network error:', err.message);
+      } else {
+        Logger.warn('[Gateway] Health check failed:', err.message || err);
+      }
       return false;
     }
   }
@@ -762,6 +832,25 @@ class AiGuardianGateway {
     
     // Validate response structure based on endpoint
     if (endpoint === 'analyze') {
+      // Check if response indicates an error BEFORE transformation
+      // Error responses should not be transformed into analysis results
+      if (response.success === false || 
+          response.error || 
+          (response.status && response.status >= 400) ||
+          (response.detail && typeof response.detail === 'string')) {
+        // This is an error response - return it as-is without transformation
+        return { 
+          isValid: false, 
+          errors: ['API error response'], 
+          transformedResponse: {
+            success: false,
+            error: response.error || response.detail || response.message || 'API request failed',
+            status: response.status,
+            raw: response
+          }
+        };
+      }
+      
       // Expect backend envelope: { success, data, ... }
       if (typeof response.success !== 'boolean') {
         errors.push('Response missing success boolean');
