@@ -1,0 +1,56 @@
+{
+  "name": "aiguardian",
+  "version": "1.0.0",
+  "description": "Finally, AI tools for engineers who don't believe the hype. Transparent failure logging, confidence scores, and uncertainty flagging for skeptical developers.",
+  "author": "AiGuardian Team",
+  "homepage": "https://www.aiguardian.ai",
+  "license": "MIT",
+  "scripts": {
+    "test:unit": "node scripts/run-unit-tests.cjs",
+    "test:integration": "node tests/integration-test.js",
+    "test:backend": "node scripts/run-backend-integration-tests.js",
+    "test:backend-integration": "node tests/integration/backend-integration.test.js",
+    "test:smoke": "node tests/smoke-test.js",
+    "test:security": "node tests/security-vulnerability-audit.js",
+    "test:auth:patterns": "node tests/auth/pattern-validation.test.js",
+    "test:sdk": "cd sdk && npm test",
+    "test:all": "npm run test:smoke && npm run test:unit && npm run test:integration && npm run test:security",
+    "test:e2e": "jest tests/e2e/extension.test.js",
+    "build": "node scripts/bundle-clerk.js",
+    "build:clerk": "node scripts/bundle-clerk.js",
+    "build:sdk": "cd sdk && npm run build",
+    "package": "zip -r aiguardian-v1.0.0.zip . -x '*.git*' '*node_modules*' '*tests*' '*sdk*' '*.md' '!*.json' '!*.html' '!*.js' '!manifest.json' '!src/*' '!assets/*'",
+    "docs": "echo 'SDK docs: sdk/README.md | Extension docs: DEVELOPER_GUIDE.md'"
+  },
+  "workspaces": [
+    "sdk"
+  ],
+  "devDependencies": {
+    "esbuild": "^0.19.12",
+    "jest": "^30.2.0",
+    "puppeteer": "^24.26.1"
+  },
+  "dependencies": {
+    "@clerk/clerk-js": "^4.70.0"
+  },
+  "keywords": [
+    "ai",
+    "content-analysis",
+    "bias-detection",
+    "transparency",
+    "chrome-extension",
+    "sdk",
+    "skeptical-engineering",
+    "confidence-scoring"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aiguardian/aiguardian.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aiguardian/aiguardian/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

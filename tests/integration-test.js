@@ -1,5 +1,5 @@
 /**
- * AI Guardians Extension - Backend Integration Test
+ * AiGuardian Extension - Backend Integration Test
  * 
  * This script simulates the complete integration between the Chrome extension
  * and the backend API to verify end-to-end functionality.
@@ -16,13 +16,14 @@ class IntegrationTester {
    * Run complete integration test
    */
   async runIntegrationTest() {
-    console.log('🚀 Starting AI Guardians Extension Integration Test');
+    console.log('🚀 Starting AiGuardian Extension Integration Test');
     console.log('=' .repeat(60));
     
     const tests = [
       { name: 'Extension Initialization', fn: this.testExtensionInitialization },
       { name: 'Gateway Connection', fn: this.testGatewayConnection },
       { name: 'Authentication Flow', fn: this.testAuthenticationFlow },
+      { name: 'Subscription Verification', fn: this.testSubscriptionVerification },
       { name: 'Text Analysis Pipeline', fn: this.testTextAnalysisPipeline },
       { name: 'Guard Service Integration', fn: this.testGuardServiceIntegration },
       { name: 'Error Handling & Recovery', fn: this.testErrorHandling },
@@ -65,14 +66,14 @@ class IntegrationTester {
       manifest: {
         version: '0.1.0',
         permissions: ['storage', 'alarms'],
-        background: 'src/background.js',
+        background: 'src/service_worker.js',
         contentScripts: 'src/content.js',
-        action: 'src/popup.html'
+        action: 'src/popup/popup.html'
       },
       gateway: {
         initialized: true,
         config: {
-          gatewayUrl: 'https://your-ai-guardians-gateway.com/api/v1',
+          gatewayUrl: 'https://api.aiguardian.ai',
           timeout: 10000,
           retryAttempts: 3
         }
@@ -113,7 +114,7 @@ class IntegrationTester {
   async testGatewayConnection() {
     // Simulate gateway connection test
     const connectionTest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/health/live',
+      endpoint: 'https://api.aiguardian.ai/api/v1/health',
       method: 'GET',
       headers: {
         'Authorization': 'Bearer test-api-key',
@@ -161,7 +162,7 @@ class IntegrationTester {
   async testAuthenticationFlow() {
     // Simulate authentication request
     const authRequest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/auth/login',
+      endpoint: 'https://api.aiguardian.ai/api/v1/config',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -198,6 +199,94 @@ class IntegrationTester {
   }
 
   /**
+   * Test subscription verification
+   */
+  async testSubscriptionVerification() {
+    // Simulate subscription status check
+    const subscriptionCheck = {
+      endpoint: 'https://api.aiguardian.ai/api/v1/subscriptions/current',
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer test-api-key',
+        'Content-Type': 'application/json',
+        'X-Extension-Version': '0.1.0'
+      }
+    };
+
+    // Simulate subscription response
+    const subscriptionResponse = {
+      tier: 'pro',
+      status: 'active',
+      billing_period: 'monthly',
+      current_period_start: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      current_period_end: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      cancel_at_period_end: false
+    };
+
+    // Simulate usage check
+    const usageCheck = {
+      endpoint: 'https://api.aiguardian.ai/api/v1/subscriptions/usage',
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer test-api-key',
+        'Content-Type': 'application/json',
+        'X-Extension-Version': '0.1.0'
+      }
+    };
+
+    const usageResponse = {
+      requests_made: 750,
+      requests_limit: 1000,
+      usage_percentage: 75.0,
+      remaining_requests: 250,
+      period_start: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      period_end: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString()
+    };
+
+    // Verify subscription response structure
+    if (!subscriptionResponse.tier) {
+      throw new Error('Subscription response missing tier');
+    }
+
+    if (!subscriptionResponse.status) {
+      throw new Error('Subscription response missing status');
+    }
+
+    // Verify usage response structure
+    if (typeof usageResponse.requests_made !== 'number') {
+      throw new Error('Usage response missing or invalid requests_made');
+    }
+
+    if (typeof usageResponse.usage_percentage !== 'number') {
+      throw new Error('Usage response missing or invalid usage_percentage');
+    }
+
+    // Test subscription validation logic
+    const canMakeRequest = subscriptionResponse.status === 'active' && 
+                          (usageResponse.remaining_requests === null || usageResponse.remaining_requests > 0);
+
+    if (!canMakeRequest && subscriptionResponse.status === 'active') {
+      throw new Error('Subscription validation failed: active subscription should allow requests');
+    }
+
+    // Test usage limit warning threshold (80%)
+    const usageWarning = usageResponse.usage_percentage >= 80;
+    const usageExceeded = usageResponse.requests_limit !== null && 
+                         usageResponse.remaining_requests <= 0;
+
+    return {
+      subscriptionTier: subscriptionResponse.tier,
+      subscriptionStatus: subscriptionResponse.status,
+      canMakeRequest: canMakeRequest,
+      usagePercentage: usageResponse.usage_percentage,
+      remainingRequests: usageResponse.remaining_requests,
+      usageWarning: usageWarning,
+      usageExceeded: usageExceeded,
+      validationPassed: true
+    };
+  }
+
+  /**
    * Test text analysis pipeline
    */
   async testTextAnalysisPipeline() {
@@ -205,7 +294,7 @@ class IntegrationTester {
     
     // Simulate text analysis request
     const analysisRequest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/analyze/text',
+      endpoint: 'https://api.aiguardian.ai/api/v1/analyze',
       method: 'POST',
       headers: {
         'Authorization': 'Bearer test-access-token',
@@ -300,7 +389,7 @@ class IntegrationTester {
       try {
         // Simulate guard service request
         const guardRequest = {
-          endpoint: `https://your-ai-guardians-gateway.com/api/v1/guards/${guard}`,
+          endpoint: `https://api.aiguardian.ai/api/v1/guards`,
           method: 'GET',
           headers: {
             'Authorization': 'Bearer test-access-token',
@@ -436,7 +525,7 @@ class IntegrationTester {
   async testConfigurationManagement() {
     // Simulate configuration retrieval
     const configRequest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/config/user',
+      endpoint: 'https://api.aiguardian.ai/api/v1/config',
       method: 'GET',
       headers: {
         'Authorization': 'Bearer test-access-token',
@@ -482,7 +571,7 @@ class IntegrationTester {
   async testLoggingMonitoring() {
     // Simulate logging request
     const loggingRequest = {
-      endpoint: 'https://your-ai-guardians-gateway.com/api/v1/logging',
+      endpoint: 'https://api.aiguardian.ai/api/v1/logging',
       method: 'POST',
       headers: {
         'Authorization': 'Bearer test-access-token',

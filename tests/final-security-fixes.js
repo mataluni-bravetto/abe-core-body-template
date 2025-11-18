@@ -1,5 +1,5 @@
 /**
- * Final Security Fixes for AI Guardians Chrome Extension
+ * Final Security Fixes for AiGuardian Chrome Extension
  * 
  * This script addresses the remaining security vulnerabilities
  * identified in the security audit.
@@ -60,7 +60,7 @@ class FinalSecurityFixes {
       'src/content.js',
       'src/options.js',
       'src/gateway.js',
-      'src/background.js'
+      'src/service_worker.js'
     ];
 
     for (const file of sourceFiles) {
@@ -271,7 +271,7 @@ class FinalSecurityFixes {
   async enhanceErrorMessages() {
     // Read all source files and enhance error messages
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/gateway.js',
       'src/content.js',
       'src/options.js'

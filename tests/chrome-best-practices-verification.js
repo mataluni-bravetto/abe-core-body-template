@@ -1,7 +1,7 @@
 /**
  * Chrome Extension Best Practices Verification
  * 
- * This script verifies that the AI Guardians Chrome extension follows
+ * This script verifies that the AiGuardian Chrome extension follows
  * all Chrome developer best practices and DevTools Protocol guidelines.
  */
 
@@ -114,9 +114,9 @@ class ChromeBestPracticesVerifier {
   async verifyExtensionAPIs() {
     const fs = require('fs');
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js'
     ];
 
@@ -183,7 +183,7 @@ class ChromeBestPracticesVerifier {
   async verifyDevToolsProtocol() {
     // Check if extension uses DevTools Protocol features appropriately
     const fs = require('fs');
-    const content = fs.readFileSync('src/background.js', 'utf8');
+    const content = fs.readFileSync('src/service_worker.js', 'utf8');
     
     // Check for proper debugging features
     const debuggingFeatures = {
@@ -220,9 +220,9 @@ class ChromeBestPracticesVerifier {
   async verifySecurityPractices() {
     const fs = require('fs');
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js'
     ];
 
@@ -287,7 +287,7 @@ class ChromeBestPracticesVerifier {
   async verifyPerformanceOptimization() {
     const fs = require('fs');
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js'
     ];
@@ -363,7 +363,7 @@ class ChromeBestPracticesVerifier {
     }
 
     // Check HTML files for inline scripts
-    const htmlFiles = ['src/popup.html', 'src/options.html'];
+    const htmlFiles = ['src/popup/popup.html', 'src/options.html'];
     const cspIssues = [];
 
     for (const file of htmlFiles) {
@@ -396,7 +396,7 @@ class ChromeBestPracticesVerifier {
    */
   async verifyServiceWorkerPractices() {
     const fs = require('fs');
-    const backgroundContent = fs.readFileSync('src/background.js', 'utf8');
+    const backgroundContent = fs.readFileSync('src/service_worker.js', 'utf8');
     
     const serviceWorkerPractices = {
       eventListeners: 0,
@@ -456,7 +456,7 @@ class ChromeBestPracticesVerifier {
    */
   async verifyMessagePassingSecurity() {
     const fs = require('fs');
-    const backgroundContent = fs.readFileSync('src/background.js', 'utf8');
+    const backgroundContent = fs.readFileSync('src/service_worker.js', 'utf8');
     const contentScriptContent = fs.readFileSync('src/content.js', 'utf8');
     
     const messageSecurity = {
@@ -508,7 +508,7 @@ class ChromeBestPracticesVerifier {
    */
   async verifyStoragePractices() {
     const fs = require('fs');
-    const sourceFiles = ['src/background.js', 'src/options.js'];
+    const sourceFiles = ['src/service_worker.js', 'src/options.js'];
     
     const storagePractices = {
       properAPIs: 0,
@@ -555,7 +555,7 @@ class ChromeBestPracticesVerifier {
   async verifyErrorHandling() {
     const fs = require('fs');
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js',
       'src/options.js'
@@ -608,7 +608,7 @@ class ChromeBestPracticesVerifier {
    */
   async verifyAccessibilityCompliance() {
     const fs = require('fs');
-    const htmlFiles = ['src/popup.html', 'src/options.html'];
+    const htmlFiles = ['src/popup/popup.html', 'src/options.html'];
     
     const accessibilityFeatures = {
       semanticHTML: 0,

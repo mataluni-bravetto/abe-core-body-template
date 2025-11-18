@@ -1,5 +1,5 @@
 /**
- * AI Guardians Chrome Extension - Test Runner
+ * AiGuardian Chrome Extension - Test Runner
  * 
  * This script runs comprehensive tests on the Chrome extension
  * with tracing, logging, and data validation.
@@ -19,7 +19,7 @@ class ExtensionTestRunner {
    * Run all extension tests
    */
   async runTests() {
-    console.log('🚀 Starting AI Guardians Extension Test Suite');
+    console.log('🚀 Starting AiGuardian Extension Test Suite');
     console.log('=' .repeat(60));
     
     const tests = [
@@ -62,11 +62,11 @@ class ExtensionTestRunner {
   async testFileStructure() {
     const requiredFiles = [
       'manifest.json',
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js',
-      'src/popup.html',
-      'src/popup.js',
+      'src/popup/popup.html',
+      'src/popup/popup.js',
       'src/options.html',
       'src/options.js',
       'src/testing.js'
@@ -144,10 +144,10 @@ class ExtensionTestRunner {
    */
   async testCodeQuality() {
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js',
       'src/testing.js'
     ];
@@ -278,10 +278,10 @@ class ExtensionTestRunner {
    */
   async testSecurity() {
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js',
-      'src/popup.js',
+      'src/popup/popup.js',
       'src/options.js'
     ];
 
@@ -349,7 +349,7 @@ class ExtensionTestRunner {
    */
   async testPerformance() {
     const sourceFiles = [
-      'src/background.js',
+      'src/service_worker.js',
       'src/content.js',
       'src/gateway.js'
     ];

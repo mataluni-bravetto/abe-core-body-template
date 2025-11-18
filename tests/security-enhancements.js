@@ -1,5 +1,5 @@
 /**
- * Security Enhancements for AI Guardians Chrome Extension
+ * Security Enhancements for AiGuardian Chrome Extension
  * 
  * This script applies additional security measures to address
  * identified vulnerabilities and improve overall security.
@@ -187,8 +187,8 @@ if (typeof module !== 'undefined' && module.exports) {
    * Enhance message validation
    */
   async enhanceMessageValidation() {
-    // Read background.js and add enhanced message validation
-    let backgroundContent = fs.readFileSync('src/background.js', 'utf8');
+    // Read service_worker.js and add enhanced message validation
+    let backgroundContent = fs.readFileSync('src/service_worker.js', 'utf8');
     
     // Add message validation function
     const messageValidationCode = `
@@ -248,15 +248,15 @@ if (typeof module !== 'undefined' && module.exports) {
       'chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {\n    try {\n      validateMessage(message, sender);\n    } catch (error) {\n      console.error(\'[BG] Message validation failed:\', error.message);\n      sendResponse({ success: false, error: error.message });\n      return;\n    }'
     );
     
-    fs.writeFileSync('src/background.js', backgroundContent);
+    fs.writeFileSync('src/service_worker.js', backgroundContent);
   }
 
   /**
    * Add origin validation
    */
   async addOriginValidation() {
-    // Read background.js and add origin validation
-    let backgroundContent = fs.readFileSync('src/background.js', 'utf8');
+    // Read service_worker.js and add origin validation
+    let backgroundContent = fs.readFileSync('src/service_worker.js', 'utf8');
     
     // Add origin validation function
     const originValidationCode = `
@@ -272,7 +272,9 @@ if (typeof module !== 'undefined' && module.exports) {
     // Check for allowed origins
     const allowedOrigins = [
       'chrome-extension://',
-      'https://your-ai-guardians-gateway.com',
+      'https://api.aiguardian.ai',
+      'https://aiguardian.ai',
+      'https://dashboard.aiguardian.ai',
       'https://localhost',
       'https://127.0.0.1'
     ];
@@ -299,7 +301,7 @@ if (typeof module !== 'undefined' && module.exports) {
       'validateMessage(message, sender);\n      validateOrigin(sender);'
     );
     
-    fs.writeFileSync('src/background.js', backgroundContent);
+    fs.writeFileSync('src/service_worker.js', backgroundContent);
   }
 
   /**

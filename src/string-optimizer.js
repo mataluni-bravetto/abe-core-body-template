@@ -1,17 +1,17 @@
 /**
- * String Optimizer for AI Guardians Chrome Extension
+ * String Optimizer for AiGuardian Chrome Extension
  * 
  * Provides optimized string operations to improve performance
  * and reduce memory usage.
  */
 
-import { SECURITY } from './constants.js';
+// Constants are available via importScripts in service worker context
 
 /**
  * String Optimizer Class
  * Handles efficient string operations with bounds checking
  */
-export class StringOptimizer {
+class StringOptimizer {
   /**
    * Optimized string replacement with bounds checking
    * @function optimizedReplace
@@ -21,7 +21,7 @@ export class StringOptimizer {
    * @param {number} maxLength - Maximum string length
    * @returns {string} The processed string
    */
-  static optimizedReplace(str, pattern, replacement, maxLength = SECURITY.MAX_STRING_LENGTH) {
+  optimizedReplace(str, pattern, replacement, maxLength = SECURITY.MAX_STRING_LENGTH) {
     if (!str || typeof str !== 'string') return '';
     
     // Early return for empty strings
@@ -44,7 +44,7 @@ export class StringOptimizer {
    * @param {number} maxLength - Maximum string length
    * @returns {string} The substring
    */
-  static safeSubstring(str, start = 0, end = SECURITY.MAX_STRING_LENGTH, maxLength = SECURITY.MAX_STRING_LENGTH) {
+  safeSubstring(str, start = 0, end = SECURITY.MAX_STRING_LENGTH, maxLength = SECURITY.MAX_STRING_LENGTH) {
     if (!str || typeof str !== 'string') return '';
     
     // Ensure bounds are valid
@@ -61,7 +61,7 @@ export class StringOptimizer {
    * @param {number} maxLength - Maximum string length
    * @returns {string} The sanitized string
    */
-  static optimizedSanitize(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
+  optimizedSanitize(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
     if (!str || typeof str !== 'string') return '';
     
     // Early return for empty strings
@@ -89,7 +89,7 @@ export class StringOptimizer {
    * @param {number} maxLength - Maximum string length
    * @returns {string} The string without HTML tags
    */
-  static removeHtmlTags(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
+  removeHtmlTags(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
     if (!str || typeof str !== 'string') return '';
     
     if (str.length > maxLength) {
@@ -107,7 +107,7 @@ export class StringOptimizer {
    * @param {string} ellipsis - The ellipsis string (default: '...')
    * @returns {string} The truncated string
    */
-  static truncateWithEllipsis(str, maxLength = SECURITY.MAX_STRING_LENGTH, ellipsis = '...') {
+  truncateWithEllipsis(str, maxLength = SECURITY.MAX_STRING_LENGTH, ellipsis = '...') {
     if (!str || typeof str !== 'string') return '';
     
     if (str.length <= maxLength) return str;
@@ -123,7 +123,7 @@ export class StringOptimizer {
    * @param {number} maxLength - Maximum string length
    * @returns {boolean} True if valid string
    */
-  static isValidString(value, maxLength = SECURITY.MAX_STRING_LENGTH) {
+  isValidString(value, maxLength = SECURITY.MAX_STRING_LENGTH) {
     return typeof value === 'string' && 
            value.length > 0 && 
            value.length <= maxLength;
@@ -136,7 +136,7 @@ export class StringOptimizer {
    * @param {number} maxLength - Maximum string length
    * @returns {number} The safe length
    */
-  static getSafeLength(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
+  getSafeLength(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
     if (!str || typeof str !== 'string') return 0;
     return Math.min(str.length, maxLength);
   }
@@ -149,7 +149,7 @@ export class StringOptimizer {
    * @param {string} separator - Separator between strings
    * @returns {string} The concatenated string
    */
-  static safeConcat(strings, maxLength = SECURITY.MAX_STRING_LENGTH, separator = '') {
+  safeConcat(strings, maxLength = SECURITY.MAX_STRING_LENGTH, separator = '') {
     if (!Array.isArray(strings)) return '';
     
     let result = '';
@@ -172,7 +172,7 @@ export class StringOptimizer {
    * @param {number} maxLength - Maximum string length
    * @returns {string[]} The split strings
    */
-  static safeSplit(str, separator, maxLength = SECURITY.MAX_STRING_LENGTH) {
+  safeSplit(str, separator, maxLength = SECURITY.MAX_STRING_LENGTH) {
     if (!str || typeof str !== 'string') return [];
     
     if (str.length > maxLength) {
@@ -189,7 +189,7 @@ export class StringOptimizer {
    * @param {number} maxLength - Maximum string length
    * @returns {string} The trimmed string
    */
-  static safeTrim(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
+  safeTrim(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
     if (!str || typeof str !== 'string') return '';
     
     let trimmed = str.trim();
@@ -202,19 +202,26 @@ export class StringOptimizer {
   }
 }
 
-// Export utility functions for direct use
-export const {
-  optimizedReplace,
-  safeSubstring,
-  optimizedSanitize,
-  removeHtmlTags,
-  truncateWithEllipsis,
-  isValidString,
-  getSafeLength,
-  safeConcat,
-  safeSplit,
-  safeTrim
-} = StringOptimizer;
+// Create global instance for Chrome extension compatibility
+const stringOptimizer = new StringOptimizer();
+
+// Make utility functions available globally
+const optimizedReplace = stringOptimizer.optimizedReplace.bind(stringOptimizer);
+const safeSubstring = stringOptimizer.safeSubstring.bind(stringOptimizer);
+const optimizedSanitize = stringOptimizer.optimizedSanitize.bind(stringOptimizer);
+const removeHtmlTags = stringOptimizer.removeHtmlTags.bind(stringOptimizer);
+const truncateWithEllipsis = stringOptimizer.truncateWithEllipsis.bind(stringOptimizer);
+const isValidString = stringOptimizer.isValidString.bind(stringOptimizer);
+const getSafeLength = stringOptimizer.getSafeLength.bind(stringOptimizer);
+const safeConcat = stringOptimizer.safeConcat.bind(stringOptimizer);
+const safeSplit = stringOptimizer.safeSplit.bind(stringOptimizer);
+const safeTrim = stringOptimizer.safeTrim.bind(stringOptimizer);
+
+// Expose class and instance on window for browser/unit-test usage
+if (typeof window !== 'undefined') {
+  window.StringOptimizer = StringOptimizer;
+  window.stringOptimizer = stringOptimizer;
+}
 
 
 

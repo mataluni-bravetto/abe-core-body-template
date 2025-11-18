@@ -1,0 +1,3 @@
+# This directory contains bundled vendor libraries
+# Run `npm run build:clerk` to generate clerk.js bundle
+

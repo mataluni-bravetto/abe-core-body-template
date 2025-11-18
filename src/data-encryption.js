@@ -41,7 +41,7 @@ class DataEncryption {
       
       return text;
     } catch (error) {
-      Logger.error('Decryption failed:', error);
+      // Silently fail decryption - return empty string
       return '';
     }
   }

@@ -1,5 +1,5 @@
 /**
- * AI Guardians Backend Compatibility Verification
+ * AiGuardian Backend Compatibility Verification
  * 
  * This script verifies that the Chrome extension will work with the current backend
  * by analyzing API compatibility, data structures, and integration points.
