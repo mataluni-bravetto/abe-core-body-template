@@ -95,8 +95,26 @@
         }
 
         if (!response || !response.success) {
-          Logger.error("[CS] Analysis failed:", response?.error);
-          showErrorBadge("Analysis failed. Please try again or check your connection.", "error");
+          Logger.error("[CS] Analysis failed:", {
+            error: response?.error,
+            errorCode: response?.errorCode,
+            statusCode: response?.statusCode,
+            actionable: response?.actionable
+          });
+          
+          // Show user-friendly error message
+          let errorMessage = response?.error || "Analysis failed. Please try again.";
+          
+          // Use the error message from backend if available
+          if (response?.errorCode === 'AUTH_REQUIRED') {
+            errorMessage = response?.error || "Please sign in to use analysis features.";
+            // If actionable, could show a sign-in button (future enhancement)
+            if (response?.actionable) {
+              Logger.info("[CS] Authentication error is actionable - user should sign in");
+            }
+          }
+          
+          showErrorBadge(errorMessage, "error");
           return;
         }
 
@@ -429,7 +447,7 @@
   let userDetected = false;
   
   // ALWAYS log to verify content script is running
-  console.log('[CS] Content script loaded', {
+  Logger.info('[CS] Content script loaded', {
     hostname: window.location.hostname,
     url: window.location.href,
     isClerkPage: isClerkPage,
@@ -440,7 +458,7 @@
     Logger.info('[CS] Content script running on Clerk page:', window.location.hostname);
     Logger.info('[CS] Page URL:', window.location.href);
     Logger.info('[CS] Document ready state:', document.readyState);
-    console.log('[CS] Clerk page detected - starting auth detection');
+    Logger.info('[CS] Clerk page detected - starting auth detection');
     
     // IMMEDIATELY check if page shows "signed in" message (development mode redirect issue)
     // This happens when Clerk can't redirect but user IS signed in
@@ -482,7 +500,7 @@
           
           // Log if we found welcome element
           if (!hasWelcomeElement) {
-            Logger.debug('[CS] No Welcome element found via DOM search, will try pageText regex');
+            // No Welcome element found, will try pageText regex
           }
           
           // If we didn't find Welcome in a specific element, try body text
@@ -516,7 +534,7 @@
           pageTextSnippet: pageText.substring(0, 200),
           url: window.location.href
         });
-        console.log('[CS] Signed-in check:', { 
+        // Signed-in check 
           hasSignedInMessage, 
           pageTextLength: pageText.length,
           hasWelcome: pageText.includes('Welcome'),
@@ -603,7 +621,7 @@
                 }
               } catch (immediateErr) {
                 Logger.error('[CS] Immediate extraction failed:', immediateErr);
-                Logger.debug('[CS] Will try page content extraction');
+                // Will try page content extraction
               }
             })();
           }
@@ -679,12 +697,12 @@
               
               try {
                 Logger.info('[CS] About to call chrome.runtime.sendMessage');
-                console.log('[CS] Sending message now:', { type: 'CLERK_AUTH_DETECTED', user: authUserPayload });
+                Logger.info('[CS] Sending message now:', { type: 'CLERK_AUTH_DETECTED', user: authUserPayload });
                 
                 // Ensure service worker is active by checking runtime
                 if (!chrome.runtime.id) {
                   Logger.error('[CS] ❌ Extension runtime not available');
-                  console.error('[CS] Extension runtime not available');
+                  Logger.error('[CS] Extension runtime not available');
                   return;
                 }
                 
@@ -695,28 +713,28 @@
                 }, (response) => {
                   // Check if callback was called (might be undefined if service worker didn't respond)
                   Logger.info('[CS] sendMessage callback executed');
-                  console.log('[CS] Callback executed, lastError:', chrome.runtime.lastError, 'response:', response);
+                  Logger.info('[CS] Callback executed, lastError:', chrome.runtime.lastError, 'response:', response);
                   
                   if (chrome.runtime.lastError) {
                     Logger.error('[CS] ❌ Failed to send page-detected auth:', chrome.runtime.lastError.message);
-                    console.error('[CS] Runtime error:', chrome.runtime.lastError);
+                    Logger.error('[CS] Runtime error:', chrome.runtime.lastError);
                   } else {
                     Logger.info('[CS] ✅ Successfully sent page-detected auth to extension:', {
                       name: extractedName,
                       email: emailMatch ? emailMatch[0] : null,
                       response: response
                     });
-                    console.log('[CS] ✅ Message sent successfully, response:', response);
+                    Logger.info('[CS] ✅ Message sent successfully, response:', response);
                     userDetected = true;
                     
                     // Also verify storage was updated
                     chrome.storage.local.get(['clerk_user'], (result) => {
                       if (result.clerk_user) {
                         Logger.info('[CS] ✅ Verified user stored in extension:', result.clerk_user.id);
-                        console.log('[CS] ✅ User confirmed in storage:', result.clerk_user);
+                        Logger.info('[CS] ✅ User confirmed in storage:', result.clerk_user);
                       } else {
                         Logger.warn('[CS] ⚠️ User not found in storage after message send');
-                        console.warn('[CS] User not in storage:', result);
+                        Logger.warn('[CS] User not in storage:', result);
                       }
                     });
                   }
@@ -724,10 +742,10 @@
                 
                 // Also log after the sendMessage call to verify it was called
                 Logger.info('[CS] sendMessage call completed (callback may execute later)');
-                console.log('[CS] sendMessage call completed');
+                Logger.info('[CS] sendMessage call completed');
               } catch (error) {
                 Logger.error('[CS] ❌ Exception sending CLERK_AUTH_DETECTED message:', error);
-                console.error('[CS] Exception:', error);
+                Logger.error('[CS] Exception:', error);
               }
             } else {
               Logger.warn('[CS] Page shows signed in but no user info could be extracted from page content');
@@ -835,11 +853,11 @@
         clerkObserver.disconnect();
       }, 30000);
     } catch (e) {
-      Logger.debug('[CS] Could not set up MutationObserver:', e);
+      Logger.warn('[CS] Could not set up MutationObserver:', e.message);
     }
   } else {
-    Logger.debug('[CS] Not a Clerk accounts.dev page:', window.location.hostname);
-    console.log('[CS] Not a Clerk page, skipping auth detection');
+    // Not a Clerk accounts.dev page
+    Logger.info('[CS] Not a Clerk page, skipping auth detection');
   }
 
   /**
@@ -877,41 +895,41 @@
           }
         }
       } catch (e) {
-        Logger.debug('[CS] Error checking cookies:', e);
+        // Error checking cookies (non-critical)
       }
       return false;
     }
     
     function tryCheck() {
       attempts++;
-      Logger.debug(`[CS] Checking Clerk auth (attempt ${attempts}/${maxAttempts})`);
-      console.log(`[CS] Auth check attempt ${attempts}/${maxAttempts}`);
+      // Checking Clerk auth
+      Logger.info(`[CS] Auth check attempt ${attempts}/${maxAttempts}`);
       
       try {
         const clerk = getClerkInstance();
         
         if (clerk) {
           Logger.info('[CS] Clerk SDK found, attempting to get user');
-          console.log('[CS] Clerk SDK available');
+          Logger.info('[CS] Clerk SDK available');
           
           // Try to get user immediately
           (async () => {
             try {
               // Load Clerk if needed
               if (typeof clerk.load === 'function' && !clerk.loaded) {
-                Logger.debug('[CS] Loading Clerk SDK...');
-                console.log('[CS] Loading Clerk SDK...');
+                // Loading Clerk SDK
+                Logger.info('[CS] Loading Clerk SDK...');
                 await clerk.load();
-                console.log('[CS] Clerk SDK loaded');
+                Logger.info('[CS] Clerk SDK loaded');
               }
               
               const user = clerk.user;
-              console.log('[CS] User check:', { hasUser: !!user, userId: user?.id, email: user?.primaryEmailAddress?.emailAddress });
+              Logger.info('[CS] User check:', { hasUser: !!user, userId: user?.id, email: user?.primaryEmailAddress?.emailAddress });
               
               if (user && !userDetected) {
                 userDetected = true;
                 Logger.info('[CS] Clerk user detected:', user.id);
-                console.log('[CS] ✅ USER DETECTED:', user.id);
+                Logger.info('[CS] ✅ USER DETECTED:', user.id);
                 
                 // Get session token
                 let token = null;
@@ -919,7 +937,7 @@
                   const session = await clerk.session;
                   if (session) {
                     token = await session.getToken();
-                    Logger.debug('[CS] Successfully retrieved session token');
+                    Logger.info('[CS] Successfully retrieved session token');
                   }
                 } catch (e) {
                   Logger.warn('[CS] Could not get token from Clerk (non-fatal):', e.message);
@@ -947,7 +965,7 @@
                 });
               } else if (!userDetected && attempts < maxAttempts) {
                 // No user yet, try again
-                Logger.debug('[CS] No user found yet, retrying...');
+                // No user found yet, retrying
                 setTimeout(tryCheck, attemptInterval);
               } else if (!userDetected && attempts >= maxAttempts) {
                 Logger.warn('[CS] Max attempts reached, Clerk SDK available but no user found');
@@ -973,7 +991,7 @@
                             userFromSession = await session.getUser();
                           }
                         } catch (userErr) {
-                          Logger.debug('[CS] Could not get user from session:', userErr);
+                          // Could not get user from session (non-critical)
                         }
                         
                         // Send what we have
@@ -1006,7 +1024,7 @@
                       }
                     }
                   } catch (sessionErr) {
-                    Logger.debug('[CS] Could not access session:', sessionErr);
+                    // Could not access session (non-critical)
                   }
                 }
                 
@@ -1024,7 +1042,7 @@
           })();
         } else if (attempts < maxAttempts) {
           // Clerk SDK not loaded yet, try again
-          Logger.debug('[CS] Clerk SDK not found, retrying...');
+          // Clerk SDK not found, retrying
           setTimeout(tryCheck, attemptInterval);
         } else {
           // Max attempts reached, try cookie fallback and page detection
@@ -1111,7 +1129,7 @@
                 });
               }
             } catch (e) {
-              Logger.debug('[CS] Post-load re-check failed:', e);
+              // Post-load re-check failed (non-critical)
             }
           })();
         }
@@ -1167,7 +1185,7 @@
                       token = await session.getToken();
                     }
                   } catch (e) {
-                    Logger.debug('[CS] Could not get token (non-fatal):', e);
+                    // Could not get token (non-fatal)
                   }
                   
                   chrome.runtime.sendMessage({
