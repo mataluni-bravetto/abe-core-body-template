@@ -1,0 +1,207 @@
+name: Docker Build and ECR Push
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev, main]
+    types: [closed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+  APP_NAME: gateway
+  ECR_REGISTRY: 730335329303.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REPOSITORY: gateway
+
+jobs:
+  build_and_push:
+    runs-on: [arc-runner-set]
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx with Kubernetes driver
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver: kubernetes
+        driver-opts: |
+          namespace=buildkit
+        install: false
+        use: true
+        keep-state: false
+        cache-binary: true
+        cleanup: true
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        # Uses IRSA (IAM Roles for Service Accounts) from your runner pod
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Determine image tag
+      id: tag
+      run: |
+        BRANCH_NAME=${GITHUB_REF#refs/heads/}
+        COMMIT_SHA=${GITHUB_SHA:0:8}
+
+        # Check if manually triggered
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "🔧 Manual trigger detected"
+        fi
+
+        # Simple tagging strategy
+        if [[ "$BRANCH_NAME" == "dev" ]]; then
+          IMAGE_TAG="dev"
+          echo "🔄 Dev branch → using :dev tag"
+        elif [[ "$BRANCH_NAME" == "main" ]]; then
+          IMAGE_TAG="latest"
+          echo "🚀 Main branch → using :latest tag"
+        else
+          IMAGE_TAG="$COMMIT_SHA"
+          echo "🌿 Feature branch → using :$COMMIT_SHA tag"
+        fi
+
+        echo "Branch: $BRANCH_NAME"
+        echo "Selected tag: $IMAGE_TAG"
+        echo "Trigger: ${{ github.event_name }}"
+
+        # Export for next steps
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
+        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_OUTPUT
+
+    - name: Build and Push Docker images
+      run: |
+        set -e  # Exit on any error
+
+        IMAGE_TAG="${{ steps.tag.outputs.IMAGE_TAG }}"
+        ECR_REGISTRY="${{ env.ECR_REGISTRY }}"
+
+        # Define all services to build
+        declare -a SERVICES=(
+          "codeguardians-gateway|./codeguardians-gateway/codeguardians-gateway|gateway"
+          "tokenguard|./guards/tokenguard|tokenguard"
+          "trustguard|./guards/trust-guard|trustguard"
+          "contextguard|./guards/contextguard|contextguard"
+          "biasguard|./guards/biasguard-backend|biasguard"
+          "healthguard|./guards/healthguard|healthguard"
+        )
+
+        # Track build status
+        declare -a BUILT_SERVICES=()
+        declare -a FAILED_SERVICES=()
+
+        echo "🏗️  Building and pushing all services for AMD-64 (AWS) with tag: $IMAGE_TAG"
+        echo ""
+
+        # Loop through all services
+        for service in "${SERVICES[@]}"; do
+          IFS='|' read -r SERVICE_NAME CONTEXT ECR_REPO <<< "$service"
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Building: $SERVICE_NAME"
+          echo "📁 Context: $CONTEXT"
+          echo "🏷️  ECR Repo: $ECR_REPO"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          if docker buildx build \
+            --platform linux/amd64 \
+            --no-cache \
+            --push \
+            -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG \
+            $CONTEXT; then
+            echo "✅ Successfully pushed: $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG"
+            BUILT_SERVICES+=("$SERVICE_NAME")
+          else
+            echo "❌ Failed to build: $SERVICE_NAME"
+            FAILED_SERVICES+=("$SERVICE_NAME")
+            exit 1  # Fail fast on first error
+          fi
+          echo ""
+        done
+
+        if [ ${#FAILED_SERVICES[@]} -eq 0 ]; then
+          echo "🎉 All services built and pushed successfully!"
+        else
+          echo "❌ Some services failed to build: ${FAILED_SERVICES[*]}"
+          exit 1
+        fi
+
+    - name: Trigger deployment workflow
+      if: success() && steps.tag.outputs.BRANCH_NAME == 'dev'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.CI_CD }}
+        script: |
+          const AWS_REGION = "${{ env.AWS_REGION }}";
+          const ECR_REGISTRY = "${{ env.ECR_REGISTRY }}";
+          const APP_NAME = "${{ env.APP_NAME }}";
+          const ECR_REPOSITORY = "${{ env.ECR_REPOSITORY }}";
+          const BRANCH_NAME = "${{ steps.tag.outputs.BRANCH_NAME }}";
+          const IMAGE_TAG = "${{ steps.tag.outputs.IMAGE_TAG }}";
+          const COMMIT_SHA = "${{ github.sha }}";
+
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'deploy.yml',
+            ref: BRANCH_NAME,
+            inputs: {
+              aws_region: AWS_REGION,
+              app_name: APP_NAME,
+              ecr_registry: ECR_REGISTRY,
+              ecr_repository: ECR_REPOSITORY,
+              branch: BRANCH_NAME,
+              image_tag: IMAGE_TAG,
+              commit_sha: COMMIT_SHA,
+              build_run_id: "${{ github.run_id }}"
+            }
+          });
+          
+          console.log("✅ Deployment workflow triggered successfully");
+
+    - name: Output build summary
+      run: |
+        ECR_REGISTRY="${{ env.ECR_REGISTRY }}"
+        ECR_REPOSITORY="${{ env.ECR_REPOSITORY }}"
+        APP_NAME="${{ env.APP_NAME }}"
+        IMAGE_TAG="${{ steps.tag.outputs.IMAGE_TAG }}"
+        BRANCH_NAME="${{ steps.tag.outputs.BRANCH_NAME }}"
+        COMMIT_SHA="${{ steps.tag.outputs.COMMIT_SHA }}"
+        TRIGGER_TYPE="${{ github.event_name }}"
+
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "🎉 Build Complete - All Services Pushed to ECR"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "📦 Registry: $ECR_REGISTRY"
+        echo "🔖 Tag: $IMAGE_TAG"
+        echo "🌿 Branch: $BRANCH_NAME"
+        echo "📝 Commit: $COMMIT_SHA"
+        echo "⚡ Trigger: $TRIGGER_TYPE"
+        echo "🖥️  Platform: linux/amd64 (AWS compatible)"
+        echo ""
+        echo "📋 Services built and pushed:"
+        echo "   ✅ gateway"
+        echo "   ✅ tokenguard"
+        echo "   ✅ trustguard"
+        echo "   ✅ contextguard"
+        echo "   ✅ biasguard"
+        echo "   ✅ healthguard"
+        echo ""
+        echo "🚀 Image URLs:"
+        echo "   $ECR_REGISTRY/gateway:$IMAGE_TAG"
+        echo "   $ECR_REGISTRY/tokenguard:$IMAGE_TAG"
+        echo "   $ECR_REGISTRY/trustguard:$IMAGE_TAG"
+        echo "   $ECR_REGISTRY/contextguard:$IMAGE_TAG"
+        echo "   $ECR_REGISTRY/biasguard:$IMAGE_TAG"
+        echo "   $ECR_REGISTRY/healthguard:$IMAGE_TAG"
+        echo ""

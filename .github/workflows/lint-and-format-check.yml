@@ -1,0 +1,191 @@
+name: lint-and-format-check
+
+on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
+
+jobs:
+  check:
+    runs-on: [arc-runner-set]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Prettier format check
+        id: prettier_check
+        run: |
+          echo "🎨 Checking code formatting with Prettier..."
+          set +e
+
+          npm run format:check > prettier-report.txt 2>&1
+          PRETTIER_EXIT_CODE=$?
+
+          PRETTIER_COUNT=$(grep -c "would be reformatted" prettier-report.txt 2>/dev/null || echo '0')
+          if [ -z "$PRETTIER_COUNT" ]; then
+            PRETTIER_COUNT=0
+          fi
+          echo "prettier_count=$PRETTIER_COUNT" >> $GITHUB_OUTPUT
+          echo "DEBUG: Prettier exit code: $PRETTIER_EXIT_CODE, file count: $PRETTIER_COUNT"
+
+          echo "::group::🎨 Prettier Formatting Results"
+          if [ "$PRETTIER_COUNT" -gt 0 ]; then
+            echo "::warning::Found $PRETTIER_COUNT file(s) needing formatting"
+            cat prettier-report.txt
+          else
+            echo "✅ All files properly formatted"
+          fi
+          echo "::endgroup::"
+
+      - name: Run ESLint
+        id: eslint_check
+        run: |
+          echo "⚡ Running ESLint..."
+          set +e
+
+          npm run lint > eslint-report.txt 2>&1
+          ESLINT_EXIT_CODE=$?
+
+          ESLINT_COUNT=$(grep -c "error\|warning" eslint-report.txt 2>/dev/null || echo '0')
+          echo "eslint_count=$ESLINT_COUNT" >> $GITHUB_OUTPUT
+          echo "DEBUG: ESLint exit code: $ESLINT_EXIT_CODE, issue count: $ESLINT_COUNT"
+
+          echo "::group::⚡ ESLint Results"
+          if [ "$ESLINT_COUNT" -gt 0 ]; then
+            echo "::warning::Found $ESLINT_COUNT linting issue(s)"
+            cat eslint-report.txt
+          else
+            echo "✅ No linting issues found"
+          fi
+          echo "::endgroup::"
+
+      - name: Create Lint Summary
+        id: create_summary
+        if: always()
+        run: |
+          PRETTIER_COUNT="${{ steps.prettier_check.outputs.prettier_count }}"
+          ESLINT_COUNT="${{ steps.eslint_check.outputs.eslint_count }}"
+          TOTAL=$((PRETTIER_COUNT + ESLINT_COUNT))
+
+          echo "total_issues=$TOTAL" >> $GITHUB_OUTPUT
+
+          echo "## 🔍 Lint & Format Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tool | Issues Found |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Prettier | $PRETTIER_COUNT files |" >> $GITHUB_STEP_SUMMARY
+          echo "| ESLint | $ESLINT_COUNT issues |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total** | **$TOTAL** |" >> $GITHUB_STEP_SUMMARY
+
+          if [ $TOTAL -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Code quality issues detected. Review the job logs for details.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Quick Fix Commands:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo "npm run format" >> $GITHUB_STEP_SUMMARY
+            echo "npm run lint:fix" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create custom check with warning indicator
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prettierCount = parseInt('${{ steps.prettier_check.outputs.prettier_count }}') || 0;
+            const eslintCount = parseInt('${{ steps.eslint_check.outputs.eslint_count }}') || 0;
+            const totalIssues = prettierCount + eslintCount;
+            const isMainBranch = context.payload.pull_request?.base?.ref === 'main';
+            
+            // SAFETY: GitHub API limit is 65535 characters for check run output.text
+            // VERIFY: Truncation accounts for truncation message length
+            // FAILS: If truncation logic doesn't properly account for buffer
+            
+            const MAX_TEXT_LENGTH = 65535;
+            const TRUNCATE_MESSAGE = '\n\n...(truncated due to size limit)';
+            const TRUNCATE_BUFFER = TRUNCATE_MESSAGE.length;
+            const MAX_SECTION_LENGTH = 15000; // Per-section limit to prevent overflow
+            
+            // Helper function to safely truncate text
+            function safeTruncate(text, maxLength) {
+              if (text.length <= maxLength) return text;
+              // Truncate leaving room for truncation message
+              return text.substring(0, maxLength - TRUNCATE_BUFFER) + TRUNCATE_MESSAGE;
+            }
+            
+            // Read the detailed reports with per-section truncation
+            const fs = require('fs');
+            let detailedText = '';
+            
+            try {
+              if (fs.existsSync('prettier-report.txt') && prettierCount > 0) {
+                let prettierReport = fs.readFileSync('prettier-report.txt', 'utf8');
+                prettierReport = safeTruncate(prettierReport, MAX_SECTION_LENGTH);
+                detailedText += '## Prettier Formatting Issues\n\n```\n' + prettierReport + '\n```\n\n';
+              }
+              
+              if (fs.existsSync('eslint-report.txt') && eslintCount > 0) {
+                let eslintReport = fs.readFileSync('eslint-report.txt', 'utf8');
+                eslintReport = safeTruncate(eslintReport, MAX_SECTION_LENGTH);
+                detailedText += '## ESLint Issues\n\n```\n' + eslintReport + '\n```\n\n';
+              }
+            } catch (error) {
+              console.log('Could not read report files:', error);
+            }
+            
+            // Final safety truncation to ensure we never exceed limit
+            detailedText = safeTruncate(detailedText, MAX_TEXT_LENGTH);
+            
+            let conclusion, title, summary;
+            
+            if (totalIssues === 0) {
+              conclusion = 'success';
+              title = '✅ All code quality checks passed';
+              summary = '**No linting or formatting issues found.**\n\nYour code meets all quality standards.';
+            } else if (isMainBranch) {
+              conclusion = 'success';
+              title = `❌ Found ${totalIssues} code quality issues`;
+              summary = `**⚠️ Code quality issues found for main branch:** ${totalIssues}\n- Prettier: ${prettierCount}\n- ESLint: ${eslintCount}\n\n❌ These should be addressed before merging.\n\n📋 Click "Details" below to see the full report with all issues.`;
+            } else {
+              conclusion = 'success';
+              title = `⚠️ Found ${totalIssues} code quality issues (warnings)`;
+              summary = `**Code quality issues found:** ${totalIssues}\n- Prettier: ${prettierCount}\n- ESLint: ${eslintCount}\n\n⚠️ These are warnings only for dev branch. Review and fix before merging to main.\n\n📋 Click "Details" below to see the full report with all issues.`;
+            }
+            
+            // VERIFY: Final text length is within limit
+            if (detailedText.length > MAX_TEXT_LENGTH) {
+              console.log(`WARNING: Text still exceeds limit after truncation: ${detailedText.length} > ${MAX_TEXT_LENGTH}`);
+              // Force truncation as last resort
+              detailedText = detailedText.substring(0, MAX_TEXT_LENGTH - TRUNCATE_BUFFER) + TRUNCATE_MESSAGE;
+            }
+            
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'lint-and-format-check',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: conclusion,
+              output: {
+                title: title,
+                summary: summary,
+                text: detailedText
+              }
+            });

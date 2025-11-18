@@ -1,0 +1,144 @@
+name: dependency-audit
+
+on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
+
+jobs:
+  audit:
+    runs-on: [arc-runner-set]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        id: npm_audit
+        run: |
+          echo "🔍 Running npm audit..."
+          set +e
+
+          # Run npm audit and capture output
+          npm audit --audit-level=moderate --json > npm-audit-report.json 2>&1 || true
+          npm audit --audit-level=moderate > npm-audit-report.txt 2>&1 || true
+
+          # Parse vulnerability count from JSON
+          VULN_COUNT=$(jq '.metadata.vulnerabilities.total // 0' npm-audit-report.json 2>/dev/null || echo '0')
+          
+          # Also check for high/critical vulnerabilities
+          HIGH_VULN=$(jq '.metadata.vulnerabilities.high // 0' npm-audit-report.json 2>/dev/null || echo '0')
+          CRITICAL_VULN=$(jq '.metadata.vulnerabilities.critical // 0' npm-audit-report.json 2>/dev/null || echo '0')
+          
+          echo "vuln_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+          echo "high_vuln=$HIGH_VULN" >> $GITHUB_OUTPUT
+          echo "critical_vuln=$CRITICAL_VULN" >> $GITHUB_OUTPUT
+
+          echo "Vulnerability count: $VULN_COUNT (High: $HIGH_VULN, Critical: $CRITICAL_VULN)"
+
+          echo "::group::📊 npm Audit Summary"
+          if [ $VULN_COUNT -gt 0 ]; then
+            echo "::warning::Found $VULN_COUNT vulnerabilities in dependencies"
+            cat npm-audit-report.txt
+          else
+            echo "✅ No vulnerabilities found"
+          fi
+          echo "::endgroup::"
+
+          echo "## 🔍 Dependency Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $VULN_COUNT -gt 0 ]; then
+            echo "⚠️ **Found $VULN_COUNT vulnerabilities**" >> $GITHUB_STEP_SUMMARY
+            echo "- High: $HIGH_VULN" >> $GITHUB_STEP_SUMMARY
+            echo "- Critical: $CRITICAL_VULN" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Click to see details</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat npm-audit-report.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-reports
+          path: |
+            npm-audit-report.json
+            npm-audit-report.txt
+          retention-days: 1
+
+      - name: Create custom check with warning indicator
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const vulnCount = parseInt('${{ steps.npm_audit.outputs.vuln_count }}') || 0;
+            const highVuln = parseInt('${{ steps.npm_audit.outputs.high_vuln }}') || 0;
+            const criticalVuln = parseInt('${{ steps.npm_audit.outputs.critical_vuln }}') || 0;
+            const totalIssues = vulnCount;
+            const isMainBranch = context.payload.pull_request?.base?.ref === 'main';
+
+            // Read the detailed reports
+            const fs = require('fs');
+            let detailedText = '';
+
+            try {
+              if (fs.existsSync('npm-audit-report.txt')) {
+                const npmAuditReport = fs.readFileSync('npm-audit-report.txt', 'utf8');
+                if (vulnCount > 0) {
+                  detailedText += '## npm audit Results\n\n```\n' + npmAuditReport + '\n```\n\n';
+                }
+              }
+            } catch (error) {
+              console.log('Could not read report files:', error);
+            }
+
+            let conclusion, title, summary;
+
+            if (totalIssues === 0) {
+              conclusion = 'success';
+              title = '✅ No vulnerabilities found';
+              summary = '**All dependency checks passed successfully.**\n\nNo vulnerabilities detected in your npm dependencies.';
+            } else if (isMainBranch || criticalVuln > 0 || highVuln > 0) {
+              conclusion = 'failure';
+              title = `❌ Found ${totalIssues} vulnerabilities`;
+              summary = `**⚠️ Vulnerabilities found for main branch:** ${totalIssues}\n- High: ${highVuln}\n- Critical: ${criticalVuln}\n\n❌ These should be addressed before merging.\n\n📋 Click "Details" below to see the full vulnerability report.`;
+            } else {
+              conclusion = 'success';
+              title = `⚠️ Found ${totalIssues} vulnerabilities (warnings)`;
+              summary = `**Vulnerabilities found:** ${totalIssues}\n- High: ${highVuln}\n- Critical: ${criticalVuln}\n\n⚠️ These are warnings only for dev branch. Review and fix before merging to main.\n\n📋 Click "Details" below to see the full vulnerability report.`;
+            }
+
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'dependency-audit',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: conclusion,
+              output: {
+                title: title,
+                summary: summary,
+                text: detailedText.length > 65535 ? detailedText.substring(0, 65535) + '\n\n...(truncated)' : detailedText
+              }
+            });

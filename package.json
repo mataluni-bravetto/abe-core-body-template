@@ -6,6 +6,11 @@
   "homepage": "https://www.aiguardian.ai",
   "license": "MIT",
   "scripts": {
+    "setup": "node scripts/setup-dev.js",
+    "lint": "eslint src/ scripts/ tests/ --ext .js",
+    "lint:fix": "eslint src/ scripts/ tests/ --ext .js --fix",
+    "format": "prettier --write \"src/**/*.{js,html,css}\" \"scripts/**/*.js\" \"tests/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.{js,html,css}\" \"scripts/**/*.js\" \"tests/**/*.js\"",
     "test:unit": "node scripts/run-unit-tests.cjs",
     "test:integration": "node tests/integration-test.js",
     "test:backend": "node scripts/run-backend-integration-tests.js",
@@ -19,15 +24,20 @@
     "build": "node scripts/bundle-clerk.js",
     "build:clerk": "node scripts/bundle-clerk.js",
     "build:sdk": "cd sdk && npm run build",
-    "package": "zip -r aiguardian-v1.0.0.zip . -x '*.git*' '*node_modules*' '*tests*' '*sdk*' '*.md' '!*.json' '!*.html' '!*.js' '!manifest.json' '!src/*' '!assets/*'",
+    "package": "node scripts/package-extension.js",
+    "package:legacy": "zip -r aiguardian-v1.0.0.zip . -x '*.git*' '*node_modules*' '*tests*' '*sdk*' '*.md' '!*.json' '!*.html' '!*.js' '!manifest.json' '!src/*' '!assets/*'",
     "docs": "echo 'SDK docs: sdk/README.md | Extension docs: DEVELOPER_GUIDE.md'"
   },
   "workspaces": [
     "sdk"
   ],
   "devDependencies": {
+    "archiver": "^7.0.1",
     "esbuild": "^0.19.12",
+    "eslint": "^8.57.0",
+    "eslint-plugin-security": "^3.0.1",
     "jest": "^30.2.0",
+    "prettier": "^3.2.5",
     "puppeteer": "^24.26.1"
   },
   "dependencies": {

@@ -1,0 +1,139 @@
+name: Branch Protection
+
+on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  enforce-branch-policy:
+    name: Branch Policy Check
+    runs-on: [arc-runner-set]
+    steps:
+    - name: Check branch policy
+      id: policy_check
+      run: |
+        SOURCE_BRANCH="${{ github.head_ref }}"
+        TARGET_BRANCH="${{ github.base_ref }}"
+        PR_NUMBER="${{ github.event.number }}"
+
+        echo "🔍 Branch Protection Check"
+        echo "Source: $SOURCE_BRANCH"
+        echo "Target: $TARGET_BRANCH"
+        echo "PR: #$PR_NUMBER"
+        echo ""
+
+        POLICY_PASS="true"
+
+        if [[ "$TARGET_BRANCH" == "main" ]]; then
+          if [[ "$SOURCE_BRANCH" == "dev" ]]; then
+            echo "✅ ALLOWED: dev → main merge is permitted"
+            echo "This follows the proper GitFlow pattern"
+          else
+            echo "❌ BLOCKED: Only dev → main merges are allowed"
+            echo ""
+            echo "🚫 Branch Policy Violation:"
+            echo "   • Source: $SOURCE_BRANCH"
+            echo "   • Target: main"
+            echo ""
+            echo "📋 To fix this:"
+            echo "   1. Close this PR"
+            echo "   2. Merge your changes to 'dev' branch first"
+            echo "   3. Create a new PR: dev → main"
+            echo ""
+            echo "💡 Proper flow: feature-branch → dev → main"
+
+            POLICY_PASS="false"
+          fi
+        elif [[ "$TARGET_BRANCH" == "dev" ]]; then
+          echo "✅ ALLOWED: $SOURCE_BRANCH → dev merge is permitted"
+          echo "Feature branches can merge into dev"
+        fi
+
+        echo "policy_pass=$POLICY_PASS" >> $GITHUB_OUTPUT
+
+        if [[ "$POLICY_PASS" == "false" ]]; then
+          exit 1
+        fi
+
+        echo "✅ Branch policy check passed"
+      continue-on-error: true
+
+    - name: Create custom status check
+      if: always()
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const policyPass = '${{ steps.policy_check.outputs.policy_pass }}';
+          const targetBranch = context.payload.pull_request?.base?.ref;
+          const sourceBranch = context.payload.pull_request?.head?.ref;
+
+          let state, description;
+
+          if (policyPass === 'false') {
+            state = 'failure';
+            description = `❌ Only dev → main merges allowed (current: ${sourceBranch} → ${targetBranch})`;
+          } else {
+            state = 'success';
+            description = '✅ Branch policy satisfied';
+          }
+
+          await github.rest.repos.createCommitStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            sha: context.payload.pull_request.head.sha,
+            state: state,
+            context: 'enforce-branch-policy',
+            description: description,
+            target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+          });
+
+          if (policyPass === 'false') {
+            core.setFailed('Branch policy violation');
+          }
+
+  notify-branch-policy:
+    runs-on: [arc-runner-set]
+    needs: enforce-branch-policy
+    if: needs.enforce-branch-policy.result == 'failure'
+    steps:
+    - name: Comment on PR about branch policy
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const sourceBranch = context.payload.pull_request.head.ref;
+          const targetBranch = context.payload.pull_request.base.ref;
+
+          const comment = `## 🚫 Branch Policy Violation
+
+          This pull request violates our branching strategy.
+
+          **Current PR:** \`${sourceBranch}\` → \`${targetBranch}\`
+          **Policy:** Only \`dev\` → \`main\` merges are allowed
+
+          ### 📋 How to Fix:
+          1. **Close this PR** (don't delete the branch yet)
+          2. **Merge your changes to \`dev\`** first:
+             \`\`\`bash
+             git checkout dev
+             git pull origin dev
+             git merge ${sourceBranch}
+             git push origin dev
+             \`\`\`
+          3. **Create new PR:** \`dev\` → \`main\`
+
+          ### 💡 Proper GitFlow:
+          \`\`\`
+          feature-branch → dev → main
+          \`\`\`
+
+          This ensures all changes are tested in dev before reaching main.`;
+
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
