@@ -45,9 +45,11 @@ class AiGuardianGateway {
     ];
 
     const sanitizeString = (str, maxLength = 10000) => {
-      if (typeof str !== 'string') return str;
+      if (typeof str !== 'string') {return str;}
 
       // Remove null bytes and control characters (except newlines and tabs for readability)
+      // SAFETY: Control character regex needed for security sanitization
+      // eslint-disable-next-line no-control-regex
       let sanitized = str.replace(/\x00/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 
       // Apply all dangerous pattern removals
@@ -1093,7 +1095,7 @@ class AiGuardianGateway {
    * Sanitize payload for logging
    */
   sanitizePayload(payload) {
-    if (!payload) return payload;
+    if (!payload) {return payload;}
 
     const sanitized = { ...payload };
 
@@ -1158,7 +1160,8 @@ class AiGuardianGateway {
       if (typeof response.success !== 'boolean') {
         errors.push('Response missing success boolean');
       }
-      if (!response.hasOwnProperty('data')) {
+      // SAFETY: Use Object.prototype.hasOwnProperty to avoid prototype pollution
+      if (!Object.prototype.hasOwnProperty.call(response, 'data')) {
         errors.push('Response missing data field');
       }
 
@@ -1178,8 +1181,8 @@ class AiGuardianGateway {
 
       // Clamp score into [0, 1] if it looks like a 0-1 value; ignore NaN
       if (typeof score === 'number' && !Number.isNaN(score)) {
-        if (score < 0) score = 0;
-        if (score > 1) score = 1;
+        if (score < 0) {score = 0;}
+        if (score > 1) {score = 1;}
       } else {
         score = 0;
       }
