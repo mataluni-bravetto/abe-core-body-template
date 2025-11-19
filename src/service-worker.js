@@ -16,6 +16,7 @@ try {
   importScripts('logging.js');
   importScripts('string-optimizer.js');
   importScripts('cache-manager.js');
+  importScripts('circuit-breaker.js');
   importScripts('subscription-service.js');
   importScripts('gateway.js');
 
@@ -25,6 +26,9 @@ try {
   }
   if (typeof DEFAULT_CONFIG === 'undefined') {
     throw new Error('DEFAULT_CONFIG not loaded - constants.js failed');
+  }
+  if (typeof CircuitBreaker === 'undefined') {
+    throw new Error('CircuitBreaker not loaded - circuit-breaker.js failed');
   }
   if (typeof AiGuardianGateway === 'undefined') {
     throw new Error('AiGuardianGateway not loaded - gateway.js failed');
