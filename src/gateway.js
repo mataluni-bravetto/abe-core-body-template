@@ -15,6 +15,7 @@ class AiGuardianGateway {
   constructor() {
     this.isInitialized = false;
     this._initializing = false;
+    this._initializationError = null; // SAFETY: Track initialization errors
   }
 
   /**
@@ -316,6 +317,7 @@ class AiGuardianGateway {
   /**
    * Initialize gateway connection (simplified)
    * Client only needs to know gateway URL and API key
+   * SAFETY: Properly handles and reports initialization failures
    */
   async initializeGateway() {
     // Prevent concurrent initialization
@@ -345,11 +347,21 @@ class AiGuardianGateway {
         Logger.info('[Gateway] Subscription service initialized');
       }
 
+      // VERIFY: Ensure critical components initialized
+      if (!this.config || !this.config.gatewayUrl) {
+        throw new Error('Gateway configuration missing after initialization');
+      }
+
       this.isInitialized = true;
+      this._initializationError = null;
       Logger.info('[Gateway] Initialized unified gateway connection');
     } catch (err) {
-      Logger.error('[Gateway] Initialization failed', err);
+      Logger.error('[Gateway] Initialization failed', {
+        error: err.message,
+        stack: err.stack
+      });
       this.isInitialized = false;
+      this._initializationError = err;
       throw err; // Re-throw to allow caller to handle
     } finally {
       this._initializing = false;
@@ -531,44 +543,27 @@ class AiGuardianGateway {
           const responseTime = Date.now() - startTime;
           
           if (!response.ok) {
-            // EPISTEMIC: Handle 401 with mutex-protected token refresh
-            if (response.status === 401 && clerkToken) {
-              // Check if Web Locks API is available for mutex
-              if (typeof navigator !== 'undefined' && navigator.locks) {
-                try {
-                  // Acquire lock for token refresh to prevent thundering herd
-                  const refreshedResponse = await navigator.locks.request('token_refresh', async (lock) => {
-                    // Check if token was already refreshed by another request
-                    const currentToken = await this.getClerkSessionToken();
-                    if (currentToken === clerkToken) {
-                      // We're the first - refresh token
-                      const newToken = await this.refreshClerkToken();
-                      if (newToken) {
-                        // Update headers with new token
-                        const newHeaders = { ...headers, 'Authorization': 'Bearer ' + newToken };
-                        const newRequestOptions = { ...requestOptions, headers: newHeaders };
-                        // Retry request with new token
-                        const retryResponse = await fetch(url, newRequestOptions);
-                        if (retryResponse.ok) {
-                          return retryResponse;
-                        }
-                      }
-                    } else {
-                      // Another request refreshed - use new token
-                      const newHeaders = { ...headers, 'Authorization': 'Bearer ' + currentToken };
-                      const newRequestOptions = { ...requestOptions, headers: newHeaders };
-                      const retryResponse = await fetch(url, newRequestOptions);
-                      if (retryResponse.ok) {
-                        return retryResponse;
-                      }
-                    }
-                    // If refresh/retry failed, return original response
-                    return response;
+            // EPISTEMIC: Handle 401 with automatic token refresh
+            if (response.status === 401 && clerkToken && attempt < this.config.retryAttempts) {
+              try {
+                // Try to refresh token
+                const newToken = await this.refreshClerkToken();
+                if (newToken && newToken !== clerkToken) {
+                  // Token was refreshed - retry request with new token
+                  Logger.info('[Gateway] Token refreshed, retrying request with new token', {
+                    requestId,
+                    endpoint: mappedEndpoint,
+                    attempt
                   });
                   
-                  // If we got a successful refreshed response, process it
-                  if (refreshedResponse && refreshedResponse.ok) {
-                    const result = await refreshedResponse.json();
+                  // Update headers with new token
+                  const newHeaders = { ...headers, 'Authorization': 'Bearer ' + newToken };
+                  const newRequestOptions = { ...requestOptions, headers: newHeaders };
+                  
+                  // Retry request with new token (don't increment attempt counter)
+                  const retryResponse = await fetch(url, newRequestOptions);
+                  if (retryResponse.ok) {
+                    const result = await retryResponse.json();
                     const validationResult = this.validateApiResponse(result, endpoint);
                     const finalResult = validationResult.transformedResponse || result;
                     this.traceStats.successes++;
@@ -576,24 +571,48 @@ class AiGuardianGateway {
                     this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
                     return finalResult;
                   }
-                } catch (refreshError) {
-                  Logger.warn('[Gateway] Token refresh mutex failed, continuing with error handling:', refreshError);
+                  // If retry still fails, continue with error handling below
+                } else {
+                  Logger.debug('[Gateway] Token refresh returned same token or failed, continuing with error handling');
                 }
+              } catch (refreshError) {
+                Logger.warn('[Gateway] Token refresh failed, continuing with error handling:', refreshError);
               }
             }
             
-            // EPISTEMIC: Handle 403 Forbidden explicitly
+            // EPISTEMIC: Handle 403 Forbidden explicitly with enhanced messaging
             if (response.status === 403) {
               Logger.error('[Gateway] 403 Forbidden - Authentication/Authorization failed', {
                 requestId,
-                endpoint: mappedEndpoint
+                endpoint: mappedEndpoint,
+                url,
+                hasToken: !!clerkToken
               });
+              
+              // Try to get more context from response body
+              let errorDetail = 'Access denied.';
+              try {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                  const errorData = await response.json();
+                  errorDetail = errorData?.detail || errorData?.error || errorData?.message || errorDetail;
+                }
+              } catch (e) {
+                // If parsing fails, use default message
+              }
+              
               const errorResponse = {
                 success: false,
-                error: 'Access denied. Please check your authentication and try again.',
+                error: errorDetail || 'Access denied. Please check your authentication and try again.',
                 status: 403,
-                requiresAuth: true
+                requiresAuth: true,
+                requestId,
+                endpoint: mappedEndpoint,
+                suggestion: clerkToken 
+                  ? 'Your session may have expired. Please refresh the page and try again.'
+                  : 'Please sign in to continue.'
               };
+              
               if (endpoint === 'analyze') {
                 return errorResponse;
               }
@@ -742,8 +761,27 @@ class AiGuardianGateway {
   /**
    * Analyze text through unified gateway
    * Client doesn't need to know about individual guard services
+   * SAFETY: Validates initialization before processing
    */
   async analyzeText(text, options = {}) {
+    // SAFETY: Check if gateway initialized successfully
+    if (!this.isInitialized) {
+      if (this._initializationError) {
+        throw new Error(`Gateway not initialized: ${this._initializationError.message}`);
+      }
+      // Try to initialize if not already initializing
+      if (!this._initializing) {
+        try {
+          await this.initializeGateway();
+        } catch (initErr) {
+          throw new Error(`Gateway initialization failed: ${initErr.message}`);
+        }
+      } else {
+        // Wait for ongoing initialization
+        await this.waitForInitialization();
+      }
+    }
+
     const analysisId = this.generateRequestId();
     const startTime = Date.now();
 
@@ -836,6 +874,44 @@ class AiGuardianGateway {
       connected: isConnected,
       gateway_url: this.config.gatewayUrl,
       last_check: new Date().toISOString()
+    };
+  }
+
+  /**
+   * SAFETY: Wait for gateway initialization to complete
+   * Useful for ensuring gateway is ready before use
+   */
+  async waitForInitialization(timeout = 5000) {
+    const start = Date.now();
+    while (!this.isInitialized && (Date.now() - start) < timeout) {
+      if (!this._initializing) {
+        // Not initializing and not initialized - try to initialize
+        try {
+          await this.initializeGateway();
+          break;
+        } catch (err) {
+          throw new Error(`Gateway initialization timeout after ${timeout}ms. Error: ${err.message}`);
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!this.isInitialized) {
+      throw new Error(`Gateway initialization timeout after ${timeout}ms. Error: ${this._initializationError?.message || 'Unknown'}`);
+    }
+    return true;
+  }
+
+  /**
+   * SAFETY: Get comprehensive health check including initialization status
+   */
+  async healthCheck() {
+    return {
+      initialized: this.isInitialized,
+      initializationError: this._initializationError?.message || null,
+      gatewayConnected: await this.testGatewayConnection(),
+      gatewayUrl: this.config?.gatewayUrl || 'not configured',
+      traceStats: this.getTraceStats(),
+      subscriptionService: this.subscriptionService ? 'available' : 'not initialized'
     };
   }
 
@@ -1144,7 +1220,11 @@ class AiGuardianGateway {
 
   /**
    * EPISTEMIC: Refresh Clerk session token
-   * Used for automatic token refresh on 401 errors with mutex protection
+   * Used for automatic token refresh on 401 errors
+   * 
+   * Works in both service worker and window contexts:
+   * - Window context: Uses Clerk SDK directly
+   * - Service worker: Sends message to popup/content script to refresh via Clerk SDK
    * 
    * @returns {Promise<string|null>} New token or null if refresh failed
    */
@@ -1161,9 +1241,37 @@ class AiGuardianGateway {
           const newToken = await session.getToken();
           if (newToken) {
             await this.storeClerkToken(newToken);
-            Logger.info('[Gateway] Token refreshed successfully');
+            Logger.info('[Gateway] Token refreshed successfully (window context)');
             return newToken;
           }
+        }
+      }
+      
+      // Service worker context: Request token refresh via message passing
+      if (typeof chrome !== 'undefined' && chrome.runtime) {
+        try {
+          // Send message to popup/content script to refresh token via Clerk SDK
+          const response = await new Promise((resolve) => {
+            chrome.runtime.sendMessage(
+              { type: 'REFRESH_CLERK_TOKEN' },
+              (response) => {
+                if (chrome.runtime.lastError) {
+                  Logger.debug('[Gateway] Token refresh message failed:', chrome.runtime.lastError.message);
+                  resolve(null);
+                } else {
+                  resolve(response);
+                }
+              }
+            );
+          });
+          
+          if (response && response.success && response.token) {
+            await this.storeClerkToken(response.token);
+            Logger.info('[Gateway] Token refreshed successfully (service worker context)');
+            return response.token;
+          }
+        } catch (messageError) {
+          Logger.debug('[Gateway] Token refresh via message failed:', messageError);
         }
       }
       

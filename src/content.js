@@ -1246,6 +1246,49 @@
           sendResponse({ success: false, message: 'Not on Clerk page' });
           return false;
         }
+
+      case 'REFRESH_CLERK_TOKEN_REQUEST':
+        // Handle token refresh request from service worker
+        // Content script has access to Clerk SDK, so we can refresh the token
+        Logger.info('[CS] REFRESH_CLERK_TOKEN_REQUEST received');
+        
+        (async () => {
+          try {
+            const clerk = getClerkInstance();
+            if (!clerk) {
+              Logger.warn('[CS] Clerk SDK not available for token refresh');
+              sendResponse({ success: false, error: 'Clerk SDK not available' });
+              return;
+            }
+            
+            // Load Clerk if needed
+            if (typeof clerk.load === 'function' && !clerk.loaded) {
+              await clerk.load();
+            }
+            
+            // Get session and refresh token
+            const session = await clerk.session;
+            if (!session) {
+              Logger.warn('[CS] No active Clerk session for token refresh');
+              sendResponse({ success: false, error: 'No active session' });
+              return;
+            }
+            
+            const token = await session.getToken();
+            if (token) {
+              Logger.info('[CS] Token refreshed successfully via Clerk SDK');
+              sendResponse({ success: true, token: token });
+            } else {
+              Logger.warn('[CS] Failed to get token from Clerk session');
+              sendResponse({ success: false, error: 'Token retrieval failed' });
+            }
+          } catch (error) {
+            Logger.error('[CS] Error refreshing token:', error);
+            sendResponse({ success: false, error: error.message || 'Token refresh failed' });
+          }
+        })();
+        
+        return true; // Keep channel open for async response
         
       case 'ANALYZE_SELECTION':
         const rawSelection = window.getSelection();

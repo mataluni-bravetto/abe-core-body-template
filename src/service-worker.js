@@ -402,6 +402,58 @@ try {
           });
           return true;
 
+        case "REFRESH_CLERK_TOKEN":
+          // Handle token refresh request from gateway
+          // Service worker can't access Clerk SDK directly, so forward to content script
+          Logger.info("[BG] REFRESH_CLERK_TOKEN message received");
+          
+          // Try to get current token from storage first
+          chrome.storage.local.get(['clerk_token'], async (data) => {
+            const currentToken = data.clerk_token;
+            
+            // Try to forward refresh request to active tab's content script
+            // Content script has access to Clerk SDK
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+              if (tabs && tabs.length > 0) {
+                // Send message to content script to refresh token via Clerk SDK
+                chrome.tabs.sendMessage(
+                  tabs[0].id,
+                  { type: 'REFRESH_CLERK_TOKEN_REQUEST' },
+                  (response) => {
+                    if (chrome.runtime.lastError) {
+                      Logger.debug("[BG] Content script refresh failed:", chrome.runtime.lastError.message);
+                      // Fallback: return current token if available
+                      sendResponse({ 
+                        success: !!currentToken, 
+                        token: currentToken || null 
+                      });
+                    } else if (response && response.success && response.token) {
+                      // Store refreshed token
+                      chrome.storage.local.set({ clerk_token: response.token }, () => {
+                        Logger.info("[BG] Token refreshed and stored via content script");
+                        sendResponse({ success: true, token: response.token });
+                      });
+                    } else {
+                      // Content script couldn't refresh, return current token
+                      sendResponse({ 
+                        success: !!currentToken, 
+                        token: currentToken || null 
+                      });
+                    }
+                  }
+                );
+              } else {
+                // No active tab, return current token if available
+                Logger.debug("[BG] No active tab for token refresh");
+                sendResponse({ 
+                  success: !!currentToken, 
+                  token: currentToken || null 
+                });
+              }
+            });
+          });
+          return true; // Keep message channel open for async response
+
         case "AUTH_CALLBACK_SUCCESS":
           // Handle successful authentication callback
           Logger.info("[BG] 🔔 AUTH_CALLBACK_SUCCESS message received", {

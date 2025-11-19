@@ -1,0 +1,28 @@
+{
+  "projectName": "AiGuardian Chrome Extension",
+  "status": "ACTIVE",
+  "version": "1.0.0",
+  "activeDirectory": "AiGuardian-Chrome-Ext-dev",
+  "legacyDirectories": [
+    "AI-Guardians-chrome-ext"
+  ],
+  "relatedProjects": [
+    "AIGuards-Backend",
+    "EMERGENT_OS"
+  ],
+  "repository": "https://github.com/bravetto/AiGuardian-Chrome-Ext.git",
+  "branch": "dev",
+  "lastUpdated": "2025-01-18",
+  "validationRules": {
+    "mustBeActive": true,
+    "noLegacyImports": true,
+    "noLegacyModifications": true,
+    "checkMasterIndex": true
+  },
+  "driftPrevention": {
+    "checkStatusFile": true,
+    "validateDirectory": true,
+    "reportWarnings": true
+  }
+}
+
