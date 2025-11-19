@@ -1167,16 +1167,36 @@ class AiGuardianGateway {
 
       const data = response.data || {};
 
+      // DEBUG: Log response structure to diagnose score extraction issues
+      Logger.info('[Gateway] Extracting score from response', {
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : [],
+        dataPreview: response.data ? JSON.stringify(response.data).substring(0, 500) : 'null',
+        bias_score: data.bias_score,
+        trust_score: data.trust_score,
+        confidence: data.confidence,
+        score: data.score,
+      });
+
       // Derive a generic score for the UI from common guard fields.
       let score = 0;
       if (typeof data.bias_score === 'number') {
         score = data.bias_score; // BiasGuard
+        Logger.info('[Gateway] Using bias_score:', score);
       } else if (typeof data.trust_score === 'number') {
         score = data.trust_score; // TrustGuard
+        Logger.info('[Gateway] Using trust_score:', score);
       } else if (typeof data.confidence === 'number') {
         score = data.confidence; // TokenGuard-style confidence
+        Logger.info('[Gateway] Using confidence:', score);
       } else if (typeof data.score === 'number') {
         score = data.score; // Fallback generic score
+        Logger.info('[Gateway] Using score:', score);
+      } else {
+        Logger.warn('[Gateway] No score field found in response data', {
+          availableFields: Object.keys(data),
+          dataSample: JSON.stringify(data).substring(0, 200),
+        });
       }
 
       // Clamp score into [0, 1] if it looks like a 0-1 value; ignore NaN
@@ -1184,6 +1204,11 @@ class AiGuardianGateway {
         if (score < 0) {score = 0;}
         if (score > 1) {score = 1;}
       } else {
+        Logger.warn('[Gateway] Score is not a valid number, defaulting to 0', {
+          scoreType: typeof score,
+          isNaN: Number.isNaN(score),
+          scoreValue: score,
+        });
         score = 0;
       }
 

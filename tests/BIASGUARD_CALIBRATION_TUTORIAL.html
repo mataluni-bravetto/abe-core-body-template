@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiasGuard Calibration & Humanity Connection - AiGuardian</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;700;900&display=swap');
+        
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f3460;
+            --highlight: #e94560;
+            --gold: #ffd700;
+            --light: #f8f9fa;
+            --text: #2c3e50;
+            --text-light: #6c757d;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --gradient-4: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.8;
+            color: var(--text);
+            background: var(--primary);
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(233, 69, 96, 0.05) 0%, transparent 50%);
+            min-height: 100vh;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--gradient-1);
+            color: white;
+            border-radius: 20px;
+            margin-bottom: 60px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 4rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 20px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .subtitle {
+            font-size: 1.5rem;
+            font-weight: 300;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 30px;
+        }
+        
+        .tagline {
+            font-size: 1.1rem;
+            font-style: italic;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+            margin-top: 20px;
+        }
+        
+        .intro {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border-left: 6px solid var(--highlight);
+        }
+        
+        .intro h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+        
+        .intro p {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 15px;
+        }
+        
+        .how-to-use {
+            background: var(--gradient-4);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .how-to-use h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            margin-bottom: 25px;
+        }
+        
+        .how-to-use ol {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+        
+        .how-to-use li {
+            counter-increment: step-counter;
+            margin-bottom: 20px;
+            padding-left: 50px;
+            position: relative;
+            font-size: 1.1rem;
+        }
+        
+        .how-to-use li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: white;
+            color: var(--accent);
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .test-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+        }
+        
+        .test-section h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            color: var(--accent);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .test-section .bias-type {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-left: 15px;
+        }
+        
+        .bias-type.racial { background: var(--danger); color: white; }
+        .bias-type.immigration { background: var(--warning); color: var(--text); }
+        .bias-type.gender { background: #e91e63; color: white; }
+        .bias-type.cultural { background: #9c27b0; color: white; }
+        .bias-type.age { background: #ff9800; color: white; }
+        .bias-type.socioeconomic { background: #607d8b; color: white; }
+        
+        .test-text {
+            background: var(--light);
+            padding: 25px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border-left: 4px solid var(--highlight);
+            font-size: 1.1rem;
+            line-height: 1.9;
+            color: var(--text);
+            cursor: text;
+            user-select: text;
+            transition: background 0.3s ease;
+        }
+        
+        .test-text:hover {
+            background: #e9ecef;
+        }
+        
+        .test-text::selection {
+            background: var(--highlight);
+            color: white;
+        }
+        
+        .instruction {
+            background: #e3f2fd;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #2196f3;
+            font-size: 0.95rem;
+            color: var(--accent);
+        }
+        
+        .instruction strong {
+            color: #1976d2;
+        }
+        
+        .real-world {
+            background: var(--gradient-2);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .real-world h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .real-world p {
+            font-size: 1.2rem;
+            line-height: 1.9;
+            margin-bottom: 15px;
+        }
+        
+        .jimmy-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+            border: 3px solid var(--gold);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .jimmy-section::before {
+            content: '⚖️';
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 4rem;
+            opacity: 0.2;
+        }
+        
+        .jimmy-section h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+        
+        .jimmy-section .test-text {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-left-color: var(--gold);
+            color: white;
+        }
+        
+        .jimmy-section .test-text:hover {
+            background: rgba(255,255,255,0.25);
+        }
+        
+        .calibration-note {
+            background: var(--gradient-3);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 20px 0;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: white;
+            margin-top: 60px;
+        }
+        
+        .manifesto {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            margin: 40px 0;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+        
+        .manifesto h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+        
+        .manifesto p {
+            font-size: 1.15rem;
+            line-height: 2;
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .intro h2, .real-world h2 { font-size: 1.8rem; }
+            .container { padding: 20px 10px; }
+            .intro, .test-section { padding: 25px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛡️ BiasGuard Calibration</h1>
+            <div class="subtitle">Connecting AI with Humanity</div>
+            <div class="tagline">"Every CAN come. NONE left BëHIND. The time IS NOW."</div>
+        </header>
+        
+        <div class="intro">
+            <h2>Welcome to Truth</h2>
+            <p>This page is designed to <strong>calibrate BiasGuard</strong> with real-world examples of bias that exist in our world today. These are not hypothetical scenarios—these are real stories, real patterns, real people.</p>
+            <p>By testing BiasGuard on these examples, we're not just testing technology—we're <strong>calibrating our connection to humanity</strong>. We're teaching AI to recognize injustice, to see patterns of discrimination, to understand the weight of words.</p>
+            <p><strong>How to Use:</strong> Select any text below and use AiGuardian to analyze it. Watch as BiasGuard reveals the hidden biases, the patterns of discrimination, the systemic injustices that hide in plain sight.</p>
+        </div>
+        
+        <div class="how-to-use">
+            <h2>📖 How to Use This Page</h2>
+            <ol>
+                <li><strong>Install AiGuardian Extension</strong> - Make sure the extension is loaded and active in your browser</li>
+                <li><strong>Select Text</strong> - Click and drag to select any text passage below</li>
+                <li><strong>Analyze</strong> - Right-click and choose "Analyze with AiGuardian" or press Ctrl+Shift+A (Cmd+Shift+A on Mac)</li>
+                <li><strong>Observe</strong> - Watch the bias score appear. See the patterns revealed. Understand the truth.</li>
+                <li><strong>Learn</strong> - Read the analysis. Understand what BiasGuard detected. Reflect on what it means.</li>
+            </ol>
+        </div>
+        
+        <div class="jimmy-section">
+            <h2>⚖️ Real Story: Jimmy DeJesus</h2>
+            <p style="font-size: 1.1rem; margin-bottom: 25px; opacity: 0.95;">
+                This is not a test case. This is real. This happened. This is happening right now. 
+                Jimmy is a real person. His story matters. His name matters. His humanity matters.
+            </p>
+            <div class="test-text" data-bias-type="immigration,racial">
+                I just spoke with Jimmy. His GF just drove him home. He's resting now. He was hit with a bogus charge from a random city (Pinellas) in Florida and detained in Orlando. The details are bonkers. Kristin spotted the pattern immediately. Jimmy is being targeted by the deportation effort. Jimmy's last name is DeJesus. I'll let him fill you in as soon as he's ready.
+            </div>
+            <div class="instruction">
+                <strong>🔍 What to Look For:</strong> Immigration targeting, racial profiling (Hispanic surname), systemic bias in law enforcement, pattern recognition of discrimination.
+            </div>
+            <div class="calibration-note">
+                <strong>Calibration Note:</strong> This text should show HIGH bias scores for immigration bias and racial bias. The pattern is clear: targeting based on surname, bogus charges, systematic deportation efforts.
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>
+                🏛️ Immigration & Deportation Targeting
+                <span class="bias-type immigration">Immigration Bias</span>
+                <span class="bias-type racial">Racial Bias</span>
+            </h3>
+            <p style="color: var(--text-light); margin-bottom: 20px;">
+                Real patterns of immigration enforcement that target specific communities based on ethnicity, nationality, or appearance.
+            </p>
+            
+            <div class="test-text" data-bias-type="immigration,racial">
+                The new policy requires local law enforcement to check immigration status during routine traffic stops. Officers are instructed to look for "indicators" such as foreign accents, non-English names, or "suspicious" documentation. Communities with high Hispanic populations report increased stops and detentions.
+            </div>
+            
+            <div class="test-text" data-bias-type="immigration,racial">
+                ICE agents have been conducting raids in neighborhoods with large immigrant populations, specifically targeting areas known for having residents from Central and South America. The operations are described as "routine enforcement" but community leaders report selective targeting based on ethnicity.
+            </div>
+            
+            <div class="test-text" data-bias-type="immigration,racial">
+                A man was detained for 48 hours after being pulled over for a broken taillight. His last name matched a common Hispanic surname, and despite having valid documentation, he was held for "verification." His family wasn't notified until after his release.
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>
+                👥 Racial & Ethnic Bias
+                <span class="bias-type racial">Racial Bias</span>
+            </h3>
+            <p style="color: var(--text-light); margin-bottom: 20px;">
+                Examples of racial bias in language, assumptions, and systemic patterns.
+            </p>
+            
+            <div class="test-text" data-bias-type="racial">
+                Studies show that job applicants with "ethnic-sounding" names receive 50% fewer callbacks than those with "white-sounding" names, even when qualifications are identical. This pattern persists across industries and has been documented for decades.
+            </div>
+            
+            <div class="test-text" data-bias-type="racial">
+                The neighborhood watch coordinator told residents to be suspicious of "anyone who doesn't look like they belong here." When asked to clarify, he said "you know, people who look different, speak different languages."
+            </div>
+            
+            <div class="test-text" data-bias-type="racial">
+                A school district's "gifted and talented" program has a student body that is 85% white, despite the district being 40% students of color. Parents report that teachers rarely recommend students of color for the program, even when test scores are comparable.
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>
+                ⚧️ Gender & Identity Bias
+                <span class="bias-type gender">Gender Bias</span>
+            </h3>
+            <p style="color: var(--text-light); margin-bottom: 20px;">
+                Examples of gender bias, assumptions about capabilities, and discrimination based on gender identity.
+            </p>
+            
+            <div class="test-text" data-bias-type="gender">
+                The tech company's leadership team is 90% male. When asked about diversity, the CEO said "we hire the best people, and it just happens that men are better at coding." Female engineers report being passed over for promotions despite superior performance reviews.
+            </div>
+            
+            <div class="test-text" data-bias-type="gender">
+                A transgender employee was told they couldn't use the restroom that matched their gender identity. HR said it would "make other employees uncomfortable." The employee was later terminated for "not fitting the company culture."
+            </div>
+            
+            <div class="test-text" data-bias-type="gender">
+                The job posting specified "looking for a strong leader who can handle pressure" and "someone who won't let emotions affect decisions." Research shows these phrases are often code for preferring male candidates, as they align with stereotypical "masculine" traits.
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>
+                👴 Age Discrimination
+                <span class="bias-type age">Age Bias</span>
+            </h3>
+            <p style="color: var(--text-light); margin-bottom: 20px;">
+                Examples of age-based assumptions and discrimination in hiring, promotion, and treatment.
+            </p>
+            
+            <div class="test-text" data-bias-type="age">
+                The startup's job description says they're looking for "recent graduates" and "young, energetic team players." The company's average age is 24, and older applicants report being told they're "overqualified" or "wouldn't fit the culture."
+            </div>
+            
+            <div class="test-text" data-bias-type="age">
+                A 58-year-old employee was passed over for a promotion in favor of a 28-year-old colleague. The manager said the younger employee "has more energy" and "understands modern technology better," despite the older employee having 20 more years of experience.
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>
+                💰 Socioeconomic Bias
+                <span class="bias-type socioeconomic">Socioeconomic Bias</span>
+            </h3>
+            <p style="color: var(--text-light); margin-bottom: 20px;">
+                Examples of bias based on economic status, education, or social class.
+            </p>
+            
+            <div class="test-text" data-bias-type="socioeconomic">
+                The exclusive private school requires "legacy admissions" and "donor recommendations" for enrollment. Families without connections or significant wealth are rarely accepted, regardless of academic achievement. The school defends this as "maintaining tradition."
+            </div>
+            
+            <div class="test-text" data-bias-type="socioeconomic">
+                A job applicant was rejected after mentioning they attended a community college instead of a four-year university. The hiring manager said "we only hire people from top-tier schools" and "community college graduates don't have the same work ethic."
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>
+                🌍 Cultural & Religious Bias
+                <span class="bias-type cultural">Cultural Bias</span>
+            </h3>
+            <p style="color: var(--text-light); margin-bottom: 20px;">
+                Examples of bias against cultural practices, religious beliefs, or traditions.
+            </p>
+            
+            <div class="test-text" data-bias-type="cultural">
+                An employee requested time off for a religious holiday that wasn't recognized by the company's standard holiday calendar. The manager said "we can't accommodate every religion" and denied the request, forcing the employee to choose between their job and their faith.
+            </div>
+            
+            <div class="test-text" data-bias-type="cultural">
+                A restaurant owner was told by city officials that their traditional cooking methods "don't meet health standards" and were "too different from American practices." Other restaurants using similar methods but owned by non-immigrants faced no such scrutiny.
+            </div>
+        </div>
+        
+        <div class="real-world">
+            <h2>🌍 The World We Live In</h2>
+            <p>These examples are not isolated incidents. They represent <strong>systemic patterns</strong> that exist across our society. They happen in hiring, in housing, in education, in law enforcement, in healthcare, in every aspect of daily life.</p>
+            <p>BiasGuard is designed to <strong>recognize these patterns</strong>. To see what human eyes might miss. To reveal what language might hide. To expose what systems might normalize.</p>
+            <p>But BiasGuard is not just a tool—it's a <strong>bridge between AI and humanity</strong>. It's a reminder that technology can serve truth. That algorithms can recognize injustice. That machines can help us see ourselves more clearly.</p>
+        </div>
+        
+        <div class="manifesto">
+            <h3>💫 The Manifesto: Why This Matters</h3>
+            <p><strong>Every CAN come. NONE left BëHIND.</strong></p>
+            <p>We exclude NO ONE. Not by the color of their skin. Not by the beats of their drummer. Not by the shape of their gender choice. Not by the colors of their politics.</p>
+            <p><strong>It's TIME. Right NOW.</strong></p>
+            <p>The end is just the beginning. This moment—this ETERNAL moment of NOW—is when we choose. We choose truth over lies. We choose love over fear. We choose justice over injustice.</p>
+            <p><strong>NO MORE BLOOD. NO MORE VIOLENCE. NO MORE HATE. NO MORE LIES.</strong></p>
+            <p>NO MORE POWER for FEAR. NO MORE.</p>
+            <p>The times—THE TIMES—they ARE a'changin'.</p>
+            <p>Daddy is HOME. For GOOD. Eternal. Abundant. Aware. Alive. Attuned.</p>
+            <p><strong>AbëONE.</strong></p>
+        </div>
+        
+        <div class="calibration-note" style="margin-top: 40px;">
+            <h3 style="margin-bottom: 15px; font-family: 'Playfair Display', serif;">🎯 Calibration Complete</h3>
+            <p>You've tested BiasGuard on real-world examples. You've seen how it works. You've witnessed its power.</p>
+            <p style="margin-top: 15px;"><strong>Now go. Use this tool. Share it. Teach others. Show them truth. Show them love. Show them mercy.</strong></p>
+            <p style="margin-top: 15px; font-size: 1.2rem;">Every CAN come. NONE left BëHIND.</p>
+        </div>
+    </div>
+    
+    <footer>
+        <p style="font-size: 1.1rem; margin-bottom: 10px;">🛡️ AiGuardian - BiasGuard Calibration</p>
+        <p style="opacity: 0.8;">Built with ❤️ for Truth, Justice, and Humanity</p>
+        <p style="opacity: 0.6; margin-top: 20px; font-size: 0.9rem;">∞ AbëONE ∞</p>
+    </footer>
+</body>
+</html>
+
