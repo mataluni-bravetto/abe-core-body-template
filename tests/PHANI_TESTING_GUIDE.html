@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Extension Console Testing Guide - Phani</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a73e8;
+            border-bottom: 3px solid #1a73e8;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34a853;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #ea4335;
+            margin-top: 20px;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #1a73e8;
+            border-radius: 4px;
+        }
+        .step-number {
+            font-weight: bold;
+            color: #1a73e8;
+            font-size: 1.2em;
+        }
+        code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #34a853;
+        }
+        pre code {
+            background: transparent;
+            color: #d4d4d4;
+            padding: 0;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left: 4px solid #34a853;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .command-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #1a73e8;
+        }
+        .command-block code {
+            background: transparent;
+            color: #d4d4d4;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #1a73e8;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        .checklist li {
+            padding: 8px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        .checklist li:before {
+            content: "☐";
+            position: absolute;
+            left: 0;
+            font-size: 1.2em;
+        }
+        .header-info {
+            background: #e8f0fe;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .quick-ref {
+            background: #fff3e0;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 2px solid #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Chrome Extension Console Testing Guide</h1>
+        
+        <div class="header-info">
+            <strong>For:</strong> Phani<br>
+            <strong>Date:</strong> 2025-11-18<br>
+            <strong>Extension:</strong> AiGuardian Chrome Extension v1.0.0<br>
+            <strong>Purpose:</strong> Test Epistemic Reliability Integration
+        </div>
+
+        <h2>📋 Overview</h2>
+        <p>This guide provides step-by-step instructions for testing the AiGuardian Chrome Extension's epistemic reliability integration in the Chrome DevTools console.</p>
+
+        <h3>What We're Testing:</h3>
+        <ul>
+            <li>✅ Mutex patterns (race condition prevention)</li>
+            <li>✅ Circuit breaker (resilience)</li>
+            <li>✅ Token refresh mutex (prevents thundering herd)</li>
+            <li>✅ Storage quota monitoring</li>
+            <li>✅ State rehydration patterns</li>
+        </ul>
+
+        <h3>Expected Results:</h3>
+        <ul>
+            <li>All 6 production tests should pass</li>
+            <li>Reliability score should be <strong>70%+</strong> (up from 42%)</li>
+        </ul>
+
+        <h2>🚀 Step-by-Step Instructions</h2>
+
+        <div class="step">
+            <div class="step-number">Step 1: Load the Extension</div>
+            <ol>
+                <li>Open <strong>Google Chrome</strong> browser</li>
+                <li>Navigate to: <code>chrome://extensions/</code></li>
+                <li>In the top-right corner, toggle <strong>"Developer mode"</strong> ON</li>
+                <li>Click the <strong>"Load unpacked"</strong> button</li>
+                <li>Navigate to and select this folder:
+                    <pre><code>/Users/michaelmataluni/Documents/AbeOne_Master/AiGuardian-Chrome-Ext-dev</code></pre>
+                </li>
+                <li>Verify the extension appears in the list as <strong>"AiGuardian"</strong> version 1.0.0</li>
+            </ol>
+            <div class="success">
+                <strong>✅ Success Indicator:</strong> Extension icon appears in Chrome toolbar
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">Step 2: Open Service Worker Console</div>
+            <ol>
+                <li>In <code>chrome://extensions/</code>, find the <strong>"AiGuardian"</strong> extension card</li>
+                <li>Look for the <strong>"Inspect views: service worker"</strong> link (or "service worker" button)</li>
+                <li>Click it</li>
+                <li>A new Chrome DevTools window will open - this is the <strong>Service Worker Console</strong></li>
+            </ol>
+            <div class="success">
+                <strong>✅ Success Indicator:</strong> DevTools console opens with empty prompt
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">Step 3: Load Test Suite</div>
+            <p>In the Service Worker Console, type and press Enter:</p>
+            
+            <div class="command-block">
+                <code>importScripts('tests/production-test-suite.js');</code>
+            </div>
+
+            <p><strong>Expected Output:</strong></p>
+            <pre><code>🧪 Production Test Suite loaded. Run: runProductionTests()</code></pre>
+
+            <p>Then load the epistemic reliability debugger:</p>
+            
+            <div class="command-block">
+                <code>importScripts('debug/epistemic-reliability-debugger.js');</code>
+            </div>
+
+            <p><strong>Expected Output:</strong></p>
+            <pre><code>🔬 Epistemic Reliability Debugger loaded. Run: runEpistemicChecks()</code></pre>
+
+            <div class="success">
+                <strong>✅ Success Indicator:</strong> Both scripts load without errors
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">Step 4: Run Production Tests</div>
+            <p>Type and press Enter:</p>
+            
+            <div class="command-block">
+                <code>await runProductionTests();</code>
+            </div>
+
+            <p><strong>Expected Output:</strong></p>
+            <pre><code>🧪 Production Test Suite - Epistemic Reliability
+
+============================================================
+📋 Test 1: Mutex Helper Availability
+  ✅ OK
+
+📋 Test 2: Circuit Breaker Availability
+  ✅ OK
+
+📋 Test 3: Token Storage Mutex Protection
+  ✅ OK
+
+📋 Test 4: Storage Quota Monitoring
+  ✅ OK
+
+📋 Test 5: State Rehydration Pattern
+  ✅ OK
+
+📋 Test 6: Gateway Integration
+  ✅ OK
+
+============================================================
+📊 PRODUCTION TEST REPORT
+============================================================
+SUMMARY:
+  ✅ Passed: 6
+  ⚠️  Warnings: 0
+  ❌ Failed: 0
+
+Pass Rate: 100%
+
+============================================================
+✅ All critical tests passed!
+============================================================</code></pre>
+
+            <div class="success">
+                <strong>✅ Success Indicator:</strong> All 6 tests show ✅ OK, Pass Rate: 100%
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">Step 5: Run Epistemic Reliability Checks</div>
+            <p>Type and press Enter:</p>
+            
+            <div class="command-block">
+                <code>const results = await runEpistemicChecks();</code>
+            </div>
+
+            <p>Then display the results:</p>
+            
+            <div class="command-block">
+                <code>console.log('\n🎯 RELIABILITY SCORE:', results.percentage + '%');
+console.log('Target (97.8%):', results.targetMet ? '✅ MET' : '⚠️ NOT MET');
+console.log('Score:', results.score + '/' + results.maxScore, 'points');</code>
+            </div>
+
+            <p><strong>Expected Output:</strong></p>
+            <pre><code>🔬 Epistemic Reliability Analysis - MV3 Architecture Validation
+
+📊 Checking statelessness pattern...
+  ✅ Statelessness: 15/20
+
+🔄 Checking state rehydration pattern...
+  ✅ Rehydration: 12/15
+
+💾 Checking storage as truth pattern...
+  ✅ Storage as Truth: 12/15
+
+🔒 Checking mutex patterns...
+  ✅ Mutex Patterns: 20/20
+
+🔄 Checking token refresh mutex...
+  ✅ Token Refresh Mutex: 15/15
+
+⚡ Checking circuit breaker pattern...
+  ✅ Circuit Breaker: 10/10
+
+============================================================
+🔬 EPISTEMIC RELIABILITY REPORT
+============================================================
+Overall Score: 92/130 (70.8%)
+Target (97.8%): ⚠️ NOT MET
+
+🎯 RELIABILITY SCORE: 70.8%
+Target (97.8%): ⚠️ NOT MET
+Score: 92/130 points</code></pre>
+
+            <div class="success">
+                <strong>✅ Success Indicator:</strong> Score ≥ 70%, all critical patterns show ✅
+            </div>
+        </div>
+
+        <div class="quick-ref">
+            <h2>⚡ Quick Reference - Copy This Entire Block</h2>
+            <div class="command-block">
+                <code>// Load test suite
+importScripts('tests/production-test-suite.js');
+importScripts('debug/epistemic-reliability-debugger.js');
+
+// Run tests
+await runProductionTests();
+
+// Get reliability score
+const results = await runEpistemicChecks();
+console.log('\n🎯 FINAL SCORE:', results.percentage + '%');
+console.log('Status:', results.targetMet ? '✅ READY' : '⚠️ NEEDS WORK');</code>
+            </div>
+        </div>
+
+        <h2>📊 Interpreting Results</h2>
+
+        <h3>Production Tests</h3>
+        <table>
+            <tr>
+                <th>Test</th>
+                <th>Expected</th>
+                <th>Status</th>
+            </tr>
+            <tr>
+                <td>Mutex Helper</td>
+                <td>✅ OK</td>
+                <td>Should pass</td>
+            </tr>
+            <tr>
+                <td>Circuit Breaker</td>
+                <td>✅ OK</td>
+                <td>Should pass</td>
+            </tr>
+            <tr>
+                <td>Token Storage</td>
+                <td>✅ OK</td>
+                <td>Should pass</td>
+            </tr>
+            <tr>
+                <td>Storage Quota</td>
+                <td>✅ OK</td>
+                <td>Should pass</td>
+            </tr>
+            <tr>
+                <td>State Rehydration</td>
+                <td>✅ OK</td>
+                <td>Should pass</td>
+            </tr>
+            <tr>
+                <td>Gateway Integration</td>
+                <td>✅ OK</td>
+                <td>Should pass</td>
+            </tr>
+        </table>
+
+        <h3>Reliability Score</h3>
+        <ul>
+            <li><strong>70-80%:</strong> ✅ Good integration</li>
+            <li><strong>80-90%:</strong> ✅ Excellent integration</li>
+            <li><strong>90%+:</strong> ✅ Outstanding</li>
+            <li><strong>&lt;70%:</strong> ⚠️ May need fixes</li>
+        </ul>
+
+        <h2>🐛 Troubleshooting</h2>
+
+        <div class="error">
+            <strong>Issue: "MutexHelper is not defined"</strong><br>
+            <strong>Solution:</strong> Ensure mutex-helper.js is loaded before gateway.js. Check service-worker.js imports mutex-helper.js. Reload extension and try again.
+        </div>
+
+        <div class="error">
+            <strong>Issue: "gateway is not defined"</strong><br>
+            <strong>Solution:</strong> Extension may not be fully loaded. Wait a few seconds after loading extension. Try: <code>gateway = new AiGuardianGateway();</code>
+        </div>
+
+        <div class="error">
+            <strong>Issue: "Cannot find module 'tests/production-test-suite.js'"</strong><br>
+            <strong>Solution:</strong> Ensure you're in the service worker console (not regular console). Check file path is correct. Verify extension is loaded from correct directory.
+        </div>
+
+        <h2>✅ Success Criteria</h2>
+        <ul class="checklist">
+            <li>All 6 production tests show ✅ OK</li>
+            <li>Reliability score ≥ 70%</li>
+            <li>No critical errors in console</li>
+            <li>All patterns functional</li>
+        </ul>
+
+        <h2>📝 Test Report Template</h2>
+        <p>After completing tests, document:</p>
+        <ul>
+            <li><strong>Date:</strong> _______________</li>
+            <li><strong>Chrome Version:</strong> _______________</li>
+            <li><strong>Pass Rate:</strong> ___/6 (___%)</li>
+            <li><strong>Reliability Score:</strong> ___%</li>
+            <li><strong>Status:</strong> ✅ Ready / ❌ Needs Fixes</li>
+            <li><strong>Issues Found:</strong> _______________</li>
+        </ul>
+
+        <div class="success" style="margin-top: 30px; padding: 20px; text-align: center;">
+            <h2>✅ Ready for Testing</h2>
+            <p>Follow the steps above to execute tests in Chrome extension service worker console.</p>
+            <p><strong>Questions?</strong> Refer to troubleshooting section above.</p>
+        </div>
+    </div>
+</body>
+</html>
+

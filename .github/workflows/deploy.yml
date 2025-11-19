@@ -1,0 +1,333 @@
+name: Deployment to EKS cluster
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: 'AWS region'
+        required: true
+      ecr_registry:
+        description: 'ECR registry URL'
+        required: true
+      ecr_repository:
+        description: 'ECR repository name (gateway)'
+        required: true
+      app_name:
+        description: 'Helm application name (gateway)'
+        required: true
+      branch:
+        description: 'Source branch'
+        required: true
+      image_tag:
+        description: 'Docker image tag'
+        required: true
+      commit_sha:
+        description: 'Commit SHA'
+        required: true
+      build_run_id:
+        description: 'Build workflow run ID'
+        required: true
+
+concurrency:
+  group: deploy-${{ github.event.inputs.branch }}
+  cancel-in-progress: ${{ github.event.inputs.branch != 'main' }}
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  deployment:
+    name: Deploy to ${{ github.event.inputs.branch == 'main' && 'Production' || github.event.inputs.branch == 'dev' && 'Development' || 'Development' }} Environment
+    runs-on: [arc-runner-set]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.commit_sha }}
+
+    - name: Install AWS CLI and dependencies
+      run: |
+        # Install AWS CLI if not available
+        if ! which aws; then
+          echo "📦 Installing AWS CLI..."
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+
+          # Verify installation
+          aws --version
+          which aws
+        else
+          echo "✅ AWS CLI already available at: $(which aws)"
+        fi
+
+        # Install kubectl if not available
+        if ! which kubectl; then
+          echo "📦 Installing kubectl..."
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        fi
+
+        # Install helm if not available
+        if ! which helm; then
+          echo "📦 Installing Helm..."
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        fi
+
+    - name: Display trigger information
+      run: |
+        echo "🎯 Deployment triggered by successful build"
+        echo "AWS Region: ${{ github.event.inputs.aws_region }}"
+        echo "ECR Registry: ${{ github.event.inputs.ecr_registry }}"
+        echo "App Name: ${{ github.event.inputs.app_name }}"
+        echo "ECR Repository: ${{ github.event.inputs.ecr_repository }}"
+        echo "Source branch: ${{ github.event.inputs.branch }}"
+        echo "Image tag: ${{ github.event.inputs.image_tag }}"
+        echo "Commit SHA: ${{ github.event.inputs.commit_sha }}"
+        echo "Build run ID: ${{ github.event.inputs.build_run_id }}"
+        echo ""
+        echo "📦 Services to deploy (via ${{ github.event.inputs.app_name }} Helm chart):"
+        echo "   - gateway"
+        echo "   - tokenguard"
+        echo "   - trustguard"
+        echo "   - contextguard"
+        echo "   - biasguard"
+        echo "   - healthguard"
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: ${{ github.event.inputs.aws_region }}
+
+    - name: Clone Helm repository
+      run: |
+        echo "📦 Cloning Helm repository with PAT authentication..."
+
+        # Clone using HTTPS with PAT token authentication
+        git clone https://${{ secrets.CI_CD }}@github.com/bravetto/helm.git helm-charts
+
+        cd helm-charts
+        echo "✅ Helm repository cloned successfully"
+        ls -la
+
+    - name: Determine deployment environment and image tag
+      id: deployment-config
+      run: |
+        AWS_REGION="${{ github.event.inputs.aws_region }}"
+        ECR_REGISTRY="${{ github.event.inputs.ecr_registry }}"
+        APP_NAME="${{ github.event.inputs.app_name }}"
+        ECR_REPOSITORY="${{ github.event.inputs.ecr_repository }}"
+        BRANCH_NAME="${{ github.event.inputs.branch }}"
+        COMMIT_SHA="${{ github.event.inputs.commit_sha }}"
+        IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+
+        echo "🎯 Deployment triggered by successful build on branch: $BRANCH_NAME"
+        echo "📝 Commit SHA: $COMMIT_SHA"
+        echo "🖼️  Image Tag: $IMAGE_TAG"
+
+        # Dev branch = dev environment
+        HELM_ENV="dev"
+        DESCRIPTION="🔄 DEVELOPMENT deployment (dev branch)"
+
+        echo "$DESCRIPTION"
+
+        # Export variables for use in subsequent steps
+        echo "AWS_REGION=$AWS_REGION" >> $GITHUB_OUTPUT
+        echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_OUTPUT
+        echo "APP_NAME=$APP_NAME" >> $GITHUB_OUTPUT
+        echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $GITHUB_OUTPUT
+        echo "HELM_ENV=$HELM_ENV" >> $GITHUB_OUTPUT
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
+        echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_OUTPUT
+        echo "DESCRIPTION=$DESCRIPTION" >> $GITHUB_OUTPUT
+
+        echo ""
+        echo "🌍 AWS Region: $AWS_REGION"
+        echo "📦 ECR Registry: $ECR_REGISTRY"
+        echo "📱 App Name: $APP_NAME"
+        echo "🗂️  ECR Repository: $ECR_REPOSITORY"
+        echo "🔖 Image Tag: $IMAGE_TAG"
+        echo "🌍 Helm Environment: $HELM_ENV"
+
+    - name: Deploy all services with Helm
+      run: |
+        APP_NAME="${{ steps.deployment-config.outputs.APP_NAME }}"
+        ECR_REPOSITORY="${{ steps.deployment-config.outputs.ECR_REPOSITORY }}"
+        HELM_ENV="${{ steps.deployment-config.outputs.HELM_ENV }}"
+        IMAGE_TAG="${{ steps.deployment-config.outputs.IMAGE_TAG }}"
+
+        echo "🚀 Deploying AIGuards to $HELM_ENV environment"
+        echo "📱 App Name: $APP_NAME"
+        echo "🗂️  ECR Repository: $ECR_REPOSITORY"
+        echo "🔖 Image Tag: $IMAGE_TAG"
+        echo ""
+        echo "ℹ️  The $APP_NAME Helm chart deploys all services:"
+        echo "   - gateway"
+        echo "   - tokenguard"
+        echo "   - trustguard"
+        echo "   - contextguard"
+        echo "   - biasguard"
+        echo "   - healthguard"
+        echo ""
+
+        # Navigate to helm charts directory
+        cd helm-charts
+
+        # Make deploy.sh executable
+        chmod +x deploy.sh
+
+        # Deploy using the specified Helm chart (includes all guard services)
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "📦 Deploying: $APP_NAME (includes all guard services)"
+        echo "🔧 Command: ./deploy.sh $APP_NAME $HELM_ENV"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+
+        # Run the Helm deploy script - this deploys gateway + all guards
+        if ./deploy.sh "$APP_NAME" "$HELM_ENV"; then
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 Deployment successful!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        else
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ Deployment failed"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          exit 1
+        fi
+
+    - name: Notify Slack on Success
+      if: success()
+      run: |
+        curl -X POST -H 'Content-type: application/json' \
+        --data '{
+          "text": "🎉 *AIGuards Deployment Success*",
+          "channel": "#ci-cd",
+          "username": "Deployment Bot",
+          "icon_emoji": ":rocket:",
+          "attachments": [
+            {
+              "color": "good",
+              "title": "All AIGuards services deployed successfully!",
+              "fields": [
+                {
+                  "title": "Environment",
+                  "value": "'"${{ steps.deployment-config.outputs.HELM_ENV }}"'",
+                  "short": true
+                },
+                {
+                  "title": "Branch",
+                  "value": "'"${{ steps.deployment-config.outputs.BRANCH_NAME }}"'",
+                  "short": true
+                },
+                {
+                  "title": "Image Tag",
+                  "value": "'"${{ steps.deployment-config.outputs.IMAGE_TAG }}"'",
+                  "short": true
+                },
+                {
+                  "title": "Commit",
+                  "value": "'"${{ steps.deployment-config.outputs.COMMIT_SHA }}"'",
+                  "short": true
+                },
+                {
+                  "title": "Services Deployed",
+                  "value": "gateway, tokenguard, trustguard, contextguard, biasguard, healthguard",
+                  "short": false
+                }
+              ]
+            }
+          ]
+        }' \
+        ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Notify Slack on Failure
+      if: failure()
+      run: |
+        curl -X POST -H 'Content-type: application/json' \
+        --data '{
+          "text": "❌ *AIGuards Deployment Failed*",
+          "channel": "#ci-cd",
+          "username": "Deployment Bot",
+          "icon_emoji": ":x:",
+          "attachments": [
+            {
+              "color": "danger",
+              "title": "AIGuards services deployment failed!",
+              "fields": [
+                {
+                  "title": "Environment",
+                  "value": "'"${{ steps.deployment-config.outputs.HELM_ENV }}"'",
+                  "short": true
+                },
+                {
+                  "title": "Branch",
+                  "value": "'"${{ steps.deployment-config.outputs.BRANCH_NAME }}"'",
+                  "short": true
+                },
+                {
+                  "title": "Image Tag",
+                  "value": "'"${{ steps.deployment-config.outputs.IMAGE_TAG }}"'",
+                  "short": true
+                },
+                {
+                  "title": "Commit",
+                  "value": "'"${{ steps.deployment-config.outputs.COMMIT_SHA }}"'",
+                  "short": true
+                },
+                {
+                  "title": "Error Info",
+                  "value": "Check the workflow logs for detailed error information: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                  "short": false
+                }
+              ]
+            }
+          ]
+        }' \
+        ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Notify deployment status
+      if: always()
+      run: |
+        AWS_REGION="${{ steps.deployment-config.outputs.AWS_REGION }}"
+        ECR_REGISTRY="${{ steps.deployment-config.outputs.ECR_REGISTRY }}"
+        APP_NAME="${{ steps.deployment-config.outputs.APP_NAME }}"
+        ECR_REPOSITORY="${{ steps.deployment-config.outputs.ECR_REPOSITORY }}"
+        HELM_ENV="${{ steps.deployment-config.outputs.HELM_ENV }}"
+        BRANCH_NAME="${{ steps.deployment-config.outputs.BRANCH_NAME }}"
+        COMMIT_SHA="${{ steps.deployment-config.outputs.COMMIT_SHA }}"
+        IMAGE_TAG="${{ steps.deployment-config.outputs.IMAGE_TAG }}"
+
+        if [[ "${{ job.status }}" == "success" ]]; then
+          echo "🎉 Deployment SUCCESSFUL!"
+        else
+          echo "❌ Deployment FAILED!"
+        fi
+
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "📊 AIGuards Deployment Summary"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "🌍 AWS Region: $AWS_REGION"
+        echo "📱 App Name (Helm Chart): $APP_NAME"
+        echo "🗂️  ECR Repository: $ECR_REPOSITORY"
+        echo "🏗️  Environment: $HELM_ENV"
+        echo "🌿 Branch: $BRANCH_NAME"
+        echo "📝 Commit: $COMMIT_SHA"
+        echo "🔖 Image Tag: $IMAGE_TAG"
+        echo "📦 ECR Registry: $ECR_REGISTRY"
+        echo ""
+        echo "🚀 Services Deployed:"
+        echo "   - gateway:$IMAGE_TAG"
+        echo "   - tokenguard:$IMAGE_TAG"
+        echo "   - trustguard:$IMAGE_TAG"
+        echo "   - contextguard:$IMAGE_TAG"
+        echo "   - biasguard:$IMAGE_TAG"
+        echo "   - healthguard:$IMAGE_TAG"
+        echo ""
+        echo "📊 Status: ${{ job.status }}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

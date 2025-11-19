@@ -90,7 +90,7 @@
       (response) => {
         if (chrome.runtime.lastError) {
           Logger.error("[CS] Runtime error:", chrome.runtime.lastError);
-          showErrorBadge("Analysis failed. Please try again or check your connection.", "error");
+          showErrorBadge("Extension error. Please refresh the page and try again.", "error");
           return;
         }
 
@@ -119,6 +119,7 @@
         }
 
         // TRACER BULLET: Display results with enhanced UI and pass the range for highlighting
+        // displayAnalysisResults now handles error responses internally
         displayAnalysisResults(response, range);
       }
     );
@@ -134,8 +135,38 @@
    * @returns {void}
    */
   function displayAnalysisResults(response, range) {
+    // Check for error responses first - don't display "Score: 0%" for failed analyses
+    if (!response || response.success === false || response.error) {
+      // Determine appropriate error message
+      let errorMessage = response?.error || "Analysis failed. Please sign in.";
+      
+      // Provide more specific error messages based on error type
+      if (response?.status === 401 || errorMessage.includes('Unauthorized') || errorMessage.includes('authenticated')) {
+        errorMessage = "Please sign in on aiguardian.ai to analyze text.";
+      } else if (response?.status === 403 || errorMessage.includes('Forbidden')) {
+        errorMessage = "Access denied. Please check your subscription.";
+      } else if (response?.status === 429 || errorMessage.includes('rate limit')) {
+        errorMessage = "Rate limit exceeded. Please try again later.";
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
+        errorMessage = "Request timed out. Please try again.";
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        errorMessage = "Network error. Please check your connection.";
+      }
+      
+      Logger.error("[CS] Analysis failed:", errorMessage);
+      showErrorBadge(errorMessage, "error");
+      return;
+    }
+    
+    // Validate that we have a valid score before displaying
+    if (response.score === undefined || response.score === null) {
+      Logger.warn("[CS] Analysis response missing score:", response);
+      showErrorBadge("Analysis incomplete. Please try again.", "warning");
+      return;
+    }
+    
     // TRACER BULLET: Highlight the text on the page
-    if (range) {
+    if (range && typeof response.score === 'number') {
       highlightSelection(range, response.score);
     }
     
@@ -1231,6 +1262,49 @@
           sendResponse({ success: false, message: 'Not on Clerk page' });
           return false;
         }
+
+      case 'REFRESH_CLERK_TOKEN_REQUEST':
+        // Handle token refresh request from service worker
+        // Content script has access to Clerk SDK, so we can refresh the token
+        Logger.info('[CS] REFRESH_CLERK_TOKEN_REQUEST received');
+        
+        (async () => {
+          try {
+            const clerk = getClerkInstance();
+            if (!clerk) {
+              Logger.warn('[CS] Clerk SDK not available for token refresh');
+              sendResponse({ success: false, error: 'Clerk SDK not available' });
+              return;
+            }
+            
+            // Load Clerk if needed
+            if (typeof clerk.load === 'function' && !clerk.loaded) {
+              await clerk.load();
+            }
+            
+            // Get session and refresh token
+            const session = await clerk.session;
+            if (!session) {
+              Logger.warn('[CS] No active Clerk session for token refresh');
+              sendResponse({ success: false, error: 'No active session' });
+              return;
+            }
+            
+            const token = await session.getToken();
+            if (token) {
+              Logger.info('[CS] Token refreshed successfully via Clerk SDK');
+              sendResponse({ success: true, token: token });
+            } else {
+              Logger.warn('[CS] Failed to get token from Clerk session');
+              sendResponse({ success: false, error: 'Token retrieval failed' });
+            }
+          } catch (error) {
+            Logger.error('[CS] Error refreshing token:', error);
+            sendResponse({ success: false, error: error.message || 'Token refresh failed' });
+          }
+        })();
+        
+        return true; // Keep channel open for async response
         
       case 'ANALYZE_SELECTION':
         const rawSelection = window.getSelection();

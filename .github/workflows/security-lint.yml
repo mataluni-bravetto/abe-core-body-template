@@ -1,0 +1,235 @@
+name: security-lint
+
+on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
+
+jobs:
+  scan:
+    runs-on: [arc-runner-set]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint security analysis
+        id: eslint_security
+        if: always()
+        run: |
+          echo "🔍 Running ESLint security scan..."
+          set +e
+
+          # Run ESLint with security plugin
+          npx eslint src/ scripts/ tests/ --ext .js --format json --output-file eslint-security-report.json || true
+          npx eslint src/ scripts/ tests/ --ext .js --format stylish --output-file eslint-security-report.txt || true
+
+          # Count security-related issues
+          ESLINT_SECURITY_COUNT=$(jq '[.[] | .messages[] | select(.ruleId | startswith("security"))] | length' eslint-security-report.json 2>/dev/null || echo '0')
+          echo "eslint_security_count=$ESLINT_SECURITY_COUNT" >> $GITHUB_OUTPUT
+
+          echo "::group::🔒 ESLint Security Results"
+          if [ $ESLINT_SECURITY_COUNT -gt 0 ]; then
+            echo "::warning::Found $ESLINT_SECURITY_COUNT security issues"
+            cat eslint-security-report.txt
+          else
+            echo "✅ No security issues found"
+          fi
+          echo "::endgroup::"
+
+      - name: Run npm audit (security)
+        id: npm_audit_security
+        if: always()
+        run: |
+          echo "🔍 Running npm audit security scan..."
+          set +e
+
+          npm audit --audit-level=moderate --json > npm-security-report.json 2>&1 || true
+          npm audit --audit-level=moderate > npm-security-report.txt 2>&1 || true
+
+          VULN_COUNT=$(jq '.metadata.vulnerabilities.total // 0' npm-security-report.json 2>/dev/null || echo '0')
+          HIGH_VULN=$(jq '.metadata.vulnerabilities.high // 0' npm-security-report.json 2>/dev/null || echo '0')
+          CRITICAL_VULN=$(jq '.metadata.vulnerabilities.critical // 0' npm-security-report.json 2>/dev/null || echo '0')
+          
+          echo "vuln_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+          echo "high_vuln=$HIGH_VULN" >> $GITHUB_OUTPUT
+          echo "critical_vuln=$CRITICAL_VULN" >> $GITHUB_OUTPUT
+
+          echo "::group::📊 npm Audit Security Results"
+          if [ $VULN_COUNT -gt 0 ]; then
+            echo "::warning::Found $VULN_COUNT vulnerabilities"
+            cat npm-security-report.txt
+          else
+            echo "✅ No vulnerabilities found"
+          fi
+          echo "::endgroup::"
+
+      - name: Run Semgrep security analysis
+        id: semgrep_check
+        if: always()
+        run: |
+          echo "🔍 Running Semgrep security scan..."
+          set +e
+
+          # Install Semgrep if not available
+          if ! command -v semgrep &> /dev/null; then
+            pip install semgrep || true
+          fi
+
+          semgrep --config=auto --json --output=semgrep-report.json . || true
+          semgrep --config=auto --text --output=semgrep-report.txt . || true
+
+          SEMGREP_COUNT=$(jq '.results | length' semgrep-report.json 2>/dev/null || echo '0')
+          echo "semgrep_count=$SEMGREP_COUNT" >> $GITHUB_OUTPUT
+
+          echo "::group::🎯 Semgrep Security Results"
+          if [ $SEMGREP_COUNT -gt 0 ]; then
+            echo "::warning::Found $SEMGREP_COUNT security issues"
+            cat semgrep-report.txt
+          else
+            echo "✅ No security issues found"
+          fi
+          echo "::endgroup::"
+
+      - name: Create Security Lint Summary
+        id: create_security_summary
+        if: always()
+        run: |
+          ESLINT_SECURITY_COUNT="${{ steps.eslint_security.outputs.eslint_security_count }}"
+          VULN_COUNT="${{ steps.npm_audit_security.outputs.vuln_count }}"
+          SEMGREP_COUNT="${{ steps.semgrep_check.outputs.semgrep_count }}"
+          TOTAL=$((ESLINT_SECURITY_COUNT + VULN_COUNT + SEMGREP_COUNT))
+
+          echo "total_issues=$TOTAL" >> $GITHUB_OUTPUT
+
+          echo "## 🛡️ Security Linting Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tool | Issues Found |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ESLint Security | $ESLINT_SECURITY_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| npm Audit | $VULN_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Semgrep | $SEMGREP_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total** | **$TOTAL** |" >> $GITHUB_STEP_SUMMARY
+
+          if [ $TOTAL -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Security issues detected. Review the job logs for details.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Note: Dependency vulnerabilities are checked separately in the dependency-audit workflow." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create custom check with warning indicator
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const eslintSecurityCount = parseInt('${{ steps.eslint_security.outputs.eslint_security_count }}') || 0;
+            const vulnCount = parseInt('${{ steps.npm_audit_security.outputs.vuln_count }}') || 0;
+            const semgrepCount = parseInt('${{ steps.semgrep_check.outputs.semgrep_count }}') || 0;
+            const totalIssues = eslintSecurityCount + vulnCount + semgrepCount;
+            const isMainBranch = context.payload.pull_request?.base?.ref === 'main';
+            
+            // Calculate max allowed text size (leaving room for title + summary + JSON overhead)
+            const MAX_TEXT_SIZE = 60000; // Conservative limit to account for all fields
+            
+            // Read and prepare detailed reports with truncation
+            const fs = require('fs');
+            let detailedText = '';
+            
+            try {
+              if (totalIssues > 0) {
+                detailedText += '## 📊 Security Issues Summary\n\n';
+                detailedText += `Total issues found: **${totalIssues}**\n`;
+                detailedText += `- ESLint Security: ${eslintSecurityCount}\n`;
+                detailedText += `- npm Audit: ${vulnCount}\n`;
+                detailedText += `- Semgrep: ${semgrepCount}\n\n`;
+                detailedText += '---\n\n';
+                detailedText += '⚠️ **Full details are available in the workflow logs.**\n\n';
+                detailedText += 'To view complete results:\n';
+                detailedText += '1. Click on the "Details" link next to this check\n';
+                detailedText += '2. Expand the security scan steps\n';
+                detailedText += '3. Review the detailed findings in each section\n\n';
+                detailedText += '---\n\n';
+                
+                // Add a preview of first few issues (truncated)
+                if (fs.existsSync('eslint-security-report.txt') && eslintSecurityCount > 0) {
+                  const eslintReport = fs.readFileSync('eslint-security-report.txt', 'utf8');
+                  const preview = eslintReport.substring(0, 10000); // First 10k chars only
+                  detailedText += '## 🔒 ESLint Security Results (Preview)\n\n';
+                  detailedText += '```\n' + preview + '\n';
+                  if (eslintReport.length > 10000) {
+                    detailedText += '\n... (truncated - see workflow logs for full report)\n';
+                  }
+                  detailedText += '```\n\n';
+                }
+                
+                if (fs.existsSync('semgrep-report.txt') && semgrepCount > 0) {
+                  const semgrepReport = fs.readFileSync('semgrep-report.txt', 'utf8');
+                  const remainingSpace = MAX_TEXT_SIZE - detailedText.length;
+                  if (remainingSpace > 1000) {
+                    const preview = semgrepReport.substring(0, Math.min(10000, remainingSpace - 500));
+                    detailedText += '## 🎯 Semgrep Results (Preview)\n\n';
+                    detailedText += '```\n' + preview + '\n';
+                    if (semgrepReport.length > preview.length) {
+                      detailedText += '\n... (truncated - see workflow logs for full report)\n';
+                    }
+                    detailedText += '```\n\n';
+                  }
+                }
+              } else {
+                detailedText = '✅ No security issues detected in the code.\n\nAll security checks passed successfully.';
+              }
+            } catch (error) {
+              console.log('Could not read report files:', error);
+              detailedText = '⚠️ Could not generate detailed report. Check workflow logs for full results.';
+            }
+            
+            // Final safety check - ensure total size is under limit
+            if (detailedText.length > MAX_TEXT_SIZE) {
+              detailedText = detailedText.substring(0, MAX_TEXT_SIZE - 200) + '\n\n...(truncated - see workflow logs for complete results)';
+            }
+            
+            let conclusion, title, summary;
+            
+            if (totalIssues === 0) {
+              conclusion = 'success';
+              title = '✅ No security issues found';
+              summary = '**All code security checks passed successfully.**\n\nNo security issues detected in your code.\n\n_Note: Dependency vulnerabilities are checked separately in the dependency-audit workflow._';
+            } else if (isMainBranch) {
+              conclusion = 'failure';
+              title = `❌ Found ${totalIssues} security issues`;
+              summary = `**⚠️ Security issues found for main branch:** ${totalIssues}\n- ESLint Security: ${eslintSecurityCount}\n- npm Audit: ${vulnCount}\n- Semgrep: ${semgrepCount}\n\n❌ These should be addressed before merging.\n\n📋 See workflow logs for full details.\n\n_Note: Dependency vulnerabilities are checked separately in the dependency-audit workflow._`;
+            } else {
+              conclusion = 'success';
+              title = `⚠️ Found ${totalIssues} security issues (warnings)`;
+              summary = `**Security issues found:** ${totalIssues}\n- ESLint Security: ${eslintSecurityCount}\n- npm Audit: ${vulnCount}\n- Semgrep: ${semgrepCount}\n\n⚠️ These are warnings only for dev branch. Review and fix before merging to main.\n\n📋 See workflow logs for full details.\n\n_Note: Dependency vulnerabilities are checked separately in the dependency-audit workflow._`;
+            }
+            
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'security-lint',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: conclusion,
+              output: {
+                title: title,
+                summary: summary,
+                text: detailedText
+              }
+            });

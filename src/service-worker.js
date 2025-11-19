@@ -108,6 +108,15 @@ try {
       gateway = initializeGateway();
     }
     
+    // CRITICAL: Initialize gateway connection
+    try {
+      await gateway.initializeGateway();
+      Logger.info("[BG] Gateway initialized successfully");
+    } catch (err) {
+      Logger.error("[BG] Gateway initialization failed:", err);
+      // Continue anyway - gateway will retry on first use
+    }
+    
     // Create context menus
     createContextMenus();
   })();
@@ -441,6 +450,58 @@ try {
           });
           return true;
 
+        case "REFRESH_CLERK_TOKEN":
+          // Handle token refresh request from gateway
+          // Service worker can't access Clerk SDK directly, so forward to content script
+          Logger.info("[BG] REFRESH_CLERK_TOKEN message received");
+          
+          // Try to get current token from storage first
+          chrome.storage.local.get(['clerk_token'], async (data) => {
+            const currentToken = data.clerk_token;
+            
+            // Try to forward refresh request to active tab's content script
+            // Content script has access to Clerk SDK
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+              if (tabs && tabs.length > 0) {
+                // Send message to content script to refresh token via Clerk SDK
+                chrome.tabs.sendMessage(
+                  tabs[0].id,
+                  { type: 'REFRESH_CLERK_TOKEN_REQUEST' },
+                  (response) => {
+                    if (chrome.runtime.lastError) {
+                      Logger.debug("[BG] Content script refresh failed:", chrome.runtime.lastError.message);
+                      // Fallback: return current token if available
+                      sendResponse({ 
+                        success: !!currentToken, 
+                        token: currentToken || null 
+                      });
+                    } else if (response && response.success && response.token) {
+                      // Store refreshed token
+                      chrome.storage.local.set({ clerk_token: response.token }, () => {
+                        Logger.info("[BG] Token refreshed and stored via content script");
+                        sendResponse({ success: true, token: response.token });
+                      });
+                    } else {
+                      // Content script couldn't refresh, return current token
+                      sendResponse({ 
+                        success: !!currentToken, 
+                        token: currentToken || null 
+                      });
+                    }
+                  }
+                );
+              } else {
+                // No active tab, return current token if available
+                Logger.debug("[BG] No active tab for token refresh");
+                sendResponse({ 
+                  success: !!currentToken, 
+                  token: currentToken || null 
+                });
+              }
+            });
+          });
+          return true; // Keep message channel open for async response
+
         case "AUTH_CALLBACK_SUCCESS":
           // Handle successful authentication callback
           Logger.info("[BG] 🔔 AUTH_CALLBACK_SUCCESS message received", {
@@ -598,11 +659,31 @@ try {
           fullResult: analysisResult
         });
 
-        // Save to analysis history
-        saveToHistory(text, analysisResult);
-
-        // Save as last analysis for copy feature
-        chrome.storage.local.set({ last_analysis: analysisResult });
+        // Only save successful analyses to history
+        // Check if result is successful and has valid data (not an error response)
+        if (analysisResult && 
+            analysisResult.success !== false && 
+            !analysisResult.error &&
+            (analysisResult.score !== undefined || analysisResult.analysis)) {
+          // Additional validation: ensure score is not default error value
+          const hasValidScore = analysisResult.score === undefined || 
+                                (typeof analysisResult.score === 'number' && analysisResult.score >= 0);
+          
+          if (hasValidScore) {
+            saveToHistory(text, analysisResult);
+            // Save as last analysis for copy feature
+            chrome.storage.local.set({ last_analysis: analysisResult });
+          } else {
+            Logger.warn("[BG] Analysis result has invalid score, not saving to history:", analysisResult);
+          }
+        } else {
+          Logger.warn("[BG] Analysis result indicates failure or error, not saving to history:", {
+            success: analysisResult?.success,
+            error: analysisResult?.error,
+            hasScore: analysisResult?.score !== undefined,
+            hasAnalysis: !!analysisResult?.analysis
+          });
+        }
 
         sendResponse(analysisResult);
       } catch (error) {
@@ -695,26 +776,38 @@ try {
 
   /**
    * TRACER BULLET: Save analysis to history
+   * EPISTEMIC: Uses mutex protection to prevent race conditions
    */
-  function saveToHistory(text, analysis) {
-    chrome.storage.sync.get(['analysis_history'], (data) => {
-      const history = data.analysis_history || [];
-      
-      // Add new entry
-      history.unshift({
+  async function saveToHistory(text, analysis) {
+    // EPISTEMIC: Use mutex-protected array append to prevent race conditions
+    if (typeof MutexHelper !== 'undefined') {
+      await MutexHelper.appendToArray('analysis_history', {
         text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
         fullText: text,
         analysis: analysis,
         timestamp: new Date().toISOString()
+      }, 50, 'sync'); // Keep last 50 entries, use sync storage
+    } else {
+      // Fallback to direct storage (race condition risk)
+      chrome.storage.sync.get(['analysis_history'], (data) => {
+        const history = data.analysis_history || [];
+        
+        // Add new entry
+        history.unshift({
+          text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+          fullText: text,
+          analysis: analysis,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Keep only last 50 entries
+        if (history.length > 50) {
+          history.pop();
+        }
+        
+        chrome.storage.sync.set({ analysis_history: history });
       });
-      
-      // Keep only last 50 entries
-      if (history.length > 50) {
-        history.pop();
-      }
-      
-      chrome.storage.sync.set({ analysis_history: history });
-    });
+    }
   }
 
   /**
@@ -801,10 +894,24 @@ try {
 
       // Use simplified gateway status (just connected or not)
       const status = await gateway.getGatewayStatus();
-      sendResponse({ success: true, status });
+      // Transform status to match expected format: { gateway_connected: boolean }
+      const transformedStatus = {
+        gateway_connected: status.connected || false,
+        gateway_url: status.gateway_url,
+        last_check: status.last_check,
+        error: status.error || null
+      };
+      sendResponse({ success: true, status: transformedStatus });
     } catch (err) {
       Logger.error("[BG] Failed to get guard status:", err);
-      sendResponse({ success: false, error: err.message });
+      sendResponse({ 
+        success: false, 
+        error: err.message,
+        status: {
+          gateway_connected: false,
+          error: err.message
+        }
+      });
     }
   }
 

@@ -59,6 +59,16 @@
         Logger.error('Status loading failed (non-critical)', err);
       }
       
+      // Set up storage listener for auth state changes
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'local' && (changes.clerk_user || changes.clerk_token)) {
+          Logger.info('[Popup] Auth state changed in storage, refreshing UI...');
+          updateAuthUI().catch(err => {
+            Logger.error('[Popup] Failed to update auth UI after storage change:', err);
+          });
+        }
+      });
+
       // Check for issues and show diagnostic panel if needed
       setTimeout(async () => {
         try {
@@ -462,19 +472,23 @@
             });
             Logger.info('[Popup] Storage changed', { clerk_user: changes.clerk_user });
             
+            // Immediately update UI from storage without waiting for auth object sync
+            // This ensures UI updates as soon as user signs in on landing page
+            Logger.info('[Popup] Immediately updating UI from storage change');
+            updateAuthUI();
+            
+            // Stop periodic checking if we're now authenticated
+            if (changes.clerk_user.newValue && authCheckInterval) {
+              clearInterval(authCheckInterval);
+              authCheckInterval = null;
+              Logger.info('[Popup] Stopped periodic auth check - user authenticated');
+            }
+            
+            // Also sync with auth object in background (non-blocking)
             if (auth) {
-              auth.checkUserSession().then(() => {
-                updateAuthUI();
-                // Stop periodic checking if we're now authenticated
-                if (authCheckInterval) {
-                  clearInterval(authCheckInterval);
-                  authCheckInterval = null;
-                }
+              auth.checkUserSession().catch((err) => {
+                Logger.warn('[Popup] Background auth sync failed (non-critical):', err);
               });
-            } else {
-              // If auth not initialized, update UI directly from storage
-              Logger.info('[Popup] Auth not initialized, updating UI directly from storage');
-              updateAuthUI();
             }
           }
         });
@@ -1091,7 +1105,12 @@
     const details = document.getElementById('statusDetails');
     const serviceStatus = document.getElementById('serviceStatus');
     
-    if (status.gateway_connected) {
+    // Handle both 'connected' and 'gateway_connected' field names for compatibility
+    const isConnected = status.gateway_connected !== undefined 
+                      ? status.gateway_connected 
+                      : (status.connected !== undefined ? status.connected : false);
+    
+    if (isConnected) {
       indicator.className = 'status-indicator';
       details.textContent = 'AiGuardian service operational';
       if (serviceStatus) {
@@ -1155,11 +1174,22 @@
   async function loadGuardServices() {
     try {
       const response = await sendMessageToBackground('GET_GUARD_STATUS');
-      if (response.success) {
+      if (response.success && response.status) {
         updateGuardServices(response.status);
+      } else {
+        // Handle error case
+        Logger.warn('Guard status request failed:', response.error);
+        updateGuardServices({ 
+          gateway_connected: false, 
+          error: response.error || 'Failed to get guard status' 
+        });
       }
     } catch (err) {
       Logger.error('Failed to load guard services', err);
+      updateGuardServices({ 
+        gateway_connected: false, 
+        error: err.message || 'Unknown error' 
+      });
     }
   }
 
@@ -1170,11 +1200,20 @@
     const serviceStatus = document.getElementById('serviceStatus');
     if (!serviceStatus) return;
 
+    // Handle both 'connected' and 'gateway_connected' field names for compatibility
+    const isConnected = status.gateway_connected !== undefined 
+                      ? status.gateway_connected 
+                      : (status.connected !== undefined ? status.connected : false);
+
     // Update unified service status
-    if (status.gateway_connected) {
+    if (isConnected) {
       serviceStatus.className = 'guard-status';
+      serviceStatus.title = 'Guards connected';
     } else {
       serviceStatus.className = 'guard-status disabled';
+      const errorMsg = status.error || 'Guards disconnected';
+      serviceStatus.title = errorMsg;
+      Logger.warn('[Popup] Guard services disconnected:', errorMsg);
     }
   }
 
@@ -1413,7 +1452,6 @@
           statusLine.textContent = `✅ Success${scoreText}`;
           statusLine.style.color = '#4CAF50';
         }
-        Logger.info('Analysis completed successfully');
       } else {
         const errorMessage = response && response.error
           ? response.error
@@ -1470,28 +1508,107 @@
   /**
    * Update analysis result display
    * All values come from backend - no fallbacks or mocks
+   * CRITICAL: Check for errors before displaying results
    */
   function updateAnalysisResult(result) {
+    // SAFETY: Check for error responses FIRST - don't display 0% for errors
+    if (!result || result.success === false || result.error) {
+      const errorMessage = result?.error || result?.detail || 'Analysis failed';
+      Logger.error('[Popup] Analysis result indicates error:', errorMessage);
+      
+      // Display error in UI
+      const biasScore = document.getElementById('biasScore');
+      const biasType = document.getElementById('biasType');
+      const confidence = document.getElementById('confidence');
+      
+      if (biasScore) {
+        biasScore.textContent = 'Error';
+        biasScore.className = 'score-value error';
+      }
+      
+      if (biasType) {
+        biasType.textContent = errorMessage.substring(0, 30) + (errorMessage.length > 30 ? '...' : '');
+        biasType.className = 'error-text';
+      }
+      
+      if (confidence) {
+        confidence.textContent = '—';
+      }
+      
+      // Show error to user
+      if (errorHandler) {
+        errorHandler.showErrorFromException(new Error(errorMessage));
+      } else {
+        showFallbackError(`Analysis failed: ${errorMessage}`);
+      }
+      
+      return; // Don't process further
+    }
+    
+    // Validate that we have a valid result before displaying
+    if (result.score === undefined && (!result.analysis || Object.keys(result.analysis).length === 0)) {
+      Logger.warn('[Popup] Analysis result missing score and analysis data:', result);
+      const biasScore = document.getElementById('biasScore');
+      const biasType = document.getElementById('biasType');
+      
+      if (biasScore) {
+        biasScore.textContent = 'N/A';
+        biasScore.className = 'score-value';
+      }
+      
+      if (biasType) {
+        biasType.textContent = 'No data';
+      }
+      
+      return;
+    }
+    
     const biasScore = document.getElementById('biasScore');
     const biasType = document.getElementById('biasType');
     const confidence = document.getElementById('confidence');
     
-    if (biasScore && result.score !== undefined) {
-      biasScore.textContent = result.score.toFixed(2);
-      
-      // Update score color based on value
-      biasScore.className = 'score-value';
-      if (result.score < 0.3) {
-        biasScore.classList.add('low');
-      } else if (result.score < 0.7) {
-        biasScore.classList.add('medium');
+    // Only display score if it's a valid number (not 0 from error)
+    if (biasScore && result.score !== undefined && typeof result.score === 'number') {
+      // Check if score is 0 due to error (error responses might have score: 0)
+      if (result.score === 0 && (!result.analysis || Object.keys(result.analysis).length === 0)) {
+        biasScore.textContent = 'N/A';
+        biasScore.className = 'score-value';
       } else {
-        biasScore.classList.add('high');
+        biasScore.textContent = result.score.toFixed(2);
+        
+        // Update score color based on value
+        biasScore.className = 'score-value';
+        if (result.score < 0.3) {
+          biasScore.classList.add('low');
+        } else if (result.score < 0.7) {
+          biasScore.classList.add('medium');
+        } else {
+          biasScore.classList.add('high');
+        }
       }
     }
     
     if (biasType && result.analysis) {
-      biasType.textContent = result.analysis.bias_type || result.analysis.type || 'Unknown';
+      // Extract type from various possible fields
+      const analysisType = result.analysis.bias_type || 
+                          result.analysis.type || 
+                          result.analysis.service_type ||
+                          (result.analysis.detected_type ? result.analysis.detected_type : null);
+      
+      if (analysisType && analysisType !== 'Unknown' && analysisType !== 'unknown') {
+        biasType.textContent = analysisType;
+        biasType.className = '';
+      } else if (result.analysis && Object.keys(result.analysis).length > 0) {
+        // If we have analysis data but no type, show "Analyzed" instead of "Unknown"
+        biasType.textContent = 'Analyzed';
+        biasType.className = '';
+      } else {
+        biasType.textContent = 'Unknown';
+        biasType.className = 'warning-text';
+      }
+    } else if (biasType) {
+      biasType.textContent = 'No analysis';
+      biasType.className = 'warning-text';
     }
     
     if (confidence && result.analysis && result.analysis.confidence !== undefined) {

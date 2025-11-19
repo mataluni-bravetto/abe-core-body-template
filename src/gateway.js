@@ -12,6 +12,12 @@
  */
 
 class AiGuardianGateway {
+  constructor() {
+    this.isInitialized = false;
+    this._initializing = false;
+    this._initializationError = null; // SAFETY: Track initialization errors
+  }
+
   /**
    * Sanitizes request data to prevent XSS and injection attacks
    * @function sanitizeRequestData
@@ -237,6 +243,19 @@ class AiGuardianGateway {
     this.cacheManager = new CacheManager();
     this.subscriptionService = null; // Will be initialized after gateway is ready
 
+    // EPISTEMIC: Circuit breaker for resilience (fail-fast on backend outages)
+    if (typeof CircuitBreaker !== 'undefined') {
+      this.circuitBreaker = new CircuitBreaker({
+        failureThreshold: 5,
+        resetTimeout: 60000, // 1 minute cooldown
+        timeout: API_CONFIG.TIMEOUT
+      });
+      Logger.info('[Gateway] Circuit breaker initialized');
+    } else {
+      Logger.warn('[Gateway] CircuitBreaker not available - resilience reduced');
+      this.circuitBreaker = null;
+    }
+
     this.initializeGateway();
   }
 
@@ -298,8 +317,23 @@ class AiGuardianGateway {
   /**
    * Initialize gateway connection (simplified)
    * Client only needs to know gateway URL and API key
+   * SAFETY: Properly handles and reports initialization failures
    */
   async initializeGateway() {
+    // Prevent concurrent initialization
+    if (this._initializing) {
+      // Wait for ongoing initialization to complete
+      while (this._initializing) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return;
+    }
+
+    if (this.isInitialized) {
+      return; // Already initialized
+    }
+
+    this._initializing = true;
     try {
       // Load configuration from storage
       await this.loadConfiguration();
@@ -313,9 +347,24 @@ class AiGuardianGateway {
         Logger.info('[Gateway] Subscription service initialized');
       }
 
+      // VERIFY: Ensure critical components initialized
+      if (!this.config || !this.config.gatewayUrl) {
+        throw new Error('Gateway configuration missing after initialization');
+      }
+
+      this.isInitialized = true;
+      this._initializationError = null;
       Logger.info('[Gateway] Initialized unified gateway connection');
     } catch (err) {
-      Logger.error('[Gateway] Initialization failed', err);
+      Logger.error('[Gateway] Initialization failed', {
+        error: err.message,
+        stack: err.stack
+      });
+      this.isInitialized = false;
+      this._initializationError = err;
+      throw err; // Re-throw to allow caller to handle
+    } finally {
+      this._initializing = false;
     }
   }
 
@@ -501,6 +550,7 @@ class AiGuardianGateway {
       body: JSON.stringify(payload)
     };
 
+<<<<<<< HEAD
     let lastError;
     let tokenRefreshed = false;
     for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
@@ -591,10 +641,19 @@ class AiGuardianGateway {
         const validationResult = this.validateApiResponse(result, endpoint);
         if (!validationResult.isValid) {
           this.logger.warn('API response validation failed', {
+=======
+    // EPISTEMIC: Wrap fetch in circuit breaker for resilience
+    const executeRequest = async () => {
+      let lastError;
+      for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
+        try {
+          this.logger.trace(`Attempt ${attempt}/${this.config.retryAttempts}`, {
+>>>>>>> dev
             requestId,
             endpoint: mappedEndpoint,
-            validationErrors: validationResult.errors
+            attempt
           });
+<<<<<<< HEAD
         }
         
         // Use transformed response if available (for mock API)
@@ -640,32 +699,252 @@ class AiGuardianGateway {
         if (attempt < this.config.retryAttempts) {
           const delayTime = this.config.retryDelay * attempt;
           this.logger.trace(`Retrying in ${delayTime}ms`, {
+=======
+          
+          const response = await fetch(url, requestOptions);
+          const responseTime = Date.now() - startTime;
+          
+          if (!response.ok) {
+            // EPISTEMIC: Handle 401 with automatic token refresh
+            if (response.status === 401 && clerkToken && attempt < this.config.retryAttempts) {
+              try {
+                // Try to refresh token
+                const newToken = await this.refreshClerkToken();
+                if (newToken && newToken !== clerkToken) {
+                  // Token was refreshed - retry request with new token
+                  Logger.info('[Gateway] Token refreshed, retrying request with new token', {
+                    requestId,
+                    endpoint: mappedEndpoint,
+                    attempt
+                  });
+                  
+                  // Update headers with new token
+                  const newHeaders = { ...headers, 'Authorization': 'Bearer ' + newToken };
+                  const newRequestOptions = { ...requestOptions, headers: newHeaders };
+                  
+                  // Retry request with new token (don't increment attempt counter)
+                  const retryResponse = await fetch(url, newRequestOptions);
+                  if (retryResponse.ok) {
+                    const result = await retryResponse.json();
+                    const validationResult = this.validateApiResponse(result, endpoint);
+                    const finalResult = validationResult.transformedResponse || result;
+                    this.traceStats.successes++;
+                    this.traceStats.totalResponseTime += (Date.now() - startTime);
+                    this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
+                    return finalResult;
+                  }
+                  // If retry still fails, continue with error handling below
+                } else {
+                  Logger.debug('[Gateway] Token refresh returned same token or failed, continuing with error handling');
+                }
+              } catch (refreshError) {
+                Logger.warn('[Gateway] Token refresh failed, continuing with error handling:', refreshError);
+              }
+            }
+            
+            // EPISTEMIC: Handle 403 Forbidden explicitly with enhanced messaging
+            if (response.status === 403) {
+              Logger.error('[Gateway] 403 Forbidden - Authentication/Authorization failed', {
+                requestId,
+                endpoint: mappedEndpoint,
+                url,
+                hasToken: !!clerkToken
+              });
+              
+              // Try to get more context from response body
+              let errorDetail = 'Access denied.';
+              try {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                  const errorData = await response.json();
+                  errorDetail = errorData?.detail || errorData?.error || errorData?.message || errorDetail;
+                }
+              } catch (e) {
+                // If parsing fails, use default message
+              }
+              
+              const errorResponse = {
+                success: false,
+                error: errorDetail || 'Access denied. Please check your authentication and try again.',
+                status: 403,
+                requiresAuth: true,
+                requestId,
+                endpoint: mappedEndpoint,
+                suggestion: clerkToken 
+                  ? 'Your session may have expired. Please refresh the page and try again.'
+                  : 'Please sign in to continue.'
+              };
+              
+              if (endpoint === 'analyze') {
+                return errorResponse;
+              }
+              throw new Error(errorResponse.error);
+            }
+            
+            // Try to parse JSON error response first
+            let errorData = null;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              try {
+                errorData = await response.json();
+              } catch (e) {
+                // If JSON parsing fails, fall back to text
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+              }
+            } else {
+              const errorText = await response.text();
+              throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+            }
+            
+            // Create error response object that will be properly handled
+            const errorResponse = {
+              success: false,
+              error: errorData?.detail || errorData?.error || errorData?.message || `HTTP ${response.status}: ${response.statusText}`,
+              status: response.status,
+              ...errorData
+            };
+            
+            // For analyze endpoint, return error response structure instead of throwing
+            // This allows the caller to handle it gracefully
+            if (endpoint === 'analyze') {
+              return errorResponse;
+            }
+            
+            // For other endpoints, throw error
+            throw new Error(errorResponse.error);
+          }
+          
+          const result = await response.json();
+          
+          // Validate response data
+          const validationResult = this.validateApiResponse(result, endpoint);
+          if (!validationResult.isValid) {
+            this.logger.warn('API response validation failed', {
+              requestId,
+              endpoint: mappedEndpoint,
+              validationErrors: validationResult.errors
+            });
+          }
+          
+          // Use transformed response if available (for mock API)
+          // If validation failed but we have a transformed response, use it
+          // Otherwise use the original result
+          const finalResult = validationResult.transformedResponse || result;
+          
+          // Update trace stats only if result is successful
+          const isSuccess = finalResult && finalResult.success !== false && !finalResult.error;
+          if (isSuccess) {
+            this.traceStats.successes++;
+            this.traceStats.totalResponseTime += responseTime;
+            this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
+            
+            this.logger.info('Gateway request successful', {
+              requestId,
+              endpoint: mappedEndpoint,
+              attempt,
+              responseTime,
+              statusCode: response.status,
+              responseSize: JSON.stringify(finalResult).length
+            });
+          } else {
+            // Log warning for unsuccessful responses
+            this.logger.warn('Gateway request returned error response', {
+              requestId,
+              endpoint: mappedEndpoint,
+              attempt,
+              responseTime,
+              statusCode: response.status,
+              error: finalResult?.error
+            });
+          }
+          
+          return finalResult;
+        } catch (err) {
+          lastError = err;
+          const responseTime = Date.now() - startTime;
+          
+          this.logger.error('Gateway request failed', {
+>>>>>>> dev
             requestId,
+            endpoint: mappedEndpoint,
             attempt,
-            nextAttempt: attempt + 1
+            error: err.message,
+            responseTime,
+            errorType: err.name
           });
-          await this.delay(delayTime);
+          
+          if (attempt < this.config.retryAttempts) {
+            const delayTime = this.config.retryDelay * attempt;
+            this.logger.trace(`Retrying in ${delayTime}ms`, {
+              requestId,
+              attempt,
+              nextAttempt: attempt + 1
+            });
+            await this.delay(delayTime);
+          }
         }
       }
+      
+      // Final failure
+      this.traceStats.failures++;
+      this.logger.error('All retry attempts failed', {
+        requestId,
+        endpoint: mappedEndpoint,
+        totalAttempts: this.config.retryAttempts,
+        finalError: lastError.message
+      });
+      
+      throw lastError;
+    };
+
+    // Execute with circuit breaker if available
+    if (this.circuitBreaker) {
+      try {
+        return await this.circuitBreaker.execute(executeRequest, {
+          requestId,
+          endpoint: mappedEndpoint,
+          url
+        });
+      } catch (error) {
+        // Circuit breaker error (OPEN state)
+        if (error.message.includes('Circuit breaker is OPEN')) {
+          this.traceStats.failures++;
+          throw error;
+        }
+        // Re-throw other errors
+        throw error;
+      }
+    } else {
+      // Fallback to direct execution if circuit breaker not available
+      return await executeRequest();
     }
-    
-    // Final failure
-    this.traceStats.failures++;
-    this.logger.error('All retry attempts failed', {
-      requestId,
-      endpoint: mappedEndpoint,
-      totalAttempts: this.config.retryAttempts,
-      finalError: lastError.message
-    });
-    
-    throw lastError;
   }
 
   /**
    * Analyze text through unified gateway
    * Client doesn't need to know about individual guard services
+   * SAFETY: Validates initialization before processing
    */
   async analyzeText(text, options = {}) {
+    // SAFETY: Check if gateway initialized successfully
+    if (!this.isInitialized) {
+      if (this._initializationError) {
+        throw new Error(`Gateway not initialized: ${this._initializationError.message}`);
+      }
+      // Try to initialize if not already initializing
+      if (!this._initializing) {
+        try {
+          await this.initializeGateway();
+        } catch (initErr) {
+          throw new Error(`Gateway initialization failed: ${initErr.message}`);
+        }
+      } else {
+        // Wait for ongoing initialization
+        await this.waitForInitialization();
+      }
+    }
+
     const analysisId = this.generateRequestId();
     const startTime = Date.now();
 
@@ -762,19 +1041,82 @@ class AiGuardianGateway {
   }
 
   /**
+   * SAFETY: Wait for gateway initialization to complete
+   * Useful for ensuring gateway is ready before use
+   */
+  async waitForInitialization(timeout = 5000) {
+    const start = Date.now();
+    while (!this.isInitialized && (Date.now() - start) < timeout) {
+      if (!this._initializing) {
+        // Not initializing and not initialized - try to initialize
+        try {
+          await this.initializeGateway();
+          break;
+        } catch (err) {
+          throw new Error(`Gateway initialization timeout after ${timeout}ms. Error: ${err.message}`);
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!this.isInitialized) {
+      throw new Error(`Gateway initialization timeout after ${timeout}ms. Error: ${this._initializationError?.message || 'Unknown'}`);
+    }
+    return true;
+  }
+
+  /**
+   * SAFETY: Get comprehensive health check including initialization status
+   */
+  async healthCheck() {
+    return {
+      initialized: this.isInitialized,
+      initializationError: this._initializationError?.message || null,
+      gatewayConnected: await this.testGatewayConnection(),
+      gatewayUrl: this.config?.gatewayUrl || 'not configured',
+      traceStats: this.getTraceStats(),
+      subscriptionService: this.subscriptionService ? 'available' : 'not initialized'
+    };
+  }
+
+  /**
    * Test unified gateway connection
    * Simple health check - alive or not
+   * Includes timeout handling and better error reporting
    */
   async testGatewayConnection() {
+    const timeout = 5000; // 5 second timeout
+    const healthUrl = this.config.gatewayUrl + '/health/live';
+    
     try {
-      const response = await fetch(this.config.gatewayUrl + '/health/live', {
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const response = await fetch(healthUrl, {
         method: 'GET',
         headers: {
           'X-Extension-Version': chrome.runtime.getManifest().version
-        }
+        },
+        signal: controller.signal
       });
-      return response.ok;
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        return true;
+      } else {
+        Logger.warn('[Gateway] Health check returned non-OK status:', response.status);
+        return false;
+      }
     } catch (err) {
+      // Handle different error types
+      if (err.name === 'AbortError') {
+        Logger.warn('[Gateway] Health check timed out after', timeout, 'ms');
+      } else if (err.message && err.message.includes('Failed to fetch')) {
+        Logger.warn('[Gateway] Health check failed - network error:', err.message);
+      } else {
+        Logger.warn('[Gateway] Health check failed:', err.message || err);
+      }
       return false;
     }
   }
@@ -793,18 +1135,33 @@ class AiGuardianGateway {
 
   /**
    * Update client configuration (simplified)
+   * EPISTEMIC: Uses mutex protection to prevent race conditions
    */
   async updateConfiguration(newConfig) {
     this.config = { ...this.config, ...newConfig };
 
-    await new Promise((resolve) => {
-      chrome.storage.sync.set({
-        gateway_url: this.config.gatewayUrl,
-        api_key: this.config.apiKey,
-        timeout: this.config.timeout,
-        retry_attempts: this.config.retryAttempts
-      }, resolve);
-    });
+    // EPISTEMIC: Use mutex for storage updates to prevent race conditions
+    if (typeof MutexHelper !== 'undefined') {
+      await MutexHelper.withLock('config_update', async () => {
+        await new Promise((resolve) => {
+          chrome.storage.sync.set({
+            gateway_url: this.config.gatewayUrl,
+            api_key: this.config.apiKey,
+            timeout: this.config.timeout,
+            retry_attempts: this.config.retryAttempts
+          }, resolve);
+        });
+      });
+    } else {
+      await new Promise((resolve) => {
+        chrome.storage.sync.set({
+          gateway_url: this.config.gatewayUrl,
+          api_key: this.config.apiKey,
+          timeout: this.config.timeout,
+          retry_attempts: this.config.retryAttempts
+        }, resolve);
+      });
+    }
 
     // Log configuration update with explicit error handling
     if (this.centralLogger) {
@@ -814,6 +1171,30 @@ class AiGuardianGateway {
         Logger.warn('[Gateway] Central logging failed, continuing:', logError);
       }
     }
+  }
+
+  /**
+   * EPISTEMIC: Check storage quota before writes
+   * Prevents silent failures when quota is exceeded
+   */
+  async checkStorageQuota() {
+    return new Promise((resolve) => {
+      chrome.storage.local.getBytesInUse(null, (bytes) => {
+        const quota = chrome.storage.local.QUOTA_BYTES || 5242880; // 5MB default
+        const usagePercent = (bytes / quota) * 100;
+        
+        if (usagePercent > 90) {
+          Logger.warn('[Gateway] Storage quota nearly exceeded', {
+            bytes,
+            quota,
+            usagePercent: usagePercent.toFixed(2) + '%',
+            remainingBytes: quota - bytes
+          });
+        }
+        
+        resolve({ bytes, quota, usagePercent, remainingBytes: quota - bytes });
+      });
+    });
   }
 
   /**
@@ -860,6 +1241,25 @@ class AiGuardianGateway {
     
     // Validate response structure based on endpoint
     if (endpoint === 'analyze') {
+      // Check if response indicates an error BEFORE transformation
+      // Error responses should not be transformed into analysis results
+      if (response.success === false || 
+          response.error || 
+          (response.status && response.status >= 400) ||
+          (response.detail && typeof response.detail === 'string')) {
+        // This is an error response - return it as-is without transformation
+        return { 
+          isValid: false, 
+          errors: ['API error response'], 
+          transformedResponse: {
+            success: false,
+            error: response.error || response.detail || response.message || 'API request failed',
+            status: response.status,
+            raw: response
+          }
+        };
+      }
+      
       // Expect backend envelope: { success, data, ... }
       if (typeof response.success !== 'boolean') {
         errors.push('Response missing success boolean');
@@ -1028,6 +1428,7 @@ class AiGuardianGateway {
   }
 
   /**
+<<<<<<< HEAD
    * Validate token format (basic JWT format check)
    * JWT tokens have format: header.payload.signature (base64 encoded)
    * They typically start with "eyJ" (base64 for {"})
@@ -1063,6 +1464,71 @@ class AiGuardianGateway {
     return new Promise((resolve) => {
       chrome.storage.local.remove(['clerk_token'], resolve);
     });
+=======
+   * EPISTEMIC: Refresh Clerk session token
+   * Used for automatic token refresh on 401 errors
+   * 
+   * Works in both service worker and window contexts:
+   * - Window context: Uses Clerk SDK directly
+   * - Service worker: Sends message to popup/content script to refresh via Clerk SDK
+   * 
+   * @returns {Promise<string|null>} New token or null if refresh failed
+   */
+  async refreshClerkToken() {
+    try {
+      // Try to get fresh token from Clerk SDK (if in window context)
+      if (typeof window !== 'undefined' && window.Clerk) {
+        const clerk = window.Clerk;
+        if (typeof clerk.load === 'function' && !clerk.loaded) {
+          await clerk.load();
+        }
+        const session = await clerk.session;
+        if (session) {
+          const newToken = await session.getToken();
+          if (newToken) {
+            await this.storeClerkToken(newToken);
+            Logger.info('[Gateway] Token refreshed successfully (window context)');
+            return newToken;
+          }
+        }
+      }
+      
+      // Service worker context: Request token refresh via message passing
+      if (typeof chrome !== 'undefined' && chrome.runtime) {
+        try {
+          // Send message to popup/content script to refresh token via Clerk SDK
+          const response = await new Promise((resolve) => {
+            chrome.runtime.sendMessage(
+              { type: 'REFRESH_CLERK_TOKEN' },
+              (response) => {
+                if (chrome.runtime.lastError) {
+                  Logger.debug('[Gateway] Token refresh message failed:', chrome.runtime.lastError.message);
+                  resolve(null);
+                } else {
+                  resolve(response);
+                }
+              }
+            );
+          });
+          
+          if (response && response.success && response.token) {
+            await this.storeClerkToken(response.token);
+            Logger.info('[Gateway] Token refreshed successfully (service worker context)');
+            return response.token;
+          }
+        } catch (messageError) {
+          Logger.debug('[Gateway] Token refresh via message failed:', messageError);
+        }
+      }
+      
+      // Fallback: return null (user must re-authenticate)
+      Logger.warn('[Gateway] Token refresh failed - user must re-authenticate');
+      return null;
+    } catch (error) {
+      Logger.error('[Gateway] Token refresh error:', error);
+      return null;
+    }
+>>>>>>> dev
   }
 
   /**
@@ -1078,11 +1544,17 @@ class AiGuardianGateway {
 
   /**
    * Store Clerk token in chrome.storage.local
+   * EPISTEMIC: Uses mutex protection to prevent race conditions
    */
   async storeClerkToken(token) {
-    return new Promise((resolve) => {
-      chrome.storage.local.set({ clerk_token: token }, resolve);
-    });
+    // Use mutex if available, otherwise fallback to direct storage
+    if (typeof MutexHelper !== 'undefined') {
+      return await MutexHelper.updateStorage('clerk_token', () => token, 'local');
+    } else {
+      return new Promise((resolve) => {
+        chrome.storage.local.set({ clerk_token: token }, resolve);
+      });
+    }
   }
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
