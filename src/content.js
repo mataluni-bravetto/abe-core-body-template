@@ -85,7 +85,24 @@
     showBadge('Analyzing...', 'loading');
 
     // Send to background script
+    Logger.info('[CS] 📤 Sending analysis request:', {
+      textLength: selectionText.length,
+      textPreview: selectionText.substring(0, 100) + (selectionText.length > 100 ? '...' : '')
+    });
+    
     chrome.runtime.sendMessage({ type: 'ANALYZE_TEXT', payload: selectionText }, (response) => {
+      // DEBUG: Log response immediately
+      Logger.info('[CS] 📥 Received analysis response:', {
+        hasResponse: !!response,
+        success: response?.success,
+        hasScore: response?.score !== undefined,
+        scoreValue: response?.score,
+        hasError: !!response?.error,
+        errorMessage: response?.error,
+        statusCode: response?.statusCode,
+        responseKeys: response ? Object.keys(response) : []
+      });
+      
       if (chrome.runtime.lastError) {
         Logger.error('[CS] Runtime error:', chrome.runtime.lastError);
         showErrorBadge('Extension error. Please refresh the page and try again.', 'error');
@@ -98,6 +115,7 @@
           errorCode: response?.errorCode,
           statusCode: response?.statusCode,
           actionable: response?.actionable,
+          fullResponse: JSON.stringify(response).substring(0, 500)
         });
 
         // Show user-friendly error message
@@ -132,6 +150,19 @@
    * @returns {void}
    */
   function displayAnalysisResults(response, range) {
+    // DEBUG: Log full response structure to diagnose score extraction
+    Logger.info('[CS] 🔍 Displaying analysis results - Full response structure:', {
+      hasResponse: !!response,
+      success: response?.success,
+      hasScore: response?.score !== undefined,
+      scoreValue: response?.score,
+      scoreType: typeof response?.score,
+      hasAnalysis: !!response?.analysis,
+      analysisKeys: response?.analysis ? Object.keys(response?.analysis) : [],
+      analysisPreview: response?.analysis ? JSON.stringify(response?.analysis).substring(0, 300) : 'null',
+      fullResponsePreview: JSON.stringify(response).substring(0, 500)
+    });
+    
     // Check for error responses first - don't display "Score: 0%" for failed analyses
     if (!response || response.success === false || response.error) {
       // Determine appropriate error message
@@ -161,10 +192,27 @@
 
     // Validate that we have a valid score before displaying
     if (response.score === undefined || response.score === null) {
-      Logger.warn('[CS] Analysis response missing score:', response);
+      Logger.warn('[CS] ⚠️ Analysis response missing score:', {
+        responseKeys: Object.keys(response || {}),
+        responsePreview: JSON.stringify(response).substring(0, 500),
+        hasAnalysis: !!response?.analysis,
+        analysisKeys: response?.analysis ? Object.keys(response?.analysis) : []
+      });
       showErrorBadge('Analysis incomplete. Please try again.', 'warning');
       return;
     }
+    
+    // DEBUG: Log score details before display
+    Logger.info('[CS] 📊 Score details:', {
+      rawScore: response.score,
+      scoreType: typeof response.score,
+      isNumber: typeof response.score === 'number',
+      isNaN: Number.isNaN(response.score),
+      scorePercentage: Math.round(response.score * 100),
+      analysisBiasTypes: response.analysis?.bias_types || [],
+      analysisBiasType: response.analysis?.bias_type,
+      analysisConfidence: response.analysis?.confidence
+    });
 
     // TRACER BULLET: Highlight the text on the page
     if (range && typeof response.score === 'number') {
