@@ -14,15 +14,16 @@ class AiGuardianErrorHandler {
         message: 'AiGuardian needs to be connected to your account to work properly.',
         action: 'Go to Settings to configure authentication',
         actionType: 'settings',
-        severity: 'warning'
+        severity: 'warning',
       },
 
       AUTH_SIGN_IN_FAILED: {
         title: 'Sign In Failed',
-        message: 'We couldn\'t sign you in. This might be due to network issues or invalid credentials.',
+        message:
+          "We couldn't sign you in. This might be due to network issues or invalid credentials.",
         action: 'Try signing in again or check your internet connection',
         actionType: 'retry',
-        severity: 'error'
+        severity: 'error',
       },
 
       AUTH_SIGN_UP_FAILED: {
@@ -30,7 +31,7 @@ class AiGuardianErrorHandler {
         message: 'Account creation failed. Please check your information and try again.',
         action: 'Verify your email and password, then try again',
         actionType: 'retry',
-        severity: 'error'
+        severity: 'error',
       },
 
       AUTH_REQUIRED: {
@@ -38,16 +39,16 @@ class AiGuardianErrorHandler {
         message: 'You need to be signed in to use AiGuardian analysis features.',
         action: 'Click Sign In to get started',
         actionType: 'signin',
-        severity: 'info'
+        severity: 'info',
       },
 
       // Analysis errors
       ANALYSIS_FAILED: {
         title: 'Analysis Failed',
-        message: 'We couldn\'t analyze the selected text. This is usually temporary.',
+        message: "We couldn't analyze the selected text. This is usually temporary.",
         action: 'Try selecting the text again or check your connection',
         actionType: 'retry',
-        severity: 'error'
+        severity: 'error',
       },
 
       ANALYSIS_NO_SELECTION: {
@@ -55,7 +56,7 @@ class AiGuardianErrorHandler {
         message: 'Please select some text on the webpage to analyze.',
         action: 'Highlight text with your mouse, then try again',
         actionType: 'info',
-        severity: 'info'
+        severity: 'info',
       },
 
       ANALYSIS_SELECTION_TOO_SHORT: {
@@ -63,7 +64,7 @@ class AiGuardianErrorHandler {
         message: 'Please select at least 10 characters for meaningful analysis.',
         action: 'Select a longer piece of text',
         actionType: 'info',
-        severity: 'warning'
+        severity: 'warning',
       },
 
       ANALYSIS_SELECTION_TOO_LONG: {
@@ -71,16 +72,16 @@ class AiGuardianErrorHandler {
         message: 'Please select less text (maximum 5000 characters).',
         action: 'Select a shorter piece of text',
         actionType: 'info',
-        severity: 'warning'
+        severity: 'warning',
       },
 
       // Connection errors
       CONNECTION_FAILED: {
         title: 'Connection Problem',
-        message: 'Can\'t connect to AiGuardian servers. Please check your internet connection.',
+        message: "Can't connect to AiGuardian servers. Please check your internet connection.",
         action: 'Check your internet and try again in a moment',
         actionType: 'retry',
-        severity: 'error'
+        severity: 'error',
       },
 
       BACKEND_UNAVAILABLE: {
@@ -88,7 +89,7 @@ class AiGuardianErrorHandler {
         message: 'AiGuardian servers are temporarily unavailable. Please try again later.',
         action: 'Wait a few minutes and try again',
         actionType: 'retry',
-        severity: 'warning'
+        severity: 'warning',
       },
 
       // Configuration errors
@@ -97,7 +98,7 @@ class AiGuardianErrorHandler {
         message: 'AiGuardian settings need to be updated.',
         action: 'Go to Settings to fix configuration',
         actionType: 'settings',
-        severity: 'error'
+        severity: 'error',
       },
 
       API_KEY_INVALID: {
@@ -105,7 +106,7 @@ class AiGuardianErrorHandler {
         message: 'Your API key is not valid or has expired.',
         action: 'Go to Settings to update your API key',
         actionType: 'settings',
-        severity: 'error'
+        severity: 'error',
       },
 
       // Subscription errors
@@ -114,15 +115,15 @@ class AiGuardianErrorHandler {
         message: 'Your AiGuardian subscription has expired.',
         action: 'Renew your subscription to continue',
         actionType: 'upgrade',
-        severity: 'warning'
+        severity: 'warning',
       },
 
       USAGE_LIMIT_EXCEEDED: {
         title: 'Usage Limit Reached',
-        message: 'You\'ve reached your analysis limit for this period.',
+        message: "You've reached your analysis limit for this period.",
         action: 'Upgrade your plan or wait for reset',
         actionType: 'upgrade',
-        severity: 'warning'
+        severity: 'warning',
       },
 
       // Generic fallbacks
@@ -131,7 +132,7 @@ class AiGuardianErrorHandler {
         message: 'An unexpected error occurred. Please try again.',
         action: 'Try again or contact support if the problem persists',
         actionType: 'retry',
-        severity: 'error'
+        severity: 'error',
       },
 
       NETWORK_ERROR: {
@@ -139,8 +140,8 @@ class AiGuardianErrorHandler {
         message: 'Please check your internet connection and try again.',
         action: 'Check your connection and retry',
         actionType: 'retry',
-        severity: 'error'
-      }
+        severity: 'error',
+      },
     };
 
     this.activeErrors = new Map();
@@ -159,7 +160,7 @@ class AiGuardianErrorHandler {
     // Add context-specific information
     if (context.remainingRequests !== undefined && context.remainingRequests === 0) {
       if (errorType === 'USAGE_LIMIT_EXCEEDED') {
-        message = 'You\'ve used all your analyses for this period.';
+        message = "You've used all your analyses for this period.";
         action = 'Upgrade to continue analyzing';
       }
     }
@@ -167,7 +168,7 @@ class AiGuardianErrorHandler {
     return {
       ...errorInfo,
       message,
-      action
+      action,
     };
   }
 
@@ -179,20 +180,31 @@ class AiGuardianErrorHandler {
     const errorCode = error?.code || error?.status;
 
     // Network and connection errors
-    if (errorMessage.includes('fetch') || errorMessage.includes('network') ||
-        errorMessage.includes('connection') || errorCode === 'NETWORK_ERROR') {
+    if (
+      errorMessage.includes('fetch') ||
+      errorMessage.includes('network') ||
+      errorMessage.includes('connection') ||
+      errorCode === 'NETWORK_ERROR'
+    ) {
       return 'NETWORK_ERROR';
     }
 
     // Authentication errors
-    if (errorMessage.includes('unauthorized') || errorMessage.includes('forbidden') ||
-        errorCode === 401 || errorCode === 403) {
+    if (
+      errorMessage.includes('unauthorized') ||
+      errorMessage.includes('forbidden') ||
+      errorCode === 401 ||
+      errorCode === 403
+    ) {
       return 'AUTH_SIGN_IN_FAILED';
     }
 
     // Server errors
-    if (errorCode >= 500 || errorMessage.includes('server error') ||
-        errorMessage.includes('internal server')) {
+    if (
+      errorCode >= 500 ||
+      errorMessage.includes('server error') ||
+      errorMessage.includes('internal server')
+    ) {
       return 'BACKEND_UNAVAILABLE';
     }
 
@@ -202,8 +214,11 @@ class AiGuardianErrorHandler {
     }
 
     // Rate limiting
-    if (errorCode === 429 || errorMessage.includes('rate limit') ||
-        errorMessage.includes('too many requests')) {
+    if (
+      errorCode === 429 ||
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('too many requests')
+    ) {
       return 'USAGE_LIMIT_EXCEEDED';
     }
 
@@ -235,7 +250,10 @@ class AiGuardianErrorHandler {
     if (isOptionsPage) {
       // In options page, just log the error instead of displaying it
       const errorInfo = this.getErrorInfo(errorType, context);
-      Logger.error(`[ErrorHandler] ${errorInfo.title}: ${errorInfo.message}`, { errorType, context });
+      Logger.error(`[ErrorHandler] ${errorInfo.title}: ${errorInfo.message}`, {
+        errorType,
+        context,
+      });
       return null;
     }
 
@@ -283,7 +301,7 @@ class AiGuardianErrorHandler {
     // Store reference
     this.activeErrors.set(errorId, {
       element: errorDiv,
-      timeout: setTimeout(() => this.dismissError(errorId), options.autoDismiss || 8000)
+      timeout: setTimeout(() => this.dismissError(errorId), options.autoDismiss || 8000),
     });
 
     // Log the error
@@ -404,10 +422,14 @@ class AiGuardianErrorHandler {
    */
   getSeverityIcon(severity) {
     switch (severity) {
-      case 'error': return '❌';
-      case 'warning': return '⚠️';
-      case 'info': return 'ℹ️';
-      default: return '❌';
+      case 'error':
+        return '❌';
+      case 'warning':
+        return '⚠️';
+      case 'info':
+        return 'ℹ️';
+      default:
+        return '❌';
     }
   }
 
@@ -416,11 +438,16 @@ class AiGuardianErrorHandler {
    */
   getActionButtonText(actionType) {
     switch (actionType) {
-      case 'retry': return 'Try Again';
-      case 'signin': return 'Sign In';
-      case 'settings': return 'Open Settings';
-      case 'upgrade': return 'Upgrade';
-      default: return 'OK';
+      case 'retry':
+        return 'Try Again';
+      case 'signin':
+        return 'Sign In';
+      case 'settings':
+        return 'Open Settings';
+      case 'upgrade':
+        return 'Upgrade';
+      default:
+        return 'OK';
     }
   }
 

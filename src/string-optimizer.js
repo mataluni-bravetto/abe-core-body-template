@@ -1,6 +1,6 @@
 /**
  * String Optimizer for AiGuardian Chrome Extension
- * 
+ *
  * Provides optimized string operations to improve performance
  * and reduce memory usage.
  */
@@ -22,16 +22,20 @@ class StringOptimizer {
    * @returns {string} The processed string
    */
   optimizedReplace(str, pattern, replacement, maxLength = SECURITY.MAX_STRING_LENGTH) {
-    if (!str || typeof str !== 'string') return '';
-    
+    if (!str || typeof str !== 'string') {
+      return '';
+    }
+
     // Early return for empty strings
-    if (str.length === 0) return str;
-    
+    if (str.length === 0) {
+      return str;
+    }
+
     // Truncate if too long before processing
     if (str.length > maxLength) {
       str = str.substring(0, maxLength);
     }
-    
+
     return str.replace(pattern, replacement);
   }
 
@@ -44,13 +48,20 @@ class StringOptimizer {
    * @param {number} maxLength - Maximum string length
    * @returns {string} The substring
    */
-  safeSubstring(str, start = 0, end = SECURITY.MAX_STRING_LENGTH, maxLength = SECURITY.MAX_STRING_LENGTH) {
-    if (!str || typeof str !== 'string') return '';
-    
+  safeSubstring(
+    str,
+    start = 0,
+    end = SECURITY.MAX_STRING_LENGTH,
+    maxLength = SECURITY.MAX_STRING_LENGTH
+  ) {
+    if (!str || typeof str !== 'string') {
+      return '';
+    }
+
     // Ensure bounds are valid
     start = Math.max(0, Math.min(start, str.length));
     end = Math.max(start, Math.min(end, str.length, maxLength));
-    
+
     return str.substring(start, end);
   }
 
@@ -62,22 +73,27 @@ class StringOptimizer {
    * @returns {string} The sanitized string
    */
   optimizedSanitize(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
-    if (!str || typeof str !== 'string') return '';
-    
+    if (!str || typeof str !== 'string') {
+      return '';
+    }
+
     // Early return for empty strings
-    if (str.length === 0) return str;
-    
+    if (str.length === 0) {
+      return str;
+    }
+
     // Truncate if too long before processing
     if (str.length > maxLength) {
       str = str.substring(0, maxLength);
     }
-    
+
     // Use single pass for multiple replacements
+    // SAFETY: Using [\s\S]*? instead of .*? to match newlines reliably (multiline safety)
     return str
-      .replace(/<script[^>]*>.*?<\/script>/gi, '')
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/javascript:/gi, '')
       .replace(/on\w+\s*=/gi, '')
-      .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '')
+      .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
       .replace(/<[^>]*>/g, '')
       .replace(/[<>"'&]/g, '');
   }
@@ -90,12 +106,14 @@ class StringOptimizer {
    * @returns {string} The string without HTML tags
    */
   removeHtmlTags(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
-    if (!str || typeof str !== 'string') return '';
-    
+    if (!str || typeof str !== 'string') {
+      return '';
+    }
+
     if (str.length > maxLength) {
       str = str.substring(0, maxLength);
     }
-    
+
     return str.replace(/<[^>]*>/g, '');
   }
 
@@ -108,10 +126,14 @@ class StringOptimizer {
    * @returns {string} The truncated string
    */
   truncateWithEllipsis(str, maxLength = SECURITY.MAX_STRING_LENGTH, ellipsis = '...') {
-    if (!str || typeof str !== 'string') return '';
-    
-    if (str.length <= maxLength) return str;
-    
+    if (!str || typeof str !== 'string') {
+      return '';
+    }
+
+    if (str.length <= maxLength) {
+      return str;
+    }
+
     const truncateLength = maxLength - ellipsis.length;
     return str.substring(0, truncateLength) + ellipsis;
   }
@@ -124,9 +146,7 @@ class StringOptimizer {
    * @returns {boolean} True if valid string
    */
   isValidString(value, maxLength = SECURITY.MAX_STRING_LENGTH) {
-    return typeof value === 'string' && 
-           value.length > 0 && 
-           value.length <= maxLength;
+    return typeof value === 'string' && value.length > 0 && value.length <= maxLength;
   }
 
   /**
@@ -137,7 +157,9 @@ class StringOptimizer {
    * @returns {number} The safe length
    */
   getSafeLength(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
-    if (!str || typeof str !== 'string') return 0;
+    if (!str || typeof str !== 'string') {
+      return 0;
+    }
     return Math.min(str.length, maxLength);
   }
 
@@ -150,17 +172,21 @@ class StringOptimizer {
    * @returns {string} The concatenated string
    */
   safeConcat(strings, maxLength = SECURITY.MAX_STRING_LENGTH, separator = '') {
-    if (!Array.isArray(strings)) return '';
-    
+    if (!Array.isArray(strings)) {
+      return '';
+    }
+
     let result = '';
     for (const str of strings) {
       if (typeof str === 'string') {
         const newLength = result.length + str.length + separator.length;
-        if (newLength > maxLength) break;
+        if (newLength > maxLength) {
+          break;
+        }
         result += (result.length > 0 ? separator : '') + str;
       }
     }
-    
+
     return result;
   }
 
@@ -173,12 +199,14 @@ class StringOptimizer {
    * @returns {string[]} The split strings
    */
   safeSplit(str, separator, maxLength = SECURITY.MAX_STRING_LENGTH) {
-    if (!str || typeof str !== 'string') return [];
-    
+    if (!str || typeof str !== 'string') {
+      return [];
+    }
+
     if (str.length > maxLength) {
       str = str.substring(0, maxLength);
     }
-    
+
     return str.split(separator);
   }
 
@@ -190,14 +218,16 @@ class StringOptimizer {
    * @returns {string} The trimmed string
    */
   safeTrim(str, maxLength = SECURITY.MAX_STRING_LENGTH) {
-    if (!str || typeof str !== 'string') return '';
-    
+    if (!str || typeof str !== 'string') {
+      return '';
+    }
+
     let trimmed = str.trim();
-    
+
     if (trimmed.length > maxLength) {
       trimmed = trimmed.substring(0, maxLength);
     }
-    
+
     return trimmed;
   }
 }
@@ -222,6 +252,3 @@ if (typeof window !== 'undefined') {
   window.StringOptimizer = StringOptimizer;
   window.stringOptimizer = stringOptimizer;
 }
-
-
-

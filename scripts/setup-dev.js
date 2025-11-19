@@ -2,7 +2,7 @@
 
 /**
  * AiGuardian Chrome Extension - Development Setup Script
- * 
+ *
  * This script automates the development environment setup:
  * - Installs dependencies
  * - Validates environment
@@ -28,7 +28,7 @@ class DevSetup {
   async run() {
     console.log('🚀 AiGuardian Chrome Extension - Development Setup');
     console.log('='.repeat(60));
-    
+
     const steps = [
       { name: 'Validate Node.js version', fn: this.validateNodeVersion },
       { name: 'Install dependencies', fn: this.installDependencies },
@@ -36,7 +36,7 @@ class DevSetup {
       { name: 'Validate project structure', fn: this.validateStructure },
       { name: 'Setup git hooks', fn: this.setupGitHooks },
       { name: 'Build Clerk bundle', fn: this.buildClerk },
-      { name: 'Run validation tests', fn: this.runValidationTests }
+      { name: 'Run validation tests', fn: this.runValidationTests },
     ];
 
     for (const step of steps) {
@@ -61,11 +61,11 @@ class DevSetup {
   validateNodeVersion() {
     const nodeVersion = process.version;
     const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
-    
+
     if (majorVersion < 16) {
       throw new Error(`Node.js 16+ required. Current: ${nodeVersion}`);
     }
-    
+
     return { version: nodeVersion, majorVersion };
   }
 
@@ -84,7 +84,7 @@ class DevSetup {
   createEnvFile() {
     const envExample = path.join(this.projectRoot, '.env.example');
     const envFile = path.join(this.projectRoot, '.env');
-    
+
     if (!fs.existsSync(envFile)) {
       if (fs.existsSync(envExample)) {
         fs.copyFileSync(envExample, envFile);
@@ -111,7 +111,7 @@ class DevSetup {
       'src/service-worker.js',
       'src/content.js',
       'src/popup.html',
-      'src/popup.js'
+      'src/popup.js',
     ];
 
     const missing = [];
@@ -207,8 +207,8 @@ echo "✅ Pre-commit checks passed"
     console.log('📊 Setup Summary');
     console.log('='.repeat(60));
 
-    const successful = this.setupResults.filter(r => r.status === 'SUCCESS').length;
-    const failed = this.setupResults.filter(r => r.status === 'FAILED').length;
+    const successful = this.setupResults.filter((r) => r.status === 'SUCCESS').length;
+    const failed = this.setupResults.filter((r) => r.status === 'FAILED').length;
 
     console.log(`✅ Successful: ${successful}`);
     console.log(`❌ Failed: ${failed}`);
@@ -242,4 +242,3 @@ if (require.main === module) {
 }
 
 module.exports = DevSetup;
-

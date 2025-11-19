@@ -3,157 +3,251 @@
   <head>
     <meta charset="utf-8" />
     <title>AiGuardian Configuration</title>
-    <link rel="stylesheet" href="../assets/brand/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css">
+    <link
+      rel="stylesheet"
+      href="../assets/brand/Clash Grotesk Font/Fonts/WEB/css/clash-grotesk.css"
+    />
     <style>
-      body{
-        font:14px 'ClashGrotesk-Variable', 'ClashGrotesk', system-ui, sans-serif; 
-        margin:0; 
-        padding:20px; 
-        max-width:800px; 
-        background: linear-gradient(135deg, #081C3D 0%, #134390 50%, #1C64D9 100%);
-        color: #F9F9F9;
+      body {
+        font:
+          14px 'ClashGrotesk-Variable',
+          'ClashGrotesk',
+          system-ui,
+          sans-serif;
+        margin: 0;
+        padding: 20px;
+        max-width: 800px;
+        background: linear-gradient(135deg, #081c3d 0%, #134390 50%, #1c64d9 100%);
+        color: #f9f9f9;
         min-height: 100vh;
       }
-      .section{
-        margin:24px 0; 
-        padding:20px; 
+      .section {
+        margin: 24px 0;
+        padding: 20px;
         background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius:12px;
+        border-radius: 12px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       }
-      .section h3{margin:0 0 16px; color:#F9F9F9; font-weight:600}
-      label{display:block; margin:12px 0 6px; font-weight:500; color:rgba(249, 249, 249, 0.9)}
-      input, select, textarea{
-        padding:12px 16px; 
-        width:100%; 
-        max-width:400px; 
+      .section h3 {
+        margin: 0 0 16px;
+        color: #f9f9f9;
+        font-weight: 600;
+      }
+      label {
+        display: block;
+        margin: 12px 0 6px;
+        font-weight: 500;
+        color: rgba(249, 249, 249, 0.9);
+      }
+      input,
+      select,
+      textarea {
+        padding: 12px 16px;
+        width: 100%;
+        max-width: 400px;
         background: rgba(255, 255, 255, 0.1);
         border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius:8px;
-        color: #F9F9F9;
+        border-radius: 8px;
+        color: #f9f9f9;
         backdrop-filter: blur(10px);
       }
-      input::placeholder, textarea::placeholder{color: rgba(249, 249, 249, 0.6)}
-      input[type="checkbox"]{width:auto; margin-right:8px}
-      .checkbox-label{display:flex; align-items:center; margin:8px 0; color:rgba(249, 249, 249, 0.9)}
-      button{
-        padding:12px 20px; 
-        background:#33B8FF; 
-        color:#081C3D; 
-        border:none; 
-        border-radius:8px; 
-        cursor:pointer; 
-        margin:8px 8px 8px 0;
-        font-weight:600;
+      input::placeholder,
+      textarea::placeholder {
+        color: rgba(249, 249, 249, 0.6);
+      }
+      input[type='checkbox'] {
+        width: auto;
+        margin-right: 8px;
+      }
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        margin: 8px 0;
+        color: rgba(249, 249, 249, 0.9);
+      }
+      button {
+        padding: 12px 20px;
+        background: #33b8ff;
+        color: #081c3d;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        margin: 8px 8px 8px 0;
+        font-weight: 600;
         transition: all 0.2s;
         box-shadow: 0 2px 8px rgba(51, 184, 255, 0.3);
       }
-      button:hover{
-        background:#1C64D9; 
-        color:#F9F9F9;
+      button:hover {
+        background: #1c64d9;
+        color: #f9f9f9;
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(51, 184, 255, 0.4);
       }
-      button.secondary{
+      button.secondary {
         background: rgba(255, 255, 255, 0.1);
-        color: #F9F9F9;
+        color: #f9f9f9;
         border: 1px solid rgba(255, 255, 255, 0.3);
       }
-      button.secondary:hover{
+      button.secondary:hover {
         background: rgba(255, 255, 255, 0.2);
-        border-color: #33B8FF;
+        border-color: #33b8ff;
       }
-      .status{
-        display:inline-block; 
-        padding:6px 12px; 
-        border-radius:6px; 
-        font-size:12px; 
-        margin-left:8px;
-        font-weight:500;
+      .status {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        margin-left: 8px;
+        font-weight: 500;
       }
-      .status.connected{
+      .status.connected {
         background: rgba(51, 184, 255, 0.2);
-        color: #33B8FF;
+        color: #33b8ff;
         border: 1px solid rgba(51, 184, 255, 0.4);
       }
-      .status.disconnected{
+      .status.disconnected {
         background: rgba(255, 87, 87, 0.2);
-        color: #FF5757;
+        color: #ff5757;
         border: 1px solid rgba(255, 87, 87, 0.4);
       }
-      .guard-service{
-        margin:12px 0; 
-        padding:16px; 
+      .guard-service {
+        margin: 12px 0;
+        padding: 16px;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius:8px;
+        border-radius: 8px;
       }
-      .guard-service h4{margin:0 0 12px; color:#F9F9F9}
-      .guard-controls{display:flex; align-items:center; gap:12px}
-      .test-results{
-        margin:16px 0; 
-        padding:16px; 
+      .guard-service h4 {
+        margin: 0 0 12px;
+        color: #f9f9f9;
+      }
+      .guard-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .test-results {
+        margin: 16px 0;
+        padding: 16px;
         background: rgba(0, 0, 0, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius:8px; 
-        font-family:monospace; 
-        font-size:12px;
-        color: #F9F9F9;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 12px;
+        color: #f9f9f9;
       }
-      .hidden{display:none}
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
-    <div style="display: flex; align-items: center; margin-bottom: 24px;">
-      <img src="../assets/brand/AiG_Logos/AIG_Logo_Blue.png" alt="AiGuardian Logo" style="width: 48px; height: 48px; margin-right: 16px;">
+    <div style="display: flex; align-items: center; margin-bottom: 24px">
+      <img
+        src="../assets/brand/AiG_Logos/AIG_Logo_Blue.png"
+        alt="AiGuardian Logo"
+        style="width: 48px; height: 48px; margin-right: 16px"
+      />
       <div>
-        <h1 style="margin: 0; color: #33B8FF;">AiGuardian Configuration</h1>
-        <p style="margin: 4px 0 0 0; color: rgba(249, 249, 249, 0.8); font-size: 14px;">Finally, AI tools for engineers who don't believe the hype</p>
-        <p style="margin: 4px 0 0 0; color: rgba(249, 249, 249, 0.6); font-size: 12px;">
-          <a href="https://www.aiguardian.ai" target="_blank" style="color: #33B8FF; text-decoration: none;">🌐 Main Website</a>
+        <h1 style="margin: 0; color: #33b8ff">AiGuardian Configuration</h1>
+        <p style="margin: 4px 0 0 0; color: rgba(249, 249, 249, 0.8); font-size: 14px">
+          Finally, AI tools for engineers who don't believe the hype
+        </p>
+        <p style="margin: 4px 0 0 0; color: rgba(249, 249, 249, 0.6); font-size: 12px">
+          <a
+            href="https://www.aiguardian.ai"
+            target="_blank"
+            style="color: #33b8ff; text-decoration: none"
+            >🌐 Main Website</a
+          >
         </p>
       </div>
     </div>
-    
+
     <!-- Authentication Configuration (dev-only UI) -->
     <div class="section" data-dev-ui="auth">
       <h3>🔐 Authentication</h3>
-      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px">
         Your Clerk authentication is automatically configured from the backend.
-        <br><br>
-        <strong>Note:</strong> Payment and subscription management is handled through Stripe on the landing page. 
-        Users who sign up through the landing page will automatically be recognized here.
+        <br /><br />
+        <strong>Note:</strong> Payment and subscription management is handled through Stripe on the
+        landing page. Users who sign up through the landing page will automatically be recognized
+        here.
       </p>
-      
+
       <!-- Auto-configuration status -->
-      <div style="margin-bottom: 12px; padding: 12px; background: rgba(51, 184, 255, 0.1); border-radius: 8px; border: 1px solid rgba(51, 184, 255, 0.3);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 13px; color: rgba(249, 249, 249, 0.9);">Clerk Configuration</span>
-          <span id="clerk_key_status" class="status disconnected" style="font-size: 11px;">Checking...</span>
+      <div
+        style="
+          margin-bottom: 12px;
+          padding: 12px;
+          background: rgba(51, 184, 255, 0.1);
+          border-radius: 8px;
+          border: 1px solid rgba(51, 184, 255, 0.3);
+        "
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+          "
+        >
+          <span style="font-size: 13px; color: rgba(249, 249, 249, 0.9)">Clerk Configuration</span>
+          <span id="clerk_key_status" class="status disconnected" style="font-size: 11px"
+            >Checking...</span
+          >
         </div>
-        <p id="clerk_key_info" style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin: 0;">
+        <p id="clerk_key_info" style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin: 0">
           <span id="clerk_key_source_text">Auto-configured from backend</span>
         </p>
       </div>
-      
+
       <!-- Advanced Settings (collapsed by default) -->
-      <details style="margin-top: 12px;">
-        <summary style="cursor: pointer; color: rgba(249, 249, 249, 0.7); font-size: 12px; user-select: none;">
+      <details style="margin-top: 12px">
+        <summary
+          style="
+            cursor: pointer;
+            color: rgba(249, 249, 249, 0.7);
+            font-size: 12px;
+            user-select: none;
+          "
+        >
           ⚙️ Advanced Settings
         </summary>
-        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-          <p style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin-bottom: 8px;">
-            Manual configuration is usually not needed. Everything is auto-configured from the backend.
+        <div
+          style="
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+          "
+        >
+          <p style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin-bottom: 8px">
+            Manual configuration is usually not needed. Everything is auto-configured from the
+            backend.
           </p>
-          <div style="margin-bottom: 12px;">
-            <label style="margin: 0;">Clerk Publishable Key (Manual Override)</label>
-            <input id="clerk_publishable_key" type="password" placeholder="Auto-configured from backend or enter manually" />
-            <p id="clerk_key_info_advanced" style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin: 6px 0 0 0;">
+          <div style="margin-bottom: 12px">
+            <label style="margin: 0">Clerk Publishable Key (Manual Override)</label>
+            <input
+              id="clerk_publishable_key"
+              type="password"
+              placeholder="Auto-configured from backend or enter manually"
+            />
+            <p
+              id="clerk_key_info_advanced"
+              style="color: rgba(249, 249, 249, 0.6); font-size: 11px; margin: 6px 0 0 0"
+            >
               <span id="clerk_key_source_text_advanced">Manually configured</span>
-              <br>
-              Get your publishable key from <a href="https://dashboard.clerk.com" target="_blank" style="color: #33B8FF; text-decoration: none;">Clerk Dashboard</a>
+              <br />
+              Get your publishable key from
+              <a
+                href="https://dashboard.clerk.com"
+                target="_blank"
+                style="color: #33b8ff; text-decoration: none"
+                >Clerk Dashboard</a
+              >
             </p>
           </div>
         </div>
@@ -161,24 +255,49 @@
     </div>
 
     <!-- Subscription Information -->
-    <div class="section" id="subscriptionSection" style="display: none;">
+    <div class="section" id="subscriptionSection" style="display: none">
       <h3>💳 Subscription</h3>
       <div class="guard-service">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+          "
+        >
           <div>
-            <div style="font-size: 18px; font-weight: 700; color: #33B8FF; text-transform: uppercase;" id="subscriptionTier">Free</div>
-            <div style="font-size: 12px; color: rgba(249, 249, 249, 0.8); margin-top: 4px;" id="subscriptionStatus">Status: Loading...</div>
+            <div
+              style="font-size: 18px; font-weight: 700; color: #33b8ff; text-transform: uppercase"
+              id="subscriptionTier"
+            >
+              Free
+            </div>
+            <div
+              style="font-size: 12px; color: rgba(249, 249, 249, 0.8); margin-top: 4px"
+              id="subscriptionStatus"
+            >
+              Status: Loading...
+            </div>
           </div>
-          <div id="subscriptionStatusBadge" class="status connected" style="font-size: 11px;">Active</div>
+          <div id="subscriptionStatusBadge" class="status connected" style="font-size: 11px">
+            Active
+          </div>
         </div>
-        <div style="margin: 12px 0;">
-          <div style="font-size: 13px; color: rgba(249, 249, 249, 0.9); margin-bottom: 4px;">Usage Statistics</div>
-          <div style="font-size: 12px; color: rgba(249, 249, 249, 0.8);" id="subscriptionUsage">Loading...</div>
+        <div style="margin: 12px 0">
+          <div style="font-size: 13px; color: rgba(249, 249, 249, 0.9); margin-bottom: 4px">
+            Usage Statistics
+          </div>
+          <div style="font-size: 12px; color: rgba(249, 249, 249, 0.8)" id="subscriptionUsage">
+            Loading...
+          </div>
         </div>
-        <div style="display: flex; gap: 8px; margin-top: 12px;">
+        <div style="display: flex; gap: 8px; margin-top: 12px">
           <button id="refresh_subscription" class="secondary">🔄 Refresh</button>
           <button id="manage_subscription" class="secondary">⚙️ Manage</button>
-          <button id="upgrade_subscription" class="secondary" style="display: none;">⬆️ Upgrade</button>
+          <button id="upgrade_subscription" class="secondary" style="display: none">
+            ⬆️ Upgrade
+          </button>
         </div>
       </div>
     </div>
@@ -186,23 +305,38 @@
     <!-- Backend Connection Status (dev-only UI) -->
     <div class="section" data-dev-ui="backend">
       <h3>🔌 Backend Connection</h3>
-      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px;">
+      <p style="color: rgba(249, 249, 249, 0.8); font-size: 13px; margin-bottom: 12px">
         Verify that the extension can connect to your backend server.
       </p>
-      <div style="margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <label style="margin: 0;">Gateway URL</label>
-          <span id="connection_status" class="status disconnected" style="font-size: 11px;">Not Tested</span>
+      <div style="margin-bottom: 12px">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+          "
+        >
+          <label style="margin: 0">Gateway URL</label>
+          <span id="connection_status" class="status disconnected" style="font-size: 11px"
+            >Not Tested</span
+          >
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <input id="connection_gateway_url" type="text" placeholder="https://api.aiguardian.ai" style="flex: 1;" />
+        <div style="display: flex; gap: 8px; align-items: center">
+          <input
+            id="connection_gateway_url"
+            type="text"
+            placeholder="https://api.aiguardian.ai"
+            style="flex: 1"
+          />
           <button id="test_connection" class="secondary">🔍 Test Connection</button>
         </div>
-        <div id="connection_result" style="margin-top: 8px; font-size: 12px; color: rgba(249, 249, 249, 0.7); display: none;"></div>
+        <div
+          id="connection_result"
+          style="margin-top: 8px; font-size: 12px; color: rgba(249, 249, 249, 0.7); display: none"
+        ></div>
       </div>
     </div>
-
-
 
     <script src="constants.js"></script>
     <script src="logging.js"></script>
@@ -210,4 +344,3 @@
     <script src="options.js"></script>
   </body>
 </html>
-

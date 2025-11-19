@@ -21,7 +21,7 @@ class AiGuardianOnboarding {
         Logger.warn('[Onboarding] Chrome APIs not available - skipping onboarding check');
         return false;
       }
-      
+
       const data = await new Promise((resolve) => {
         chrome.storage.sync.get([this.storageKey], resolve);
       });
@@ -42,7 +42,7 @@ class AiGuardianOnboarding {
         Logger.warn('[Onboarding] Chrome APIs not available - cannot mark completed');
         return;
       }
-      
+
       await new Promise((resolve) => {
         chrome.storage.sync.set({ [this.storageKey]: true }, resolve);
       });
@@ -111,8 +111,8 @@ class AiGuardianOnboarding {
         line-height: 1;
         transition: color 0.2s;
       `;
-      closeBtn.onmouseover = () => closeBtn.style.color = '#F9F9F9';
-      closeBtn.onmouseout = () => closeBtn.style.color = 'rgba(249, 249, 249, 0.7)';
+      closeBtn.onmouseover = () => (closeBtn.style.color = '#F9F9F9');
+      closeBtn.onmouseout = () => (closeBtn.style.color = 'rgba(249, 249, 249, 0.7)');
       closeBtn.onclick = () => this.hideTooltip();
 
       // Logo
@@ -140,7 +140,8 @@ class AiGuardianOnboarding {
 
       // Description
       const description = document.createElement('p');
-      description.textContent = 'Finally, AI tools for engineers who don\'t believe the hype. Get transparent bias analysis and confidence scores for any text.';
+      description.textContent =
+        "Finally, AI tools for engineers who don't believe the hype. Get transparent bias analysis and confidence scores for any text.";
       description.style.cssText = `
         margin: 0 0 16px 0;
         font-size: 14px;
@@ -203,7 +204,7 @@ class AiGuardianOnboarding {
 
       const label = document.createElement('label');
       label.htmlFor = 'dont-show-again';
-      label.textContent = 'Don\'t show this again';
+      label.textContent = "Don't show this again";
       label.style.cursor = 'pointer';
 
       dontShowDiv.appendChild(checkbox);

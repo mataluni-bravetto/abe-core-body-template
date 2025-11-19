@@ -1,6 +1,6 @@
 /**
  * Subscription Service for AiGuardian Chrome Extension
- * 
+ *
  * Handles subscription status verification and usage limit checking
  *
  * IMPORTANT: Payment processing is handled through Stripe on the landing page.
@@ -16,7 +16,7 @@ class SubscriptionService {
       subscription: null,
       usage: null,
       lastCheck: null,
-      cacheTTL: 5 * 60 * 1000 // 5 minutes cache
+      cacheTTL: 5 * 60 * 1000, // 5 minutes cache
     };
     // Track pending requests to prevent race conditions
     this.pendingSubscriptionRequest = null;
@@ -29,9 +29,11 @@ class SubscriptionService {
    */
   async getCurrentSubscription() {
     // Check cache first
-    if (this.cache.subscription && 
-        this.cache.lastCheck && 
-        Date.now() - this.cache.lastCheck < this.cache.cacheTTL) {
+    if (
+      this.cache.subscription &&
+      this.cache.lastCheck &&
+      Date.now() - this.cache.lastCheck < this.cache.cacheTTL
+    ) {
       Logger.info('[Subscription] Using cached subscription data');
       return this.cache.subscription;
     }
@@ -44,7 +46,7 @@ class SubscriptionService {
 
     // Create new request and store it
     this.pendingSubscriptionRequest = this.fetchSubscription();
-    
+
     try {
       const result = await this.pendingSubscriptionRequest;
       return result;
@@ -62,9 +64,9 @@ class SubscriptionService {
   async fetchSubscription() {
     try {
       const url = `${this.gateway.config.gatewayUrl}/api/v1/subscriptions/current`;
-      
+
       Logger.info('[Subscription] Fetching subscription status:', url);
-      
+
       // Get Clerk session token for user authentication (NO API keys)
       const clerkToken = await this.gateway.getClerkSessionToken();
       if (!clerkToken) {
@@ -72,15 +74,15 @@ class SubscriptionService {
         // Return default subscription if not authenticated
         return this.getDefaultSubscription();
       }
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${clerkToken}`,
+          Authorization: `Bearer ${clerkToken}`,
           'Content-Type': 'application/json',
           'X-Extension-Version': chrome.runtime.getManifest().version,
-          'X-Request-ID': `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        }
+          'X-Request-ID': `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        },
       });
 
       if (!response.ok) {
@@ -95,16 +97,16 @@ class SubscriptionService {
       }
 
       const subscription = await response.json();
-      
+
       // Cache the result
       this.cache.subscription = subscription;
       this.cache.lastCheck = Date.now();
-      
+
       Logger.info('[Subscription] Subscription status retrieved:', {
         tier: subscription.tier,
-        status: subscription.status
+        status: subscription.status,
       });
-      
+
       return subscription;
     } catch (error) {
       Logger.error('[Subscription] Failed to get subscription:', error);
@@ -119,9 +121,11 @@ class SubscriptionService {
    */
   async getUsage() {
     // Check cache first
-    if (this.cache.usage && 
-        this.cache.lastCheck && 
-        Date.now() - this.cache.lastCheck < this.cache.cacheTTL) {
+    if (
+      this.cache.usage &&
+      this.cache.lastCheck &&
+      Date.now() - this.cache.lastCheck < this.cache.cacheTTL
+    ) {
       Logger.info('[Subscription] Using cached usage data');
       return this.cache.usage;
     }
@@ -134,7 +138,7 @@ class SubscriptionService {
 
     // Create new request and store it
     this.pendingUsageRequest = this.fetchUsage();
-    
+
     try {
       const result = await this.pendingUsageRequest;
       return result;
@@ -152,9 +156,9 @@ class SubscriptionService {
   async fetchUsage() {
     try {
       const url = `${this.gateway.config.gatewayUrl}/api/v1/subscriptions/usage`;
-      
+
       Logger.info('[Subscription] Fetching usage statistics:', url);
-      
+
       // Get Clerk session token for user authentication (NO API keys)
       const clerkToken = await this.gateway.getClerkSessionToken();
       if (!clerkToken) {
@@ -162,15 +166,15 @@ class SubscriptionService {
         // Return default usage if not authenticated (consistent with getDefaultUsage)
         return this.getDefaultUsage();
       }
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${clerkToken}`,
+          Authorization: `Bearer ${clerkToken}`,
           'Content-Type': 'application/json',
           'X-Extension-Version': chrome.runtime.getManifest().version,
-          'X-Request-ID': `usage_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        }
+          'X-Request-ID': `usage_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        },
       });
 
       if (!response.ok) {
@@ -185,15 +189,15 @@ class SubscriptionService {
       }
 
       const usage = await response.json();
-      
+
       // Cache the result
       this.cache.usage = usage;
-      
+
       Logger.info('[Subscription] Usage statistics retrieved:', {
         usage_percentage: usage.usage_percentage,
-        remaining_requests: usage.remaining_requests
+        remaining_requests: usage.remaining_requests,
       });
-      
+
       return usage;
     } catch (error) {
       Logger.error('[Subscription] Failed to get usage:', error);
@@ -209,19 +213,20 @@ class SubscriptionService {
   async canMakeRequest() {
     try {
       const subscription = await this.getCurrentSubscription();
-      
+
       // Check if subscription is active
       if (subscription.status && subscription.status !== 'active') {
         Logger.warn('[Subscription] Subscription not active:', subscription.status);
         return {
           allowed: false,
           reason: 'subscription_inactive',
-          message: subscription.status === 'expired' 
-            ? 'Your subscription has expired. Please renew to continue using the service.'
-            : subscription.status === 'cancelled'
-            ? 'Your subscription has been cancelled. Please reactivate to continue.'
-            : 'Your subscription is not active. Please check your subscription status.',
-          subscription: subscription
+          message:
+            subscription.status === 'expired'
+              ? 'Your subscription has expired. Please renew to continue using the service.'
+              : subscription.status === 'cancelled'
+                ? 'Your subscription has been cancelled. Please reactivate to continue.'
+                : 'Your subscription is not active. Please check your subscription status.',
+          subscription: subscription,
         };
       }
 
@@ -229,15 +234,16 @@ class SubscriptionService {
       if (subscription.tier && subscription.tier !== 'enterprise') {
         try {
           const usage = await this.getUsage();
-          
+
           if (usage.remaining_requests !== null && usage.remaining_requests <= 0) {
             Logger.warn('[Subscription] Usage limit exceeded');
             return {
               allowed: false,
               reason: 'usage_limit_exceeded',
-              message: 'You have reached your usage limit for this billing period. Please upgrade or wait for the next billing cycle.',
+              message:
+                'You have reached your usage limit for this billing period. Please upgrade or wait for the next billing cycle.',
               subscription: subscription,
-              usage: usage
+              usage: usage,
             };
           }
 
@@ -249,14 +255,14 @@ class SubscriptionService {
               warning: true,
               message: `You've used ${usage.usage_percentage.toFixed(1)}% of your monthly limit (${usage.remaining_requests} remaining).`,
               subscription: subscription,
-              usage: usage
+              usage: usage,
             };
           }
 
           return {
             allowed: true,
             subscription: subscription,
-            usage: usage
+            usage: usage,
           };
         } catch (usageError) {
           // If usage check fails, allow request but log warning
@@ -265,7 +271,7 @@ class SubscriptionService {
             allowed: true,
             subscription: subscription,
             warning: true,
-            message: 'Unable to verify usage limits. Request allowed.'
+            message: 'Unable to verify usage limits. Request allowed.',
           };
         }
       }
@@ -273,7 +279,7 @@ class SubscriptionService {
       // Enterprise tier or no limits - allow request
       return {
         allowed: true,
-        subscription: subscription
+        subscription: subscription,
       };
     } catch (error) {
       Logger.error('[Subscription] Error checking subscription:', error);
@@ -282,7 +288,7 @@ class SubscriptionService {
         allowed: true,
         error: true,
         message: 'Unable to verify subscription status. Request allowed.',
-        subscription: this.getDefaultSubscription()
+        subscription: this.getDefaultSubscription(),
       };
     }
   }
@@ -296,7 +302,7 @@ class SubscriptionService {
       tier: 'free',
       status: 'active',
       billing_period: null,
-      current_period_end: null
+      current_period_end: null,
     };
   }
 
@@ -309,7 +315,7 @@ class SubscriptionService {
       requests_made: 0,
       requests_limit: null, // Unlimited for default
       usage_percentage: 0,
-      remaining_requests: null
+      remaining_requests: null,
     };
   }
 
@@ -330,9 +336,9 @@ class SubscriptionService {
    */
   getTierDisplayName(tier) {
     const tierNames = {
-      'free': 'Free',
-      'pro': 'Pro',
-      'enterprise': 'Enterprise'
+      free: 'Free',
+      pro: 'Pro',
+      enterprise: 'Enterprise',
     };
     return tierNames[tier] || tier || 'Unknown';
   }
@@ -344,11 +350,11 @@ class SubscriptionService {
    */
   getStatusDisplayName(status) {
     const statusNames = {
-      'active': 'Active',
-      'cancelled': 'Cancelled',
-      'expired': 'Expired',
-      'trialing': 'Trial',
-      'past_due': 'Past Due'
+      active: 'Active',
+      cancelled: 'Cancelled',
+      expired: 'Expired',
+      trialing: 'Trial',
+      past_due: 'Past Due',
     };
     return statusNames[status] || status || 'Unknown';
   }
@@ -358,4 +364,3 @@ class SubscriptionService {
 if (typeof window !== 'undefined') {
   window.SubscriptionService = SubscriptionService;
 }
-

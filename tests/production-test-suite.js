@@ -1,13 +1,13 @@
 /**
  * Production Test Suite for Epistemic Reliability Integration
- * 
+ *
  * Tests the integrated patterns:
  * - Mutex patterns
  * - Circuit breaker
  * - Token refresh mutex
  * - State rehydration
  * - Storage quota monitoring
- * 
+ *
  * Usage: Run in Chrome extension service worker console
  */
 
@@ -19,8 +19,8 @@ class ProductionTestSuite {
       summary: {
         passed: 0,
         failed: 0,
-        warnings: 0
-      }
+        warnings: 0,
+      },
     };
   }
 
@@ -30,14 +30,14 @@ class ProductionTestSuite {
   async runAllTests() {
     console.log('🧪 Production Test Suite - Epistemic Reliability\n');
     console.log('='.repeat(60));
-    
+
     await this.testMutexHelper();
     await this.testCircuitBreaker();
     await this.testTokenStorage();
     await this.testStorageQuota();
     await this.testStateRehydration();
     await this.testGatewayIntegration();
-    
+
     this.generateReport();
     return this.results;
   }
@@ -50,7 +50,7 @@ class ProductionTestSuite {
     const test = {
       name: 'Mutex Helper',
       status: 'unknown',
-      issues: []
+      issues: [],
     };
 
     try {
@@ -68,7 +68,7 @@ class ProductionTestSuite {
           test.details = {
             withLock: true,
             updateStorage: true,
-            incrementCounter: true
+            incrementCounter: true,
           };
         } else {
           test.status = 'warning';
@@ -76,9 +76,11 @@ class ProductionTestSuite {
         }
       }
 
-      console.log(`  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`);
+      console.log(
+        `  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`
+      );
       if (test.issues.length > 0) {
-        test.issues.forEach(issue => console.log(`    - ${issue}`));
+        test.issues.forEach((issue) => console.log(`    - ${issue}`));
       }
     } catch (error) {
       test.status = 'error';
@@ -98,7 +100,7 @@ class ProductionTestSuite {
     const test = {
       name: 'Circuit Breaker',
       status: 'unknown',
-      issues: []
+      issues: [],
     };
 
     try {
@@ -111,19 +113,21 @@ class ProductionTestSuite {
       } else {
         const breaker = gateway.circuitBreaker;
         const state = breaker.getState();
-        
+
         test.status = 'ok';
         test.details = {
           initialized: true,
           state: state.state,
           failureCount: state.failureCount,
-          stats: state.stats
+          stats: state.stats,
         };
       }
 
-      console.log(`  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`);
+      console.log(
+        `  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`
+      );
       if (test.issues.length > 0) {
-        test.issues.forEach(issue => console.log(`    - ${issue}`));
+        test.issues.forEach((issue) => console.log(`    - ${issue}`));
       }
     } catch (error) {
       test.status = 'error';
@@ -143,7 +147,7 @@ class ProductionTestSuite {
     const test = {
       name: 'Token Storage',
       status: 'unknown',
-      issues: []
+      issues: [],
     };
 
     try {
@@ -154,7 +158,7 @@ class ProductionTestSuite {
         // Test that storeClerkToken uses mutex
         const tokenMethod = gateway.storeClerkToken.toString();
         const usesMutex = tokenMethod.includes('MutexHelper') || tokenMethod.includes('mutex');
-        
+
         if (usesMutex) {
           test.status = 'ok';
           test.details = { usesMutex: true };
@@ -164,9 +168,11 @@ class ProductionTestSuite {
         }
       }
 
-      console.log(`  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`);
+      console.log(
+        `  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`
+      );
       if (test.issues.length > 0) {
-        test.issues.forEach(issue => console.log(`    - ${issue}`));
+        test.issues.forEach((issue) => console.log(`    - ${issue}`));
       }
     } catch (error) {
       test.status = 'error';
@@ -186,7 +192,7 @@ class ProductionTestSuite {
     const test = {
       name: 'Storage Quota',
       status: 'unknown',
-      issues: []
+      issues: [],
     };
 
     try {
@@ -200,19 +206,23 @@ class ProductionTestSuite {
         const quota = await gateway.checkStorageQuota();
         test.status = 'ok';
         test.details = quota;
-        
+
         if (quota.usagePercent > 90) {
           test.status = 'warning';
           test.issues.push(`Storage usage high: ${quota.usagePercent.toFixed(2)}%`);
         }
       }
 
-      console.log(`  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`);
+      console.log(
+        `  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`
+      );
       if (test.details) {
-        console.log(`    Usage: ${test.details.usagePercent.toFixed(2)}% (${(test.details.bytes / 1024).toFixed(2)} KB / ${(test.details.quota / 1024).toFixed(2)} KB)`);
+        console.log(
+          `    Usage: ${test.details.usagePercent.toFixed(2)}% (${(test.details.bytes / 1024).toFixed(2)} KB / ${(test.details.quota / 1024).toFixed(2)} KB)`
+        );
       }
       if (test.issues.length > 0) {
-        test.issues.forEach(issue => console.log(`    - ${issue}`));
+        test.issues.forEach((issue) => console.log(`    - ${issue}`));
       }
     } catch (error) {
       test.status = 'error';
@@ -232,7 +242,7 @@ class ProductionTestSuite {
     const test = {
       name: 'State Rehydration',
       status: 'unknown',
-      issues: []
+      issues: [],
     };
 
     try {
@@ -245,7 +255,7 @@ class ProductionTestSuite {
       test.details = {
         hasUser: !!authState.clerk_user,
         hasToken: !!authState.clerk_token,
-        canRehydrate: true
+        canRehydrate: true,
       };
 
       console.log(`  ${test.status === 'ok' ? '✅' : '❌'} ${test.status.toUpperCase()}`);
@@ -270,7 +280,7 @@ class ProductionTestSuite {
     const test = {
       name: 'Gateway Integration',
       status: 'unknown',
-      issues: []
+      issues: [],
     };
 
     try {
@@ -282,11 +292,11 @@ class ProductionTestSuite {
           hasCircuitBreaker: !!gateway.circuitBreaker,
           hasRefreshToken: typeof gateway.refreshClerkToken === 'function',
           hasCheckQuota: typeof gateway.checkStorageQuota === 'function',
-          isInitialized: gateway.isInitialized
+          isInitialized: gateway.isInitialized,
         };
 
-        const allChecks = Object.values(checks).every(v => v === true);
-        
+        const allChecks = Object.values(checks).every((v) => v === true);
+
         if (allChecks) {
           test.status = 'ok';
         } else {
@@ -299,14 +309,16 @@ class ProductionTestSuite {
         test.details = checks;
       }
 
-      console.log(`  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`);
+      console.log(
+        `  ${test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌'} ${test.status.toUpperCase()}`
+      );
       if (test.details) {
         Object.entries(test.details).forEach(([key, value]) => {
           console.log(`    ${key}: ${value ? '✅' : '❌'}`);
         });
       }
       if (test.issues.length > 0) {
-        test.issues.forEach(issue => console.log(`    - ${issue}`));
+        test.issues.forEach((issue) => console.log(`    - ${issue}`));
       }
     } catch (error) {
       test.status = 'error';
@@ -348,35 +360,33 @@ class ProductionTestSuite {
     console.log('');
 
     const totalTests = Object.keys(this.results.tests).length;
-    const passRate = totalTests > 0 
-      ? ((this.results.summary.passed / totalTests) * 100).toFixed(1)
-      : 0;
+    const passRate =
+      totalTests > 0 ? ((this.results.summary.passed / totalTests) * 100).toFixed(1) : 0;
 
     console.log(`Pass Rate: ${passRate}%`);
     console.log('');
 
     console.log('DETAILED RESULTS:');
-    Object.values(this.results.tests).forEach(test => {
-      const icon = test.status === 'ok' ? '✅' : 
-                   test.status === 'warning' ? '⚠️' : '❌';
+    Object.values(this.results.tests).forEach((test) => {
+      const icon = test.status === 'ok' ? '✅' : test.status === 'warning' ? '⚠️' : '❌';
       console.log(`\n${icon} ${test.name}: ${test.status.toUpperCase()}`);
-      
+
       if (test.issues && test.issues.length > 0) {
         console.log('  Issues:');
-        test.issues.forEach(issue => {
+        test.issues.forEach((issue) => {
           console.log(`    - ${issue}`);
         });
       }
     });
 
     console.log('\n' + '='.repeat(60));
-    
+
     if (this.results.summary.failed === 0) {
       console.log('✅ All critical tests passed!');
     } else {
       console.log('❌ Some tests failed - review issues above');
     }
-    
+
     console.log('='.repeat(60) + '\n');
   }
 }
@@ -393,4 +403,3 @@ if (typeof importScripts !== 'undefined') {
   window.runProductionTests = () => testSuite.runAllTests();
   console.log('🧪 Production Test Suite loaded. Run: runProductionTests()');
 }
-

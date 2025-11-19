@@ -16,10 +16,7 @@ describe('AiGuardian Chrome Extension E2E Tests', () => {
     browser = await puppeteer.launch({
       headless: false,
       slowMo: 100,
-      args: [
-        `--disable-extensions-except=${extensionPath}`,
-        `--load-extension=${extensionPath}`,
-      ],
+      args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
     });
 
     const extensionTarget = await browser.waitForTarget(
@@ -51,7 +48,11 @@ describe('AiGuardian Chrome Extension E2E Tests', () => {
         query: (options) => Promise.resolve([{ id: 1 }]),
         sendMessage: (tabId, message) => {
           if (message.type === 'ANALYZE_SELECTION') {
-            return Promise.resolve({ success: true, score: 0.9, analysis: { bias_type: 'Test Bias' } });
+            return Promise.resolve({
+              success: true,
+              score: 0.9,
+              analysis: { bias_type: 'Test Bias' },
+            });
           }
           return Promise.resolve();
         },
@@ -62,8 +63,8 @@ describe('AiGuardian Chrome Extension E2E Tests', () => {
           get: (keys) => Promise.resolve({ last_analysis: { data: 'test' } }),
         },
         sync: {
-            get: (keys) => Promise.resolve({ gateway_url: 'test', api_key: 'test' })
-        }
+          get: (keys) => Promise.resolve({ gateway_url: 'test', api_key: 'test' }),
+        },
       };
 
       chrome.runtime.openOptionsPage = () => Promise.resolve();

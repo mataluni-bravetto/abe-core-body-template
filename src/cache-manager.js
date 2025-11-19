@@ -1,6 +1,6 @@
 /**
  * Cache Manager for AiGuardian Chrome Extension
- * 
+ *
  * Provides intelligent caching for API responses to improve performance
  * and reduce backend load.
  */
@@ -20,7 +20,7 @@ class CacheManager {
     this.cache = new Map();
     this.requestQueue = new Map();
     this.cleanupInterval = null;
-    
+
     // Start cleanup interval
     this.startCleanupInterval();
   }
@@ -47,7 +47,7 @@ class CacheManager {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return hash.toString(36);
@@ -88,7 +88,7 @@ class CacheManager {
       data,
       createdAt: now,
       expiresAt: now + ttl,
-      lastAccessed: now
+      lastAccessed: now,
     });
   }
 
@@ -111,12 +111,12 @@ class CacheManager {
    */
   addToQueue(key, promise) {
     this.requestQueue.set(key, promise);
-    
+
     // Clean up when promise resolves/rejects
     promise.finally(() => {
       this.requestQueue.delete(key);
     });
-    
+
     return promise;
   }
 
@@ -176,7 +176,7 @@ class CacheManager {
       expiredEntries: expiredCount,
       activeEntries: this.cache.size - expiredCount,
       totalSize,
-      queuedRequests: this.requestQueue.size
+      queuedRequests: this.requestQueue.size,
     };
   }
 
@@ -187,9 +187,12 @@ class CacheManager {
    */
   startCleanupInterval() {
     // Clean up every 5 minutes
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup();
-    }, 5 * 60 * 1000);
+    this.cleanupInterval = setInterval(
+      () => {
+        this.cleanup();
+      },
+      5 * 60 * 1000
+    );
   }
 
   /**

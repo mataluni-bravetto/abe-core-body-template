@@ -1,10 +1,10 @@
 /**
  * Popup Script for AiGuardian Chrome Extension
- * 
+ *
  * Enhanced popup with real-time status, unified service, and analysis results
  */
 
-(function(){
+(function () {
   // Only run in popup context, not in options page
   const isOptionsPage = window.location.pathname.includes('options.html');
   if (isOptionsPage) {
@@ -22,11 +22,11 @@
   async function initialize() {
     try {
       initializePopup();
-      
+
       // CRITICAL: Set up event listeners FIRST, before anything else that might fail
       // This ensures buttons work even if other initialization fails
       setupEventListeners();
-      
+
       // Initialize error handler (defensive - won't fail if class not available)
       try {
         initializeErrorHandler();
@@ -34,7 +34,7 @@
         Logger.error('Error handler initialization failed (non-critical)', err);
         // Continue without error handler - buttons will still work
       }
-      
+
       // Initialize auth (defensive - won't fail initialization)
       try {
         await initializeAuth();
@@ -42,14 +42,14 @@
         Logger.error('Auth initialization failed (non-critical)', err);
         // Continue - user can still use buttons
       }
-      
+
       // Initialize onboarding (defensive)
       try {
         await initializeOnboarding();
       } catch (err) {
         Logger.error('Onboarding initialization failed (non-critical)', err);
       }
-      
+
       // Load status (defensive)
       try {
         await loadSystemStatus();
@@ -58,12 +58,12 @@
       } catch (err) {
         Logger.error('Status loading failed (non-critical)', err);
       }
-      
+
       // Set up storage listener for auth state changes
       chrome.storage.onChanged.addListener((changes, areaName) => {
         if (areaName === 'local' && (changes.clerk_user || changes.clerk_token)) {
           Logger.info('[Popup] Auth state changed in storage, refreshing UI...');
-          updateAuthUI().catch(err => {
+          updateAuthUI().catch((err) => {
             Logger.error('[Popup] Failed to update auth UI after storage change:', err);
           });
         }
@@ -107,7 +107,8 @@
 
     // Hide developer-only auth UI in production unless SHOW_DEV_UI is enabled
     try {
-      const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
+      const isDevUI =
+        typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
       if (!isDevUI) {
         const authSection = document.getElementById('authSection');
         if (authSection) {
@@ -137,22 +138,22 @@
       Logger.warn('AiGuardianErrorHandler class not available - error handler not initialized');
       // Create a minimal fallback error handler
       errorHandler = {
-        showError: function(type) {
+        showError: function (type) {
           Logger.error('Error', type);
           showFallbackError('An error occurred: ' + type);
         },
-        showErrorFromException: function(err) {
+        showErrorFromException: function (err) {
           Logger.error('Exception', err);
           showFallbackError('An error occurred: ' + (err.message || 'Unknown error'));
         },
-        showLegacyError: function(message) {
+        showLegacyError: function (message) {
           Logger.error('Legacy error', message);
           showFallbackError(message);
-        }
+        },
       };
       return;
     }
-    
+
     try {
       errorHandler = new AiGuardianErrorHandler();
       Logger.info('Error handler initialized');
@@ -160,18 +161,18 @@
       Logger.error('Failed to instantiate error handler', err);
       // Create fallback
       errorHandler = {
-        showError: function(type) {
+        showError: function (type) {
           Logger.error('Error', type);
           showFallbackError('An error occurred: ' + type);
         },
-        showErrorFromException: function(err) {
+        showErrorFromException: function (err) {
           Logger.error('Exception', err);
           showFallbackError('An error occurred: ' + (err.message || 'Unknown error'));
         },
-        showLegacyError: function(message) {
+        showLegacyError: function (message) {
           Logger.error('Legacy error', message);
           showFallbackError(message);
-        }
+        },
       };
     }
   }
@@ -248,7 +249,8 @@
       title.textContent = 'OAuth Configuration Error';
     }
     if (message) {
-      message.textContent = errorData.errorDescription || 'Google OAuth redirect URI is not configured.';
+      message.textContent =
+        errorData.errorDescription || 'Google OAuth redirect URI is not configured.';
     }
     if (uri) {
       uri.textContent = 'Required: https://clerk.aiguardian.ai/v1/oauth_callback';
@@ -297,16 +299,16 @@
               hasUser: !!data.clerk_user,
               hasToken: !!data.clerk_token,
               userId: data.clerk_user?.id,
-              email: data.clerk_user?.email
+              email: data.clerk_user?.email,
             });
             resolve(data.clerk_user || null);
           }
         });
       });
-      
+
       // Check for OAuth errors in storage
       await checkAndDisplayOAuthErrors();
-      
+
       if (storageCheck) {
         Logger.info('[Popup] ✅ Found stored user:', storageCheck.id);
         // Clear OAuth error if user is authenticated
@@ -316,7 +318,7 @@
       } else {
         Logger.info('[Popup] No stored user found in initial check');
       }
-      
+
       auth = new AiGuardianAuth();
       const initialized = await auth.initialize();
 
@@ -335,18 +337,22 @@
         // Show diagnostic panel if auth fails
         showDiagnosticPanel();
       }
-      
+
       // Even if Clerk init failed, check storage directly as fallback
       if (!initialized || !auth.isAuthenticated()) {
-        Logger.info('[Popup] Clerk not initialized or not authenticated, checking storage directly...');
+        Logger.info(
+          '[Popup] Clerk not initialized or not authenticated, checking storage directly...'
+        );
         const directStorageCheck = await new Promise((resolve) => {
           chrome.storage.local.get(['clerk_user'], (data) => {
             resolve(data.clerk_user || null);
           });
         });
-        
+
         if (directStorageCheck) {
-          Logger.info('[Popup] Found user in storage but Clerk not initialized - user may have signed in');
+          Logger.info(
+            '[Popup] Found user in storage but Clerk not initialized - user may have signed in'
+          );
           // Try to initialize auth again with stored user
           if (!auth || !auth.isInitialized) {
             Logger.info('[Popup] Re-initializing auth to use stored user...');
@@ -370,51 +376,57 @@
       if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
         chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
           Logger.info('[Popup] Message received:', request.type);
-          
+
           if (request.type === 'AUTH_CALLBACK_SUCCESS' || request.type === 'CLERK_AUTH_DETECTED') {
             Logger.info('[Popup] 🔔 Auth callback success detected! Reloading auth state...', {
               messageType: request.type,
               hasUserInMessage: !!request.user,
-              userId: request.user?.id
+              userId: request.user?.id,
             });
-            
+
             // Wait a moment for storage to be written (callback page writes first, then sends message)
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
             // Immediately check storage first (fastest)
             chrome.storage.local.get(['clerk_user', 'clerk_token'], async (data) => {
               if (chrome.runtime.lastError) {
-                Logger.error('[Popup] Storage read error in callback handler:', chrome.runtime.lastError);
+                Logger.error(
+                  '[Popup] Storage read error in callback handler:',
+                  chrome.runtime.lastError
+                );
               } else {
                 Logger.info('[Popup] Storage check in callback handler:', {
                   hasUser: !!data.clerk_user,
                   hasToken: !!data.clerk_token,
                   userId: data.clerk_user?.id,
-                  email: data.clerk_user?.email
+                  email: data.clerk_user?.email,
                 });
               }
-              
+
               if (data.clerk_user) {
                 Logger.info('[Popup] ✅ User found in storage:', data.clerk_user.id);
                 // Update UI immediately from storage
                 await updateAuthUI();
-                
+
                 // Then sync with Clerk if auth object exists
                 if (auth) {
                   try {
                     await auth.checkUserSession();
                     await updateAuthUI();
                   } catch (e) {
-                    Logger.warn('[Popup] Error syncing with Clerk, but UI updated from storage:', e);
+                    Logger.warn(
+                      '[Popup] Error syncing with Clerk, but UI updated from storage:',
+                      e
+                    );
                   }
                 }
-                
+
                 // Stop periodic checking if we're now authenticated
                 if (authCheckInterval) {
                   clearInterval(authCheckInterval);
                   authCheckInterval = null;
                 }
-                
+
                 // Clear OAuth error if authentication succeeded
                 await clearOAuthError();
               } else {
@@ -434,7 +446,7 @@
                 }
               }
             });
-            
+
             // Return true to indicate we'll respond asynchronously
             return true;
           } else if (request.type === 'AUTH_ERROR') {
@@ -442,12 +454,15 @@
             Logger.error('[Popup] Auth error received:', request.error);
             if (errorHandler) {
               // Check if it's an OAuth redirect URI mismatch error
-              if (request.errorType === 'AUTH_OAUTH_REDIRECT_URI_MISMATCH' || 
-                  request.error === 'redirect_uri_mismatch' ||
-                  (request.errorDescription && request.errorDescription.includes('redirect_uri_mismatch'))) {
+              if (
+                request.errorType === 'AUTH_OAUTH_REDIRECT_URI_MISMATCH' ||
+                request.error === 'redirect_uri_mismatch' ||
+                (request.errorDescription &&
+                  request.errorDescription.includes('redirect_uri_mismatch'))
+              ) {
                 errorHandler.showError('AUTH_OAUTH_REDIRECT_URI_MISMATCH', {
                   errorDescription: request.errorDescription,
-                  docsUrl: 'docs/guides/OAUTH_CONFIGURATION.md'
+                  docsUrl: 'docs/guides/OAUTH_CONFIGURATION.md',
                 });
               } else {
                 errorHandler.showError('AUTH_SIGN_UP_FAILED');
@@ -468,22 +483,22 @@
             Logger.info('[Popup] 🔔 Clerk user storage changed!', {
               oldValue: changes.clerk_user.oldValue ? 'had user' : 'no user',
               newValue: changes.clerk_user.newValue ? 'has user' : 'no user',
-              userId: changes.clerk_user.newValue?.id
+              userId: changes.clerk_user.newValue?.id,
             });
             Logger.info('[Popup] Storage changed', { clerk_user: changes.clerk_user });
-            
+
             // Immediately update UI from storage without waiting for auth object sync
             // This ensures UI updates as soon as user signs in on landing page
             Logger.info('[Popup] Immediately updating UI from storage change');
             updateAuthUI();
-            
+
             // Stop periodic checking if we're now authenticated
             if (changes.clerk_user.newValue && authCheckInterval) {
               clearInterval(authCheckInterval);
               authCheckInterval = null;
               Logger.info('[Popup] Stopped periodic auth check - user authenticated');
             }
-            
+
             // Also sync with auth object in background (non-blocking)
             if (auth) {
               auth.checkUserSession().catch((err) => {
@@ -503,7 +518,7 @@
       // Show diagnostic panel on error
       showDiagnosticPanel();
     }
-    
+
     // Set up periodic auth check AFTER auth is initialized
     // This handles cases where user signs in in another tab
     setupPeriodicAuthCheck();
@@ -519,7 +534,7 @@
       clearInterval(authCheckInterval);
       authCheckInterval = null;
     }
-    
+
     // Only set up interval if auth is initialized and user is not authenticated
     if (auth && !auth.isAuthenticated()) {
       Logger.info('[Popup] Setting up periodic auth check interval');
@@ -551,7 +566,7 @@
     } else {
       Logger.info('[Popup] Skipping periodic auth check setup:', {
         hasAuth: !!auth,
-        isAuthenticated: auth ? auth.isAuthenticated() : false
+        isAuthenticated: auth ? auth.isAuthenticated() : false,
       });
     }
   }
@@ -575,8 +590,8 @@
     }
 
     // Split by spaces and filter out empty parts
-    const nameParts = trimmed.split(' ').filter(part => part.length > 0);
-    
+    const nameParts = trimmed.split(' ').filter((part) => part.length > 0);
+
     // If no valid parts, return first character of trimmed string
     if (nameParts.length === 0) {
       return trimmed[0].toUpperCase();
@@ -585,8 +600,8 @@
     // Generate initials from valid name parts (max 2 characters)
     const initials = nameParts
       .slice(0, 2) // Take first two parts only
-      .map(part => part[0]) // Get first character of each part
-      .filter(char => char) // Filter out any undefined/null characters
+      .map((part) => part[0]) // Get first character of each part
+      .filter((char) => char) // Filter out any undefined/null characters
       .join('')
       .toUpperCase();
 
@@ -599,7 +614,7 @@
    */
   async function updateAuthUI() {
     Logger.info('[Popup] updateAuthUI() called');
-    
+
     // ALWAYS check storage first, regardless of auth object state
     Logger.info('[Popup] Checking storage for user...');
     const storedUser = await new Promise((resolve) => {
@@ -607,17 +622,17 @@
         resolve(data.clerk_user || null);
       });
     });
-    
+
     const hasStoredUser = !!storedUser;
-    Logger.info('[Popup] Storage check result:', { 
-      hasStoredUser, 
+    Logger.info('[Popup] Storage check result:', {
+      hasStoredUser,
       userId: storedUser?.id,
       email: storedUser?.email,
       authExists: !!auth,
       authInitialized: auth?.isInitialized,
-      authUser: auth?.user ? auth.user.id : null
+      authUser: auth?.user ? auth.user.id : null,
     });
-    
+
     // If we have stored user but auth object doesn't have it, update auth object
     if (hasStoredUser && auth && (!auth.user || auth.user.id !== storedUser.id)) {
       Logger.info('[Popup] Stored user found but auth object missing it - updating auth object');
@@ -630,14 +645,15 @@
         Logger.warn('[Popup] Failed to sync stored user to auth object:', e);
       }
     }
-    
+
     if (!auth && !hasStoredUser) {
       Logger.warn('[Popup] No auth object and no stored user');
       return;
     }
 
     // If dev UI is disabled, do not show any auth controls at all
-    const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
+    const isDevUI =
+      typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
     const userProfile = document.getElementById('userProfile');
     const authButtons = document.getElementById('authButtons');
     const userAvatar = document.getElementById('userAvatar');
@@ -664,13 +680,13 @@
       // Main content visibility is handled elsewhere; nothing to do here.
       return;
     }
-    
+
     if (isAuth) {
       // Get user data - from auth object if available, otherwise from storage
       let user = null;
       let avatarUrl = null;
       let displayName = null;
-      
+
       if (auth && auth.isAuthenticated()) {
         user = auth.getCurrentUser();
         avatarUrl = auth.getUserAvatar();
@@ -688,7 +704,10 @@
           const firstName = storedUser.firstName || '';
           const lastName = storedUser.lastName || '';
           const email = storedUser.email || '';
-          displayName = (firstName && lastName) ? `${firstName} ${lastName}` : (firstName || lastName || email || 'User');
+          displayName =
+            firstName && lastName
+              ? `${firstName} ${lastName}`
+              : firstName || lastName || email || 'User';
         }
       }
 
@@ -717,7 +736,7 @@
 
       userProfile.style.display = 'flex';
       authButtons.style.display = 'none';
-      
+
       // Show main content and analysis section when authenticated
       if (mainContent) {
         mainContent.style.display = 'block';
@@ -729,7 +748,7 @@
       // Show auth buttons
       userProfile.style.display = 'none';
       authButtons.style.display = 'flex';
-      
+
       // Show main content (contains status section and guard services - should be visible to all)
       // Only hide analysis section when not authenticated
       if (mainContent) {
@@ -772,7 +791,7 @@
    */
   function setupEventListeners() {
     Logger.info('[Popup] Setting up event listeners');
-    
+
     // Analyze button
     const analyzeBtn = document.getElementById('analyzeBtn');
     if (analyzeBtn) {
@@ -789,7 +808,7 @@
           }
         }
       };
-      
+
       analyzeBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: analyzeBtn, event: 'click', handler: clickHandler });
       console.log('[Popup] Analyze button listener attached');
@@ -818,7 +837,6 @@
       console.warn('[Popup] settingsLink not found in DOM');
     }
 
-
     // Refresh subscription button
     const refreshSubscriptionBtn = document.getElementById('refreshSubscriptionBtn');
     if (refreshSubscriptionBtn) {
@@ -827,13 +845,13 @@
         try {
           refreshSubscriptionBtn.textContent = '⏳ Refreshing...';
           refreshSubscriptionBtn.disabled = true;
-          
+
           // Clear subscription cache in background
           await sendMessageToBackground('CLEAR_SUBSCRIPTION_CACHE');
-          
+
           // Reload subscription status
           await loadSubscriptionStatus();
-          
+
           showSuccess('✅ Subscription status refreshed');
         } catch (err) {
           Logger.error('Failed to refresh subscription', err);
@@ -849,7 +867,11 @@
       };
 
       refreshSubscriptionBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: refreshSubscriptionBtn, event: 'click', handler: clickHandler });
+      eventListeners.push({
+        element: refreshSubscriptionBtn,
+        event: 'click',
+        handler: clickHandler,
+      });
     }
 
     // Upgrade button - redirects to landing page where Stripe payment is handled
@@ -865,7 +887,9 @@
           const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
           const baseUrl = gatewayUrl.replace('/api/v1', '').replace('/api', '');
           // Redirect to landing page where Stripe payment processing occurs
-          const upgradeUrl = baseUrl ? `${baseUrl}/subscribe` : 'https://www.aiguardian.ai/subscribe';
+          const upgradeUrl = baseUrl
+            ? `${baseUrl}/subscribe`
+            : 'https://www.aiguardian.ai/subscribe';
 
           chrome.tabs.create({ url: upgradeUrl });
           window.close();
@@ -886,7 +910,8 @@
     // Unified auth CTA button (sign in / sign up)
     const authCtaBtn = document.getElementById('authCtaBtn');
     // Hide auth CTA entirely when dev UI is disabled
-    const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
+    const isDevUI =
+      typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
     if (!isDevUI && authCtaBtn) {
       authCtaBtn.style.display = 'none';
     }
@@ -927,7 +952,7 @@
     } else {
       console.warn('[Popup] authCtaBtn not found in DOM');
     }
-    
+
     // Clean up interval when popup closes
     const beforeUnloadHandler = () => {
       if (authCheckInterval) {
@@ -982,7 +1007,7 @@
           showFallbackError('Failed to open diagnostic panel. Please try again.');
         }
       };
-      
+
       toggleStatusBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: toggleStatusBtn, event: 'click', handler: clickHandler });
       Logger.info('[Popup] Status button listener attached (shows diagnostic panel)');
@@ -1010,8 +1035,8 @@
       Logger.info('[Popup] Found viewOAuthDocsBtn, attaching listener');
       const clickHandler = () => {
         try {
-          chrome.tabs.create({ 
-            url: 'https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md' 
+          chrome.tabs.create({
+            url: 'https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md',
           });
         } catch (err) {
           Logger.error('Failed to open OAuth docs', err);
@@ -1072,13 +1097,19 @@
         }
       };
       openSettingsFromDiagnosticBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: openSettingsFromDiagnosticBtn, event: 'click', handler: clickHandler });
+      eventListeners.push({
+        element: openSettingsFromDiagnosticBtn,
+        event: 'click',
+        handler: clickHandler,
+      });
       console.log('[Popup] Open Settings From Diagnostic button listener attached');
     } else {
       console.warn('[Popup] openSettingsFromDiagnosticBtn not found in DOM');
     }
-    
-    console.log(`[Popup] Event listeners setup complete. Total listeners: ${eventListeners.length}`);
+
+    console.log(
+      `[Popup] Event listeners setup complete. Total listeners: ${eventListeners.length}`
+    );
   }
 
   /**
@@ -1092,19 +1123,19 @@
       } else {
         // Include error information if available
         Logger.warn('[Popup] System status request failed:', response.error);
-        await updateSystemStatus({ 
+        await updateSystemStatus({
           gateway_connected: false,
           connected: false,
-          error: response.error || 'Unknown error'
+          error: response.error || 'Unknown error',
         });
       }
     } catch (err) {
       Logger.error('Failed to load system status', err);
       // Include error message for better diagnostics
-      await updateSystemStatus({ 
+      await updateSystemStatus({
         gateway_connected: false,
         connected: false,
-        error: err.message || 'Failed to load status'
+        error: err.message || 'Failed to load status',
       });
     }
   }
@@ -1116,12 +1147,15 @@
     const indicator = document.getElementById('statusIndicator');
     const details = document.getElementById('statusDetails');
     const serviceStatus = document.getElementById('serviceStatus');
-    
+
     // Handle both 'connected' and 'gateway_connected' field names for compatibility
-    const isConnected = status.gateway_connected !== undefined 
-                      ? status.gateway_connected 
-                      : (status.connected !== undefined ? status.connected : false);
-    
+    const isConnected =
+      status.gateway_connected !== undefined
+        ? status.gateway_connected
+        : status.connected !== undefined
+          ? status.connected
+          : false;
+
     if (isConnected) {
       indicator.className = 'status-indicator';
       details.textContent = 'AiGuardian service operational';
@@ -1131,24 +1165,36 @@
       currentStatus = 'connected';
     } else {
       indicator.className = 'status-indicator error';
-      
+
       // Check if gateway URL is configured
       const configData = await new Promise((resolve) => {
         chrome.storage.sync.get(['gateway_url'], (data) => {
           resolve(data.gateway_url || null);
         });
       });
-      
+
       if (!configData) {
         details.textContent = 'Gateway not configured - open settings to configure';
       } else {
         // Check if it's a network error or configuration issue
         const errorMsg = status.error || '';
-        if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError') || errorMsg.includes('network') || errorMsg.includes('ERR_')) {
+        if (
+          errorMsg.includes('Failed to fetch') ||
+          errorMsg.includes('NetworkError') ||
+          errorMsg.includes('network') ||
+          errorMsg.includes('ERR_')
+        ) {
           details.textContent = 'Network error - check internet connection';
-        } else if (errorMsg.includes('timeout') || errorMsg.includes('Timeout') || errorMsg.includes('aborted')) {
+        } else if (
+          errorMsg.includes('timeout') ||
+          errorMsg.includes('Timeout') ||
+          errorMsg.includes('aborted')
+        ) {
           details.textContent = 'Connection timeout - backend may be slow or unreachable';
-        } else if (errorMsg.includes('Gateway URL not configured') || errorMsg.includes('not configured')) {
+        } else if (
+          errorMsg.includes('Gateway URL not configured') ||
+          errorMsg.includes('not configured')
+        ) {
           details.textContent = 'Gateway not configured - open settings to configure';
         } else if (errorMsg.includes('CORS') || errorMsg.includes('cors')) {
           details.textContent = 'CORS error - check backend configuration';
@@ -1159,11 +1205,11 @@
           details.textContent = 'Connection failed - click Status to diagnose';
         }
       }
-      
+
       if (serviceStatus) {
         serviceStatus.className = 'guard-status disabled';
       }
-      
+
       // Make status section clickable to open diagnostics when there's an error
       const statusSection = document.querySelector('.status-section');
       if (statusSection && !statusSection.hasAttribute('data-error-click-handler')) {
@@ -1175,7 +1221,7 @@
           }
         });
       }
-      
+
       currentStatus = 'error';
     }
   }
@@ -1191,16 +1237,16 @@
       } else {
         // Handle error case
         Logger.warn('Guard status request failed:', response.error);
-        updateGuardServices({ 
-          gateway_connected: false, 
-          error: response.error || 'Failed to get guard status' 
+        updateGuardServices({
+          gateway_connected: false,
+          error: response.error || 'Failed to get guard status',
         });
       }
     } catch (err) {
       Logger.error('Failed to load guard services', err);
-      updateGuardServices({ 
-        gateway_connected: false, 
-        error: err.message || 'Unknown error' 
+      updateGuardServices({
+        gateway_connected: false,
+        error: err.message || 'Unknown error',
       });
     }
   }
@@ -1213,9 +1259,12 @@
     if (!serviceStatus) return;
 
     // Handle both 'connected' and 'gateway_connected' field names for compatibility
-    const isConnected = status.gateway_connected !== undefined 
-                      ? status.gateway_connected 
-                      : (status.connected !== undefined ? status.connected : false);
+    const isConnected =
+      status.gateway_connected !== undefined
+        ? status.gateway_connected
+        : status.connected !== undefined
+          ? status.connected
+          : false;
 
     // Update unified service status
     if (isConnected) {
@@ -1241,7 +1290,7 @@
             resolve({
               gateway_url: syncData.gateway_url,
               clerk_user: localData.clerk_user,
-              clerk_token: localData.clerk_token
+              clerk_token: localData.clerk_token,
             });
           });
         });
@@ -1256,7 +1305,7 @@
 
       // Send message to background to get subscription
       const response = await sendMessageToBackground('GET_SUBSCRIPTION_STATUS');
-      
+
       if (response && response.success && response.subscription) {
         updateSubscriptionStatus(response.subscription, response.usage);
       } else {
@@ -1286,8 +1335,12 @@
     if (!section) return;
 
     // For free tier, hide the subscription card unless the user is close to limits
-    const isFreeTier = !subscription.tier || subscription.tier === 'free' || subscription.tier.toUpperCase() === 'FREE';
-    const usagePct = usage && typeof usage.usage_percentage === 'number' ? usage.usage_percentage : null;
+    const isFreeTier =
+      !subscription.tier ||
+      subscription.tier === 'free' ||
+      subscription.tier.toUpperCase() === 'FREE';
+    const usagePct =
+      usage && typeof usage.usage_percentage === 'number' ? usage.usage_percentage : null;
     if (isFreeTier && (usagePct === null || usagePct < 80)) {
       section.style.display = 'none';
       return;
@@ -1313,9 +1366,10 @@
     if (usageEl && usage) {
       if (usage.requests_limit !== null && usage.requests_limit !== undefined) {
         const percentage = usage.usage_percentage || 0;
-        const remaining = usage.remaining_requests !== null ? usage.remaining_requests : 'unlimited';
+        const remaining =
+          usage.remaining_requests !== null ? usage.remaining_requests : 'unlimited';
         usageEl.textContent = `${percentage.toFixed(1)}% used (${remaining} remaining)`;
-        
+
         // Add warning class if > 80%
         if (percentage >= 80) {
           usageEl.className = 'subscription-usage warning';
@@ -1386,7 +1440,7 @@
 
     const analyzeBtn = document.getElementById('analyzeBtn');
     const originalText = analyzeBtn ? analyzeBtn.textContent : '';
-    
+
     if (analyzeBtn) {
       analyzeBtn.textContent = '⏳ Analyzing...';
       analyzeBtn.disabled = true;
@@ -1394,13 +1448,18 @@
     if (statusLine) {
       statusLine.textContent = 'Analyzing selected text…';
     }
-    
+
     try {
       // Get active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
+
       // Check if tab URL is valid (not chrome:// or extension pages)
-      if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://'))) {
+      if (
+        tab.url &&
+        (tab.url.startsWith('chrome://') ||
+          tab.url.startsWith('chrome-extension://') ||
+          tab.url.startsWith('edge://'))
+      ) {
         const errorMsg = 'Cannot analyze text on this page. Please navigate to a regular webpage.';
         if (statusLine) {
           statusLine.textContent = `Last analysis: failed – ${errorMsg}`;
@@ -1412,20 +1471,23 @@
         }
         return;
       }
-      
+
       // Send message to content script to analyze selected text
       let response;
       try {
         response = await chrome.tabs.sendMessage(tab.id, {
-          type: 'ANALYZE_SELECTION'
+          type: 'ANALYZE_SELECTION',
         });
       } catch (sendMessageErr) {
         // Check if content script is not loaded
         const errorMsg = sendMessageErr.message || '';
-        if (errorMsg.includes('Receiving end does not exist') || 
-            errorMsg.includes('Could not establish connection')) {
+        if (
+          errorMsg.includes('Receiving end does not exist') ||
+          errorMsg.includes('Could not establish connection')
+        ) {
           Logger.warn('[Popup] Content script not loaded on page:', tab.url);
-          const contentScriptError = 'Extension not loaded on this page. Please refresh the page and try again.';
+          const contentScriptError =
+            'Extension not loaded on this page. Please refresh the page and try again.';
           if (statusLine) {
             statusLine.textContent = `Last analysis: failed – ${contentScriptError}`;
           }
@@ -1439,15 +1501,19 @@
         // Re-throw other errors
         throw sendMessageErr;
       }
-      
+
       // CRITICAL: Check for errors in response before treating as success
       if (response && response.success !== false && !response.error) {
         // Validate response has valid data before displaying
-        if (response.score !== undefined || (response.analysis && Object.keys(response.analysis).length > 0)) {
+        if (
+          response.score !== undefined ||
+          (response.analysis && Object.keys(response.analysis).length > 0)
+        ) {
           updateAnalysisResult(response);
           showSuccess('✅ Analysis complete!');
           if (statusLine) {
-            const scoreText = typeof response.score === 'number' ? ` (score: ${response.score.toFixed(2)})` : '';
+            const scoreText =
+              typeof response.score === 'number' ? ` (score: ${response.score.toFixed(2)})` : '';
             statusLine.textContent = `Last analysis: success${scoreText}`;
           }
           Logger.info('Analysis completed successfully');
@@ -1466,9 +1532,10 @@
           }
         }
       } else {
-        const errorMessage = response && response.error
-          ? response.error
-          : 'Please select some text on the page to analyze.';
+        const errorMessage =
+          response && response.error
+            ? response.error
+            : 'Please select some text on the page to analyze.';
 
         if (statusLine) {
           statusLine.textContent = `Last analysis: failed – ${errorMessage}`;
@@ -1489,12 +1556,16 @@
       console.error('Failed to trigger analysis', err);
       // Check if it's a content script error
       const errorMsg = err.message || '';
-      if (errorMsg.includes('Receiving end does not exist') || 
-          errorMsg.includes('Could not establish connection')) {
+      if (
+        errorMsg.includes('Receiving end does not exist') ||
+        errorMsg.includes('Could not establish connection')
+      ) {
         if (errorHandler) {
           errorHandler.showError('CONTENT_SCRIPT_NOT_LOADED');
         } else {
-          showFallbackError('Extension not loaded on this page. Please refresh the page and try again.');
+          showFallbackError(
+            'Extension not loaded on this page. Please refresh the page and try again.'
+          );
         }
       } else {
         if (errorHandler) {
@@ -1521,58 +1592,62 @@
     if (!result || result.success === false || result.error) {
       const errorMessage = result?.error || result?.detail || 'Analysis failed';
       Logger.error('[Popup] Analysis result indicates error:', errorMessage);
-      
+
       // Display error in UI
       const biasScore = document.getElementById('biasScore');
       const biasType = document.getElementById('biasType');
       const confidence = document.getElementById('confidence');
-      
+
       if (biasScore) {
         biasScore.textContent = 'Error';
         biasScore.className = 'score-value error';
       }
-      
+
       if (biasType) {
-        biasType.textContent = errorMessage.substring(0, 30) + (errorMessage.length > 30 ? '...' : '');
+        biasType.textContent =
+          errorMessage.substring(0, 30) + (errorMessage.length > 30 ? '...' : '');
         biasType.className = 'error-text';
       }
-      
+
       if (confidence) {
         confidence.textContent = '—';
       }
-      
+
       // Show error to user
       if (errorHandler) {
         errorHandler.showErrorFromException(new Error(errorMessage));
       } else {
         showFallbackError(`Analysis failed: ${errorMessage}`);
       }
-      
+
       return; // Don't process further
     }
-    
+
     // Validate that we have a valid result before displaying
-    if (result.score === undefined && (!result.analysis || Object.keys(result.analysis).length === 0)) {
+    if (
+      result.score === undefined &&
+      (!result.analysis || Object.keys(result.analysis).length === 0)
+    ) {
       Logger.warn('[Popup] Analysis result missing score and analysis data:', result);
       const biasScore = document.getElementById('biasScore');
       const biasType = document.getElementById('biasType');
-      
+
       if (biasScore) {
         biasScore.textContent = 'N/A';
         biasScore.className = 'score-value';
       }
-      
+
       if (biasType) {
         biasType.textContent = 'No data';
       }
-      
+
       return;
     }
-    
+
     const biasScore = document.getElementById('biasScore');
     const biasType = document.getElementById('biasType');
     const confidence = document.getElementById('confidence');
-    
+
     // Only display score if it's a valid number (not 0 from error)
     if (biasScore && result.score !== undefined && typeof result.score === 'number') {
       // Check if score is 0 due to error (error responses might have score: 0)
@@ -1581,7 +1656,7 @@
         biasScore.className = 'score-value';
       } else {
         biasScore.textContent = result.score.toFixed(2);
-        
+
         // Update score color based on value
         biasScore.className = 'score-value';
         if (result.score < 0.3) {
@@ -1593,14 +1668,15 @@
         }
       }
     }
-    
+
     if (biasType && result.analysis) {
       // Extract type from various possible fields
-      const analysisType = result.analysis.bias_type || 
-                          result.analysis.type || 
-                          result.analysis.service_type ||
-                          (result.analysis.detected_type ? result.analysis.detected_type : null);
-      
+      const analysisType =
+        result.analysis.bias_type ||
+        result.analysis.type ||
+        result.analysis.service_type ||
+        (result.analysis.detected_type ? result.analysis.detected_type : null);
+
       if (analysisType && analysisType !== 'Unknown' && analysisType !== 'unknown') {
         biasType.textContent = analysisType;
         biasType.className = '';
@@ -1616,7 +1692,7 @@
       biasType.textContent = 'No analysis';
       biasType.className = 'warning-text';
     }
-    
+
     if (confidence && result.analysis && result.analysis.confidence !== undefined) {
       const confValue = Math.round(result.analysis.confidence * 100);
       confidence.textContent = `${confValue}%`;
@@ -1624,7 +1700,6 @@
       confidence.textContent = '—';
     }
   }
-
 
   /**
    * Send message to background script with timeout
@@ -1675,11 +1750,11 @@
     const successDiv = document.createElement('div');
     successDiv.className = 'success-message';
     successDiv.textContent = message;
-    
+
     const mainContent = document.querySelector('.main-content');
     if (mainContent) {
       mainContent.insertBefore(successDiv, mainContent.firstChild);
-      
+
       // Remove after 3 seconds
       setTimeout(() => {
         if (successDiv.parentNode) {
@@ -1730,11 +1805,11 @@
       const backendOk = backendResponse && backendResponse.success;
 
       // Check Clerk key
-      const syncData = await new Promise(resolve => {
+      const syncData = await new Promise((resolve) => {
         chrome.storage.sync.get(['clerk_publishable_key'], resolve);
       });
       let clerkKeyOk = !!syncData.clerk_publishable_key;
-      
+
       if (!clerkKeyOk) {
         // Try fetching from backend
         try {
@@ -1747,7 +1822,7 @@
       }
 
       // Check auth state
-      const localData = await new Promise(resolve => {
+      const localData = await new Promise((resolve) => {
         chrome.storage.local.get(['clerk_user'], resolve);
       });
       const authOk = !!localData.clerk_user || (auth && auth.isAuthenticated());
@@ -1776,7 +1851,7 @@
       console.error('[Diagnostics] Diagnostic elements not found:', {
         backendStatusEl: !!backendStatusEl,
         clerkKeyStatusEl: !!clerkKeyStatusEl,
-        authStateStatusEl: !!authStateStatusEl
+        authStateStatusEl: !!authStateStatusEl,
       });
       Logger.error('Diagnostic elements not found');
       return;
@@ -1790,37 +1865,39 @@
     backendStatusEl.className = 'diagnostic-value';
     try {
       Logger.info('[Diagnostics] Checking backend connection...');
-      
+
       // First try via background script
       let response = null;
       try {
         response = await Promise.race([
           sendMessageToBackground('TEST_GATEWAY_CONNECTION', null, 3000),
-          new Promise((resolve) => setTimeout(() => resolve({ success: false, error: 'Timeout' }), 3000))
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ success: false, error: 'Timeout' }), 3000)
+          ),
         ]);
       } catch (bgErr) {
         Logger.warn('[Diagnostics] Background script check failed, trying direct:', bgErr);
       }
-      
+
       // If background script didn't work, try direct connection test
       if (!response || !response.success) {
         Logger.info('[Diagnostics] Trying direct backend connection test...');
         try {
-          const gatewayUrl = await new Promise(resolve => {
+          const gatewayUrl = await new Promise((resolve) => {
             chrome.storage.sync.get(['gateway_url'], (data) => {
               resolve(data.gateway_url || 'https://api.aiguardian.ai');
             });
           });
-          
+
           const healthUrl = gatewayUrl.replace(/\/$/, '') + '/health/live';
           const directResponse = await Promise.race([
             fetch(healthUrl, {
               method: 'GET',
-              headers: { 'X-Extension-Version': chrome.runtime.getManifest().version }
+              headers: { 'X-Extension-Version': chrome.runtime.getManifest().version },
             }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)),
           ]);
-          
+
           if (directResponse && directResponse.ok) {
             response = { success: true };
           } else {
@@ -1831,18 +1908,21 @@
           response = { success: false, error: directErr.message || 'Connection failed' };
         }
       }
-      
+
       Logger.info('[Diagnostics] Backend response:', response);
-      
+
       if (response && response.success) {
         backendStatusEl.textContent = '✅ Connected';
         backendStatusEl.className = 'diagnostic-value status-ok';
       } else {
         const errorMsg = response?.error || 'Unknown error';
-        const displayMsg = errorMsg.includes('Timeout') ? 'Timeout' : 
-                          errorMsg.includes('Failed to fetch') ? 'Network error' :
-                          errorMsg.includes('not responding') ? 'Background error' :
-                          'Disconnected';
+        const displayMsg = errorMsg.includes('Timeout')
+          ? 'Timeout'
+          : errorMsg.includes('Failed to fetch')
+            ? 'Network error'
+            : errorMsg.includes('not responding')
+              ? 'Background error'
+              : 'Disconnected';
         backendStatusEl.textContent = `❌ ${displayMsg}`;
         backendStatusEl.className = 'diagnostic-value status-error';
       }
@@ -1855,24 +1935,24 @@
     // Check Clerk key - automatically fetch from backend
     clerkKeyStatusEl.textContent = 'Checking...';
     clerkKeyStatusEl.className = 'diagnostic-value';
-    
+
     // Use setTimeout to ensure UI updates immediately
     setTimeout(async () => {
       try {
         Logger.info('[Diagnostics] Checking Clerk key...');
-        
+
         // First check if we already have it in storage
         const syncData = await new Promise((resolve) => {
           chrome.storage.sync.get(['clerk_publishable_key', 'clerk_key_source'], (data) => {
             resolve(data || {});
           });
         });
-        
-        Logger.info('[Diagnostics] Clerk key data from storage:', { 
+
+        Logger.info('[Diagnostics] Clerk key data from storage:', {
           hasKey: !!syncData.clerk_publishable_key,
-          source: syncData.clerk_key_source 
+          source: syncData.clerk_key_source,
         });
-        
+
         if (syncData.clerk_publishable_key) {
           const source = syncData.clerk_key_source === 'backend_api' ? 'Auto' : 'Manual';
           clerkKeyStatusEl.textContent = `✅ Configured (${source})`;
@@ -1883,22 +1963,23 @@
           try {
             const auth = new AiGuardianAuth();
             const settings = await auth.getSettings();
-            
+
             Logger.info('[Diagnostics] getSettings() returned:', {
               hasKey: !!settings.clerk_publishable_key,
               source: settings.source,
               error: settings.error,
-              fullSettings: settings
+              fullSettings: settings,
             });
-            
+
             if (settings && settings.clerk_publishable_key) {
               clerkKeyStatusEl.textContent = '✅ Auto-configured';
               clerkKeyStatusEl.className = 'diagnostic-value status-ok';
             } else if (settings && settings.error) {
               // Show specific error message
-              const errorMsg = typeof settings.error === 'string' 
-                ? settings.error 
-                : (settings.error.error || settings.error.message || 'Unknown error');
+              const errorMsg =
+                typeof settings.error === 'string'
+                  ? settings.error
+                  : settings.error.error || settings.error.message || 'Unknown error';
               clerkKeyStatusEl.textContent = `❌ ${errorMsg}`;
               clerkKeyStatusEl.className = 'diagnostic-value status-error';
               Logger.warn('[Diagnostics] Backend fetch failed:', settings.error);
@@ -1927,7 +2008,7 @@
     authStateStatusEl.textContent = 'Checking...';
     authStateStatusEl.className = 'diagnostic-value';
     console.log('[Diagnostics] Starting auth state check...');
-    
+
     // Remove setTimeout and run directly
     try {
       Logger.info('[Diagnostics] Checking auth state...');
@@ -1937,9 +2018,9 @@
         });
       });
 
-      Logger.info('[Diagnostics] Auth data:', { 
+      Logger.info('[Diagnostics] Auth data:', {
         hasUser: !!localData.clerk_user,
-        hasToken: !!localData.clerk_token 
+        hasToken: !!localData.clerk_token,
       });
       console.log('[Diagnostics] Auth data from storage:', {
         hasUser: !!localData.clerk_user,
@@ -1947,7 +2028,7 @@
         userId: localData.clerk_user?.id,
         email: localData.clerk_user?.email,
         authObjectExists: !!auth,
-        authIsAuthenticated: auth?.isAuthenticated?.()
+        authIsAuthenticated: auth?.isAuthenticated?.(),
       });
 
       if (localData.clerk_user) {
@@ -1978,6 +2059,4 @@
 
   // Cleanup on popup close
   window.addEventListener('beforeunload', cleanupEventListeners);
-
 })();
-

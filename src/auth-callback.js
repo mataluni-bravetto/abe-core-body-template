@@ -24,40 +24,45 @@ class AuthCallbackHandler {
       // Clerk redirects back with various parameters in URL or hash
       const urlParams = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      
+
       // Check for OAuth errors first (before checking for successful callback)
-      const hasOAuthError = urlParams.has('error') || 
-                            hashParams.has('error') ||
-                            urlParams.has('error_description') ||
-                            hashParams.has('error_description');
-      
+      const hasOAuthError =
+        urlParams.has('error') ||
+        hashParams.has('error') ||
+        urlParams.has('error_description') ||
+        hashParams.has('error_description');
+
       if (hasOAuthError) {
         const error = urlParams.get('error') || hashParams.get('error') || 'unknown_error';
-        const errorDescription = urlParams.get('error_description') || hashParams.get('error_description') || '';
+        const errorDescription =
+          urlParams.get('error_description') || hashParams.get('error_description') || '';
         Logger.error('[AuthCallback] OAuth error detected:', { error, errorDescription });
-        
+
         // Check if it's a redirect URI mismatch error
-        if (error === 'redirect_uri_mismatch' || 
-            errorDescription.includes('redirect_uri_mismatch') ||
-            errorDescription.includes('redirect URI') ||
-            errorDescription.includes('OAuth 2.0 policy') ||
-            errorDescription.includes('register the redirect URI')) {
+        if (
+          error === 'redirect_uri_mismatch' ||
+          errorDescription.includes('redirect_uri_mismatch') ||
+          errorDescription.includes('redirect URI') ||
+          errorDescription.includes('OAuth 2.0 policy') ||
+          errorDescription.includes('register the redirect URI')
+        ) {
           await this.handleOAuthRedirectUriError(errorDescription);
           return;
         }
-        
+
         // Handle other OAuth errors
         this.showError(`OAuth error: ${error}. ${errorDescription}`);
         return;
       }
-      
-      const isCallback = urlParams.has('code') || 
-                        urlParams.has('token') || 
-                        urlParams.has('__clerk_redirect_url') ||
-                        hashParams.has('access_token') ||
-                        hashParams.has('__clerk_redirect_url') ||
-                        window.location.hash.includes('access_token') ||
-                        window.location.hash.includes('__clerk');
+
+      const isCallback =
+        urlParams.has('code') ||
+        urlParams.has('token') ||
+        urlParams.has('__clerk_redirect_url') ||
+        hashParams.has('access_token') ||
+        hashParams.has('__clerk_redirect_url') ||
+        window.location.hash.includes('access_token') ||
+        window.location.hash.includes('__clerk');
 
       Logger.info('[AuthCallback] Is callback:', isCallback);
       Logger.info('[AuthCallback] URL params:', Object.fromEntries(urlParams));
@@ -106,7 +111,7 @@ class AuthCallbackHandler {
       if (!clerk) {
         throw new Error('Clerk SDK not loaded - window.Clerk not found');
       }
-      
+
       // Ensure Clerk is loaded (only if load() method exists)
       if (typeof clerk.load === 'function' && !clerk.loaded) {
         await clerk.load();
@@ -120,7 +125,10 @@ class AuthCallbackHandler {
         await clerk.handleRedirectCallback();
         Logger.info('[AuthCallback] Clerk redirect callback handled successfully');
       } catch (e) {
-        Logger.warn('[AuthCallback] Clerk handleRedirectCallback error (may be normal if already handled):', e.message);
+        Logger.warn(
+          '[AuthCallback] Clerk handleRedirectCallback error (may be normal if already handled):',
+          e.message
+        );
         // Continue anyway - Clerk might have already processed it
       }
 
@@ -129,35 +137,37 @@ class AuthCallbackHandler {
       let user = null;
       const maxRetries = 10;
       const retryDelay = 500; // 500ms between retries
-      
+
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
           // Ensure Clerk is loaded
           if (typeof clerk.load === 'function' && !clerk.loaded) {
             await clerk.load();
           }
-          
+
           // Check for user
           user = clerk.user;
-          
+
           if (user) {
             Logger.info(`[AuthCallback] User found on attempt ${attempt + 1}:`, user.id);
             break;
           }
-          
+
           // If no user yet, wait before retrying
           if (attempt < maxRetries - 1) {
-            Logger.info(`[AuthCallback] No user yet, waiting ${retryDelay}ms before retry ${attempt + 2}/${maxRetries}...`);
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            Logger.info(
+              `[AuthCallback] No user yet, waiting ${retryDelay}ms before retry ${attempt + 2}/${maxRetries}...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
           }
         } catch (e) {
           Logger.warn(`[AuthCallback] Error getting user on attempt ${attempt + 1}:`, e.message);
           if (attempt < maxRetries - 1) {
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
           }
         }
       }
-      
+
       // If still no user after retries, try checking session directly
       if (!user) {
         Logger.warn('[AuthCallback] No user found after retries, checking session directly...');
@@ -195,48 +205,54 @@ class AuthCallbackHandler {
           id: user.id,
           email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress,
           hasToken: !!token,
-          userKeys: Object.keys(user).slice(0, 10)
+          userKeys: Object.keys(user).slice(0, 10),
         });
-        
+
         try {
           await this.storeAuthState(user, token);
           Logger.info('[AuthCallback] storeAuthState() completed');
         } catch (storeError) {
           Logger.error('[AuthCallback] storeAuthState() failed:', {
             error: storeError.message,
-            stack: storeError.stack
+            stack: storeError.stack,
           });
           throw storeError;
         }
-        
+
         // Verify storage was written successfully - with multiple attempts
         Logger.info('[AuthCallback] Starting storage verification...');
         let stored = false;
         const maxVerifyAttempts = 3;
         const verifyDelay = 300;
-        
+
         for (let attempt = 0; attempt < maxVerifyAttempts; attempt++) {
           stored = await this.verifyStorage(user.id);
           if (stored) {
-            Logger.info(`[AuthCallback] ✅ Storage verification successful on attempt ${attempt + 1}`);
+            Logger.info(
+              `[AuthCallback] ✅ Storage verification successful on attempt ${attempt + 1}`
+            );
             break;
           } else {
-            Logger.warn(`[AuthCallback] Storage verification failed on attempt ${attempt + 1}/${maxVerifyAttempts}`);
+            Logger.warn(
+              `[AuthCallback] Storage verification failed on attempt ${attempt + 1}/${maxVerifyAttempts}`
+            );
             if (attempt < maxVerifyAttempts - 1) {
               Logger.info(`[AuthCallback] Waiting ${verifyDelay}ms before retry...`);
-              await new Promise(resolve => setTimeout(resolve, verifyDelay));
+              await new Promise((resolve) => setTimeout(resolve, verifyDelay));
             }
           }
         }
-        
+
         if (!stored) {
-          Logger.error('[AuthCallback] Storage verification failed after all attempts - retrying storage write...');
+          Logger.error(
+            '[AuthCallback] Storage verification failed after all attempts - retrying storage write...'
+          );
           // Retry storage write
           try {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise((resolve) => setTimeout(resolve, 500));
             await this.storeAuthState(user, token);
             Logger.info('[AuthCallback] Retry storage write completed');
-            
+
             // Verify retry
             stored = await this.verifyStorage(user.id);
             if (!stored) {
@@ -248,14 +264,16 @@ class AuthCallbackHandler {
             throw new Error('Failed to store authentication state: ' + retryError.message);
           }
         }
-        
+
         Logger.info('[AuthCallback] ✅ Authentication state stored and verified successfully');
         this.updateStatus('Authentication successful! Redirecting...');
 
         // Wait longer to ensure storage is fully persisted before closing
-        Logger.info('[AuthCallback] Waiting 2 seconds before redirecting to ensure storage persistence...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
+        Logger.info(
+          '[AuthCallback] Waiting 2 seconds before redirecting to ensure storage persistence...'
+        );
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
         // Final verification before redirecting
         const finalVerify = await this.verifyStorage(user.id);
         if (!finalVerify) {
@@ -263,13 +281,14 @@ class AuthCallbackHandler {
         } else {
           Logger.info('[AuthCallback] ✅ Final verification passed - storage confirmed');
         }
-        
+
         // Send message to service worker before closing (include token)
         this.redirectToExtension(user, token);
       } else {
-        throw new Error('Authentication failed - no user session found after ' + maxRetries + ' attempts');
+        throw new Error(
+          'Authentication failed - no user session found after ' + maxRetries + ' attempts'
+        );
       }
-
     } catch (error) {
       Logger.error('[AuthCallback] Callback handling error:', error);
       this.showError('Authentication failed: ' + error.message);
@@ -315,7 +334,7 @@ class AuthCallbackHandler {
         if (chrome.runtime.lastError) {
           Logger.error('[AuthCallback] Failed to get Clerk publishable key:', {
             error: chrome.runtime.lastError.message,
-            fullError: chrome.runtime.lastError
+            fullError: chrome.runtime.lastError,
           });
           resolve(null);
           return;
@@ -337,8 +356,8 @@ class AuthCallbackHandler {
           firstName: user.firstName,
           lastName: user.lastName,
           username: user.username,
-          imageUrl: user.imageUrl || user.profileImageUrl
-        }
+          imageUrl: user.imageUrl || user.profileImageUrl,
+        },
       };
 
       // Store token if available
@@ -351,7 +370,7 @@ class AuthCallbackHandler {
         email: dataToStore.clerk_user.email,
         hasToken: !!token,
         dataKeys: Object.keys(dataToStore),
-        fullData: JSON.stringify(dataToStore, null, 2)
+        fullData: JSON.stringify(dataToStore, null, 2),
       });
 
       // Check if chrome.storage is available
@@ -367,7 +386,7 @@ class AuthCallbackHandler {
           Logger.error('[AuthCallback] Storage error:', {
             error: chrome.runtime.lastError.message,
             code: chrome.runtime.lastError.message,
-            fullError: chrome.runtime.lastError
+            fullError: chrome.runtime.lastError,
           });
           reject(new Error(chrome.runtime.lastError.message));
         } else {
@@ -375,13 +394,16 @@ class AuthCallbackHandler {
           // Immediately verify the write worked
           chrome.storage.local.get(['clerk_user', 'clerk_token'], (verifyData) => {
             if (chrome.runtime.lastError) {
-              Logger.error('[AuthCallback] Immediate verification read error:', chrome.runtime.lastError);
+              Logger.error(
+                '[AuthCallback] Immediate verification read error:',
+                chrome.runtime.lastError
+              );
             } else {
               Logger.info('[AuthCallback] Immediate verification:', {
                 hasUser: !!verifyData.clerk_user,
                 userId: verifyData.clerk_user?.id,
                 hasToken: !!verifyData.clerk_token,
-                matches: verifyData.clerk_user?.id === dataToStore.clerk_user.id
+                matches: verifyData.clerk_user?.id === dataToStore.clerk_user.id,
               });
             }
           });
@@ -397,7 +419,7 @@ class AuthCallbackHandler {
   async verifyStorage(userId) {
     return new Promise((resolve) => {
       Logger.info('[AuthCallback] Starting storage verification for userId:', userId);
-      
+
       // Check if chrome.storage is available
       if (!chrome.storage || !chrome.storage.local) {
         Logger.error('[AuthCallback] Storage API not available for verification');
@@ -409,7 +431,7 @@ class AuthCallbackHandler {
         if (chrome.runtime.lastError) {
           Logger.error('[AuthCallback] Storage read error during verification:', {
             error: chrome.runtime.lastError.message,
-            fullError: chrome.runtime.lastError
+            fullError: chrome.runtime.lastError,
           });
           resolve(false);
         } else {
@@ -419,19 +441,24 @@ class AuthCallbackHandler {
             userId: data.clerk_user?.id,
             expectedUserId: userId,
             matches: data.clerk_user?.id === userId,
-            fullData: JSON.stringify(data, null, 2)
+            fullData: JSON.stringify(data, null, 2),
           });
-          
+
           if (data.clerk_user && data.clerk_user.id === userId) {
-            Logger.info('[AuthCallback] ✅ Storage verification successful - user found and ID matches');
+            Logger.info(
+              '[AuthCallback] ✅ Storage verification successful - user found and ID matches'
+            );
             resolve(true);
           } else {
-            Logger.warn('[AuthCallback] ❌ Storage verification failed - user not found or ID mismatch', {
-              expected: userId,
-              found: data.clerk_user?.id,
-              hasUser: !!data.clerk_user,
-              hasToken: !!data.clerk_token
-            });
+            Logger.warn(
+              '[AuthCallback] ❌ Storage verification failed - user not found or ID mismatch',
+              {
+                expected: userId,
+                found: data.clerk_user?.id,
+                hasUser: !!data.clerk_user,
+                hasToken: !!data.clerk_token,
+              }
+            );
             resolve(false);
           }
         }
@@ -446,41 +473,47 @@ class AuthCallbackHandler {
     try {
       Logger.info('[AuthCallback] Sending AUTH_CALLBACK_SUCCESS message...', {
         userId: user.id,
-        hasToken: !!token
+        hasToken: !!token,
       });
-      
+
       // Send message to service worker with user data and token
-      chrome.runtime.sendMessage({ 
-        type: 'AUTH_CALLBACK_SUCCESS',
-        user: {
-          id: user.id,
-          email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          username: user.username,
-          imageUrl: user.imageUrl || user.profileImageUrl
+      chrome.runtime.sendMessage(
+        {
+          type: 'AUTH_CALLBACK_SUCCESS',
+          user: {
+            id: user.id,
+            email: user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            username: user.username,
+            imageUrl: user.imageUrl || user.profileImageUrl,
+          },
+          token: token,
         },
-        token: token
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          Logger.warn('[AuthCallback] Message send error (may be normal if popup closed):', chrome.runtime.lastError.message);
-        } else {
-          Logger.info('[AuthCallback] Message sent successfully');
-        }
-        
-        // Wait a moment before closing to ensure message is processed
-        setTimeout(() => {
-          Logger.info('[AuthCallback] Closing callback tab...');
-          // Try to close the tab
-          window.close();
-          
-          // If window.close() doesn't work (some browsers block it), show success message
+        (response) => {
+          if (chrome.runtime.lastError) {
+            Logger.warn(
+              '[AuthCallback] Message send error (may be normal if popup closed):',
+              chrome.runtime.lastError.message
+            );
+          } else {
+            Logger.info('[AuthCallback] Message sent successfully');
+          }
+
+          // Wait a moment before closing to ensure message is processed
           setTimeout(() => {
-            this.updateStatus('✅ Authentication successful! You can close this tab.');
-            Logger.info('[AuthCallback] Tab close blocked - showing success message');
+            Logger.info('[AuthCallback] Closing callback tab...');
+            // Try to close the tab
+            window.close();
+
+            // If window.close() doesn't work (some browsers block it), show success message
+            setTimeout(() => {
+              this.updateStatus('✅ Authentication successful! You can close this tab.');
+              Logger.info('[AuthCallback] Tab close blocked - showing success message');
+            }, 500);
           }, 500);
-        }, 500);
-      });
+        }
+      );
     } catch (error) {
       Logger.error('[AuthCallback] Failed to redirect to extension:', error);
       // Show success message even if message send fails
@@ -511,9 +544,9 @@ class AuthCallbackHandler {
    */
   async handleOAuthRedirectUriError(errorDescription) {
     Logger.error('[AuthCallback] Handling OAuth redirect URI mismatch error');
-    
+
     this.updateStatus('OAuth Configuration Error');
-    
+
     // Store OAuth error in chrome.storage.local for persistence
     // This allows popup to check for errors even if it wasn't open when error occurred
     try {
@@ -522,72 +555,82 @@ class AuthCallbackHandler {
           type: 'AUTH_OAUTH_REDIRECT_URI_MISMATCH',
           error: 'redirect_uri_mismatch',
           errorDescription: errorDescription,
-          timestamp: Date.now()
-        }
+          timestamp: Date.now(),
+        },
       });
       Logger.info('[AuthCallback] OAuth error stored in chrome.storage.local');
     } catch (storageError) {
       Logger.warn('[AuthCallback] Failed to store OAuth error:', storageError);
     }
-    
+
     // Send error message to extension (for immediate display if popup is open)
     try {
-      chrome.runtime.sendMessage({
-        type: 'AUTH_ERROR',
-        error: 'redirect_uri_mismatch',
-        errorDescription: errorDescription,
-        errorType: 'AUTH_OAUTH_REDIRECT_URI_MISMATCH'
-      }, (response) => {
-        // Handle errors in callback - chrome.runtime.sendMessage uses callbacks, not Promises
-        if (chrome.runtime.lastError) {
-          // Ignore if no listener (this is expected if popup is closed)
-          Logger.debug('[AuthCallback] sendMessage error (may be normal if no listener):', chrome.runtime.lastError.message);
+      chrome.runtime.sendMessage(
+        {
+          type: 'AUTH_ERROR',
+          error: 'redirect_uri_mismatch',
+          errorDescription: errorDescription,
+          errorType: 'AUTH_OAUTH_REDIRECT_URI_MISMATCH',
+        },
+        (response) => {
+          // Handle errors in callback - chrome.runtime.sendMessage uses callbacks, not Promises
+          if (chrome.runtime.lastError) {
+            // Ignore if no listener (this is expected if popup is closed)
+            Logger.debug(
+              '[AuthCallback] sendMessage error (may be normal if no listener):',
+              chrome.runtime.lastError.message
+            );
+          }
         }
-      });
+      );
     } catch (e) {
       Logger.warn('[AuthCallback] Failed to send error message:', e);
     }
-    
+
     // Show detailed error message to user
     const errorEl = document.getElementById('error');
     const statusEl = document.getElementById('status');
-    
+
     if (errorEl) {
       // Build detailed error message
       const errorMessage = document.createElement('div');
       errorMessage.style.cssText = 'color: #FF5757; margin: 16px 0; line-height: 1.6;';
-      
+
       const title = document.createElement('div');
       title.style.cssText = 'font-weight: 600; margin-bottom: 8px; font-size: 14px;';
       title.textContent = 'OAuth Configuration Error';
-      
+
       const description = document.createElement('div');
       description.style.cssText = 'font-size: 12px; margin-bottom: 12px;';
-      description.textContent = 'Google OAuth redirect URI is not configured. The redirect URI must be registered in Google Cloud Console.';
-      
+      description.textContent =
+        'Google OAuth redirect URI is not configured. The redirect URI must be registered in Google Cloud Console.';
+
       const redirectUri = document.createElement('div');
-      redirectUri.style.cssText = 'font-size: 11px; font-family: monospace; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin: 8px 0; word-break: break-all;';
-      redirectUri.textContent = 'Required redirect URI: https://clerk.aiguardian.ai/v1/oauth_callback';
-      
+      redirectUri.style.cssText =
+        'font-size: 11px; font-family: monospace; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin: 8px 0; word-break: break-all;';
+      redirectUri.textContent =
+        'Required redirect URI: https://clerk.aiguardian.ai/v1/oauth_callback';
+
       const instructions = document.createElement('div');
       instructions.style.cssText = 'font-size: 12px; margin-top: 12px;';
-      
+
       // Create link element programmatically to avoid XSS risks
       const docLink = document.createElement('a');
-      docLink.href = 'https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md';
+      docLink.href =
+        'https://github.com/aiguardian/chrome-extension/blob/main/docs/guides/OAUTH_CONFIGURATION.md';
       docLink.target = '_blank';
       docLink.style.color = '#33B8FF';
       docLink.textContent = 'documentation';
-      
+
       instructions.textContent = 'See ';
       instructions.appendChild(docLink);
       instructions.append(' for configuration steps.');
-      
+
       errorMessage.appendChild(title);
       errorMessage.appendChild(description);
       errorMessage.appendChild(redirectUri);
       errorMessage.appendChild(instructions);
-      
+
       // Clear existing content
       while (errorEl.firstChild) {
         errorEl.removeChild(errorEl.firstChild);
@@ -595,11 +638,11 @@ class AuthCallbackHandler {
       errorEl.appendChild(errorMessage);
       errorEl.style.display = 'block';
     }
-    
+
     if (statusEl) {
       statusEl.textContent = 'Configuration required';
     }
-    
+
     // Hide spinner
     const spinner = document.querySelector('.spinner');
     if (spinner) {
