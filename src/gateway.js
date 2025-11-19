@@ -1179,24 +1179,58 @@ class AiGuardianGateway {
       });
 
       // Derive a generic score for the UI from common guard fields.
-      let score = 0;
+      let score = null; // Use null to distinguish "not found" from "found but zero"
+      let scoreSource = 'none';
+      
       if (typeof data.bias_score === 'number') {
         score = data.bias_score; // BiasGuard
+        scoreSource = 'data.bias_score';
         Logger.info('[Gateway] Using bias_score:', score);
       } else if (typeof data.trust_score === 'number') {
         score = data.trust_score; // TrustGuard
+        scoreSource = 'data.trust_score';
         Logger.info('[Gateway] Using trust_score:', score);
       } else if (typeof data.confidence === 'number') {
         score = data.confidence; // TokenGuard-style confidence
+        scoreSource = 'data.confidence';
         Logger.info('[Gateway] Using confidence:', score);
       } else if (typeof data.score === 'number') {
         score = data.score; // Fallback generic score
+        scoreSource = 'data.score';
         Logger.info('[Gateway] Using score:', score);
       } else {
         Logger.warn('[Gateway] No score field found in response data', {
           availableFields: Object.keys(data),
           dataSample: JSON.stringify(data).substring(0, 200),
         });
+      }
+
+      // EPISTEMIC: Fallback to top-level fields if not found in data
+      // This handles cases where response structure varies
+      if (score === null) {
+        if (typeof response.bias_score === 'number') {
+          score = response.bias_score;
+          scoreSource = 'response.bias_score';
+          Logger.info('[Gateway] Found bias_score at top level, using it:', score);
+        } else if (typeof response.score === 'number') {
+          score = response.score;
+          scoreSource = 'response.score';
+          Logger.info('[Gateway] Found score at top level, using it:', score);
+        } else if (typeof response.confidence_score === 'number') {
+          score = response.confidence_score;
+          scoreSource = 'response.confidence_score';
+          Logger.info('[Gateway] Found confidence_score at top level, using it:', score);
+        }
+      }
+
+      // If still no score found, default to 0
+      if (score === null) {
+        Logger.warn('[Gateway] No score found anywhere in response, defaulting to 0', {
+          responseKeys: Object.keys(response),
+          dataKeys: Object.keys(data),
+        });
+        score = 0;
+        scoreSource = 'default (0)';
       }
 
       // Clamp score into [0, 1] if it looks like a 0-1 value; ignore NaN
@@ -1210,19 +1244,7 @@ class AiGuardianGateway {
           scoreValue: score,
         });
         score = 0;
-      }
-
-      // EPISTEMIC: Also check top-level fields as fallback (some responses may have score at top level)
-      // This ensures we catch the score even if data structure varies
-      if (score === 0 && typeof response.bias_score === 'number') {
-        Logger.info('[Gateway] Found bias_score at top level, using it:', response.bias_score);
-        score = response.bias_score;
-      } else if (score === 0 && typeof response.score === 'number') {
-        Logger.info('[Gateway] Found score at top level, using it:', response.score);
-        score = response.score;
-      } else if (score === 0 && typeof response.confidence_score === 'number') {
-        Logger.info('[Gateway] Found confidence_score at top level, using it:', response.confidence_score);
-        score = response.confidence_score;
+        scoreSource = 'default (invalid)';
       }
       
       // Final validation and clamping
@@ -1241,13 +1263,9 @@ class AiGuardianGateway {
       Logger.info('[Gateway] ✅ Final extracted score:', {
         score: score,
         percentage: Math.round(score * 100) + '%',
-        source: data.bias_score !== undefined ? 'data.bias_score' : 
-                data.trust_score !== undefined ? 'data.trust_score' :
-                data.confidence !== undefined ? 'data.confidence' :
-                data.score !== undefined ? 'data.score' :
-                response.bias_score !== undefined ? 'response.bias_score' :
-                response.score !== undefined ? 'response.score' :
-                response.confidence_score !== undefined ? 'response.confidence_score' : 'default (0)'
+        source: scoreSource,
+        isZero: score === 0,
+        isZeroBecauseNotFound: score === 0 && scoreSource.includes('default')
       });
 
       transformedResponse = {
