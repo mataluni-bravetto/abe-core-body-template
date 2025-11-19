@@ -265,8 +265,8 @@
    * TRACER BULLET: Color coding for bias scores
    */
   function getScoreColor(score) {
-    if (score < 30) return '#4CAF50'; // Green - low bias
-    if (score < 60) return '#FF9800'; // Orange - medium bias
+    if (score < 30) {return '#4CAF50';} // Green - low bias
+    if (score < 60) {return '#FF9800';} // Orange - medium bias
     return '#F44336'; // Red - high bias
   }
 

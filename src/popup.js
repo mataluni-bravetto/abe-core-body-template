@@ -1240,7 +1240,7 @@
    */
   function updateGuardServices(status) {
     const serviceStatus = document.getElementById('serviceStatus');
-    if (!serviceStatus) return;
+    if (!serviceStatus) {return;}
 
     // Handle both 'connected' and 'gateway_connected' field names for compatibility
     const isConnected =
@@ -1283,7 +1283,7 @@
       if (!data.clerk_user || !data.gateway_url) {
         // Hide subscription section if user is not authenticated or gateway not configured
         const section = document.getElementById('subscriptionSection');
-        if (section) section.style.display = 'none';
+        if (section) {section.style.display = 'none';}
         return;
       }
 
@@ -1295,13 +1295,13 @@
       } else {
         // Hide subscription section if unable to load
         const section = document.getElementById('subscriptionSection');
-        if (section) section.style.display = 'none';
+        if (section) {section.style.display = 'none';}
       }
     } catch (err) {
       Logger.error('Failed to load subscription status', err);
       // Hide subscription section on error
       const section = document.getElementById('subscriptionSection');
-      if (section) section.style.display = 'none';
+      if (section) {section.style.display = 'none';}
     }
   }
 
@@ -1316,7 +1316,7 @@
     const upgradeBtn = document.getElementById('upgradeBtn');
     const refreshBtn = document.getElementById('refreshSubscriptionBtn');
 
-    if (!section) return;
+    if (!section) {return;}
 
     // For free tier, hide the subscription card unless the user is close to limits
     const isFreeTier =

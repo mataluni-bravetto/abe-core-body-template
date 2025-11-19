@@ -75,7 +75,7 @@ class EnhancedErrorHandlingTest {
     ];
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
       
       const content = fs.readFileSync(file, 'utf8');
       
@@ -155,7 +155,7 @@ class EnhancedErrorHandlingTest {
     ];
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
       
       const content = fs.readFileSync(file, 'utf8');
       
@@ -229,7 +229,7 @@ class EnhancedErrorHandlingTest {
     ];
 
     for (const file of htmlFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
       
       const content = fs.readFileSync(file, 'utf8');
       
@@ -262,7 +262,7 @@ class EnhancedErrorHandlingTest {
     ];
 
     for (const file of jsFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
       
       const content = fs.readFileSync(file, 'utf8');
       
@@ -311,7 +311,7 @@ class EnhancedErrorHandlingTest {
     ];
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
       
       const content = fs.readFileSync(file, 'utf8');
       
@@ -390,7 +390,7 @@ class EnhancedErrorHandlingTest {
     ];
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
       
       const content = fs.readFileSync(file, 'utf8');
       
@@ -462,7 +462,7 @@ class EnhancedErrorHandlingTest {
     ];
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
       
       const content = fs.readFileSync(file, 'utf8');
       
@@ -531,7 +531,7 @@ class EnhancedErrorHandlingTest {
     ];
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
       
       const content = fs.readFileSync(file, 'utf8');
       
@@ -601,7 +601,7 @@ class EnhancedErrorHandlingTest {
     ];
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
       
       const content = fs.readFileSync(file, 'utf8');
       

@@ -958,7 +958,7 @@ class AiGuardianAuth {
    * Get user avatar URL
    */
   getUserAvatar() {
-    if (!this.user) return null;
+    if (!this.user) {return null;}
 
     // Return profile image URL or fallback to initials
     // Handle both Clerk user object and stored user object
@@ -969,7 +969,7 @@ class AiGuardianAuth {
    * Get user display name
    */
   getUserDisplayName() {
-    if (!this.user) return null;
+    if (!this.user) {return null;}
 
     // Handle both Clerk user object and stored user object
     const firstName = this.user.firstName;
@@ -1048,7 +1048,7 @@ class AiGuardianAuth {
    * Handle authentication callback
    */
   async handleCallback() {
-    if (!this.isInitialized || !this.clerk) return;
+    if (!this.isInitialized || !this.clerk) {return;}
 
     try {
       // Handle the authentication callback

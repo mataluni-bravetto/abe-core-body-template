@@ -85,13 +85,13 @@ function convertConsoleToLogger(line) {
 
   // Find the full call by matching balanced parentheses
   let parenCount = 0;
-  let startIdx = line.indexOf('console.' + method);
-  let callStart = line.indexOf('(', startIdx);
+  const startIdx = line.indexOf('console.' + method);
+  const callStart = line.indexOf('(', startIdx);
   let callEnd = -1;
 
   for (let i = callStart; i < line.length; i++) {
-    if (line[i] === '(') parenCount++;
-    if (line[i] === ')') parenCount--;
+    if (line[i] === '(') {parenCount++;}
+    if (line[i] === ')') {parenCount--;}
     if (parenCount === 0) {
       callEnd = i;
       break;

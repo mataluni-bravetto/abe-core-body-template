@@ -448,4 +448,19 @@ class ExtensionWorkflowTester {
         const result = await testFn();
         if (result !== false) {
           passedTests++;
-          console.log(`✅ Test ${i + 1} completed
+          console.log(`✅ Test ${i + 1} completed`);
+        }
+      } catch (error) {
+        console.error(`❌ Test ${i + 1} failed:`, error.message);
+      }
+    }
+
+    console.log(`\n📊 Results: ${passedTests}/${testSequence.length} tests passed`);
+    return passedTests === testSequence.length;
+  }
+}
+
+// Export for use in other test files
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = ExtensionWorkflowTester;
+}

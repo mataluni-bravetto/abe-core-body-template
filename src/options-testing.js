@@ -68,8 +68,8 @@
     const runAllBtn = document.getElementById('run_all_tests');
     const runPerfBtn = document.getElementById('run_performance_test');
 
-    if (runAllBtn) runAllBtn.disabled = !enabled;
-    if (runPerfBtn) runPerfBtn.disabled = !enabled;
+    if (runAllBtn) {runAllBtn.disabled = !enabled;}
+    if (runPerfBtn) {runPerfBtn.disabled = !enabled;}
     isRunning = !enabled;
   }
 
@@ -80,7 +80,7 @@
     const resultsDiv = document.getElementById('test_results');
     const contentDiv = document.getElementById('test_results_content');
 
-    if (!resultsDiv || !contentDiv) return;
+    if (!resultsDiv || !contentDiv) {return;}
 
     resultsDiv.classList.remove('hidden');
 
@@ -130,7 +130,7 @@
    * Run all integration tests
    */
   async function runAllTests() {
-    if (isRunning) return;
+    if (isRunning) {return;}
 
     const config = getTestConfig();
     setButtonsEnabled(false);
@@ -168,7 +168,7 @@
    * Run performance test only
    */
   async function runPerformanceTestOnly() {
-    if (isRunning) return;
+    if (isRunning) {return;}
 
     const config = getTestConfig();
     setButtonsEnabled(false);
@@ -226,8 +226,8 @@
     const resultsDiv = document.getElementById('test_results');
     const contentDiv = document.getElementById('test_results_content');
 
-    if (resultsDiv) resultsDiv.classList.add('hidden');
-    if (contentDiv) contentDiv.innerHTML = '';
+    if (resultsDiv) {resultsDiv.classList.add('hidden');}
+    if (contentDiv) {contentDiv.innerHTML = '';}
   }
 
   // Initialize when DOM is ready

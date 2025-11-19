@@ -138,7 +138,7 @@ class ChromeBestPracticesVerifier {
     };
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       const content = fs.readFileSync(file, 'utf8');
 
@@ -240,7 +240,7 @@ class ChromeBestPracticesVerifier {
     };
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       const content = fs.readFileSync(file, 'utf8');
 
@@ -302,7 +302,7 @@ class ChromeBestPracticesVerifier {
     };
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       const content = fs.readFileSync(file, 'utf8');
 
@@ -327,7 +327,7 @@ class ChromeBestPracticesVerifier {
     // Check for performance anti-patterns
     const antiPatterns = [];
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       const content = fs.readFileSync(file, 'utf8');
 
@@ -368,7 +368,7 @@ class ChromeBestPracticesVerifier {
     const cspIssues = [];
 
     for (const file of htmlFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       const content = fs.readFileSync(file, 'utf8');
 
@@ -525,7 +525,7 @@ class ChromeBestPracticesVerifier {
     };
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       const content = fs.readFileSync(file, 'utf8');
 
@@ -576,7 +576,7 @@ class ChromeBestPracticesVerifier {
     };
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       const content = fs.readFileSync(file, 'utf8');
 
@@ -625,7 +625,7 @@ class ChromeBestPracticesVerifier {
     };
 
     for (const file of htmlFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       const content = fs.readFileSync(file, 'utf8');
 

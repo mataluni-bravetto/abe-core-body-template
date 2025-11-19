@@ -64,7 +64,7 @@ class FinalSecurityFixes {
     ];
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       let content = fs.readFileSync(file, 'utf8');
 
@@ -280,7 +280,7 @@ class FinalSecurityFixes {
     ];
 
     for (const file of sourceFiles) {
-      if (!fs.existsSync(file)) continue;
+      if (!fs.existsSync(file)) {continue;}
 
       let content = fs.readFileSync(file, 'utf8');
 

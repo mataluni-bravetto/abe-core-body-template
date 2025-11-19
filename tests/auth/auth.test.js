@@ -17,7 +17,7 @@ const mockChrome = {
         callback(data);
       },
       set: (data, callback) => {
-        if (callback) callback();
+        if (callback) {callback();}
       },
     },
     local: {
@@ -35,10 +35,10 @@ const mockChrome = {
         callback(data);
       },
       set: (data, callback) => {
-        if (callback) callback();
+        if (callback) {callback();}
       },
       remove: (keys, callback) => {
-        if (callback) callback();
+        if (callback) {callback();}
       },
     },
   },
@@ -46,7 +46,7 @@ const mockChrome = {
     getURL: (path) => `chrome-extension://test-id/${path}`,
     id: 'test-extension-id',
     sendMessage: (message, callback) => {
-      if (callback) callback({ success: true, key: 'pk_test_mock_key_12345' });
+      if (callback) {callback({ success: true, key: 'pk_test_mock_key_12345' });}
     },
     onMessage: {
       addListener: () => {},
@@ -259,7 +259,7 @@ async function testSignOut() {
     chrome.storage.local.remove = (keys, callback) => {
       storageCleared = true;
       assert(keys.includes('clerk_user'), 'Removing clerk_user from storage');
-      if (callback) callback();
+      if (callback) {callback();}
     };
 
     await auth.signOut();
