@@ -20,10 +20,10 @@ class InputValidator {
     
     // Check for potentially malicious content
     const maliciousPatterns = [
-      /<script[^>]*>.*?</script>/gi,
+      /<script[^>]*>[\s\S]*?<\/script>/gi,
       /javascript:/gi,
-      /onw+s*=/gi,
-      /<iframe[^>]*>.*?</iframe>/gi
+      /on\w+\s*=/gi,
+      /<iframe[^>]*>[\s\S]*?<\/iframe>/gi
     ];
     
     for (const pattern of maliciousPatterns) {

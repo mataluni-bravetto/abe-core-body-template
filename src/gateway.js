@@ -12,11 +12,6 @@
  */
 
 class AiGuardianGateway {
-  constructor() {
-    this.isInitialized = false;
-    this._initializing = false;
-    this._initializationError = null; // SAFETY: Track initialization errors
-  }
 
   /**
    * Sanitizes request data to prevent XSS and injection attacks
@@ -218,6 +213,11 @@ class AiGuardianGateway {
   }
   
   constructor() {
+    // SAFETY: Track initialization state and errors
+    this.isInitialized = false;
+    this._initializing = false;
+    this._initializationError = null;
+    
     // Simple unified gateway configuration
     this.config = {
       gatewayUrl: DEFAULT_CONFIG.GATEWAY_URL,
