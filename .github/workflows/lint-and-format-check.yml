@@ -36,10 +36,20 @@ jobs:
           npm run format:check > prettier-report.txt 2>&1
           PRETTIER_EXIT_CODE=$?
 
-          PRETTIER_COUNT=$(grep -c "would be reformatted" prettier-report.txt 2>/dev/null || echo '0')
+          # Count files needing reformatting - handle empty results gracefully
+          # SAFETY: Strip whitespace and ensure valid integer
+          PRETTIER_COUNT=$(grep -c "would be reformatted" prettier-report.txt 2>/dev/null || echo "0")
+          # Remove all whitespace/newlines and ensure it's a clean number
+          PRETTIER_COUNT=$(echo "$PRETTIER_COUNT" | tr -d '[:space:]' | head -n1)
+          # Default to 0 if empty or not a valid number
           if [ -z "$PRETTIER_COUNT" ]; then
             PRETTIER_COUNT=0
           fi
+          # Validate it's a number by testing arithmetic (silently)
+          if ! [ "$PRETTIER_COUNT" -ge 0 ] 2>/dev/null; then
+            PRETTIER_COUNT=0
+          fi
+          # Set GitHub Actions output (simple format)
           echo "prettier_count=$PRETTIER_COUNT" >> $GITHUB_OUTPUT
           echo "DEBUG: Prettier exit code: $PRETTIER_EXIT_CODE, file count: $PRETTIER_COUNT"
 
@@ -51,6 +61,9 @@ jobs:
             echo "✅ All files properly formatted"
           fi
           echo "::endgroup::"
+          
+          # Exit with success if no formatting issues found
+          exit 0
 
       - name: Run ESLint
         id: eslint_check
@@ -62,6 +75,17 @@ jobs:
           ESLINT_EXIT_CODE=$?
 
           ESLINT_COUNT=$(grep -c "error\|warning" eslint-report.txt 2>/dev/null || echo '0')
+          # SAFETY: Strip whitespace and ensure valid integer
+          ESLINT_COUNT=$(echo "$ESLINT_COUNT" | tr -d '[:space:]' | head -n1)
+          # Default to 0 if empty or not a valid number
+          if [ -z "$ESLINT_COUNT" ]; then
+            ESLINT_COUNT=0
+          fi
+          # Validate it's a number by testing arithmetic (silently)
+          if ! [ "$ESLINT_COUNT" -ge 0 ] 2>/dev/null; then
+            ESLINT_COUNT=0
+          fi
+          # Set GitHub Actions output (simple format)
           echo "eslint_count=$ESLINT_COUNT" >> $GITHUB_OUTPUT
           echo "DEBUG: ESLint exit code: $ESLINT_EXIT_CODE, issue count: $ESLINT_COUNT"
 

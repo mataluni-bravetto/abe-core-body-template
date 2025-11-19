@@ -15,13 +15,13 @@ console.log(`Required Redirect URI: ${REQUIRED_REDIRECT_URI}\n`);
 function checkRedirectUri() {
   return new Promise((resolve) => {
     const url = new URL(REQUIRED_REDIRECT_URI);
-    
+
     const options = {
       hostname: url.hostname,
       port: 443,
       path: url.pathname,
       method: 'HEAD',
-      timeout: 5000
+      timeout: 5000,
     };
 
     const req = https.request(options, (res) => {
@@ -52,23 +52,23 @@ function checkRedirectUri() {
 
 async function main() {
   console.log('📋 Configuration Checklist:\n');
-  
+
   console.log('1. Google Cloud Console:');
   console.log('   ☐ Go to: https://console.cloud.google.com/apis/credentials');
   console.log('   ☐ Create OAuth 2.0 Client ID');
   console.log(`   ☐ Add redirect URI: ${REQUIRED_REDIRECT_URI}`);
   console.log('   ☐ Copy Client ID and Client Secret\n');
-  
+
   console.log('2. Clerk Dashboard:');
   console.log('   ☐ Go to: https://dashboard.clerk.com/');
   console.log('   ☐ Your App → User & Authentication → Social Connections');
   console.log('   ☐ Configure Google');
   console.log('   ☐ Paste Client ID and Client Secret');
   console.log('   ☐ Save\n');
-  
+
   console.log('3. Verification:');
   await checkRedirectUri();
-  
+
   console.log('\n📝 Next Steps:');
   console.log('   1. Complete the checklist above');
   console.log('   2. Try signing in with Google');
@@ -79,4 +79,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

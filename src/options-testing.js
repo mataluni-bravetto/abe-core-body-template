@@ -2,7 +2,7 @@
  * Backend Integration Testing UI for Options Page
  */
 
-(function() {
+(function () {
   let tester = null;
   let isRunning = false;
 
@@ -57,7 +57,7 @@
 
     return {
       gatewayUrl: (gatewayInput && gatewayInput.value.trim()) || 'https://api.aiguardian.ai',
-      apiKey: (apiKeyInput && apiKeyInput.value.trim()) || ''
+      apiKey: (apiKeyInput && apiKeyInput.value.trim()) || '',
     };
   }
 
@@ -90,7 +90,7 @@
       results.forEach((test) => {
         const statusClass = test.status === 'PASSED' ? 'connected' : 'disconnected';
         const statusIcon = test.status === 'PASSED' ? '✅' : '❌';
-        
+
         html += `<div style="margin: 8px 0; padding: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">`;
         html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
         html += `<span>${statusIcon} ${test.name}</span>`;
@@ -139,7 +139,8 @@
     const contentDiv = document.getElementById('test_results_content');
     if (resultsDiv && contentDiv) {
       resultsDiv.classList.remove('hidden');
-      contentDiv.innerHTML = '<div style="color: rgba(249, 249, 249, 0.8);">Running tests... Please wait.</div>';
+      contentDiv.innerHTML =
+        '<div style="color: rgba(249, 249, 249, 0.8);">Running tests... Please wait.</div>';
     }
 
     try {
@@ -176,7 +177,8 @@
     const contentDiv = document.getElementById('test_results_content');
     if (resultsDiv && contentDiv) {
       resultsDiv.classList.remove('hidden');
-      contentDiv.innerHTML = '<div style="color: rgba(249, 249, 249, 0.8);">Running performance test... Please wait.</div>';
+      contentDiv.innerHTML =
+        '<div style="color: rgba(249, 249, 249, 0.8);">Running performance test... Please wait.</div>';
     }
 
     try {
@@ -188,12 +190,12 @@
       Logger.info('Running performance test only', config);
 
       const result = await tester.testPerformance();
-      
+
       const testResult = {
         name: 'Performance Test',
         status: 'PASSED',
         result: result,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       displayTestResults([testResult]);
@@ -209,7 +211,7 @@
         name: 'Performance Test',
         status: 'FAILED',
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
       displayTestResults([testResult]);
     } finally {
@@ -223,7 +225,7 @@
   function clearTestResults() {
     const resultsDiv = document.getElementById('test_results');
     const contentDiv = document.getElementById('test_results_content');
-    
+
     if (resultsDiv) resultsDiv.classList.add('hidden');
     if (contentDiv) contentDiv.innerHTML = '';
   }
@@ -235,4 +237,3 @@
     initializeTesting();
   }
 })();
-

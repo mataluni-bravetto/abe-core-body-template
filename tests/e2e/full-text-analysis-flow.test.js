@@ -1,15 +1,15 @@
 /**
  * Full Extension E2E Test
- * 
+ *
  * Tests the complete end-to-end flow:
  * User selects text → Content script → Service worker → Gateway → Backend API → Response → UI display
- * 
+ *
  * This test uses Puppeteer to load the extension in a real Chrome browser and
  * verifies the complete user experience.
- * 
+ *
  * USAGE:
  *   node tests/e2e/full-text-analysis-flow.test.js
- * 
+ *
  * REQUIREMENTS:
  *   - Puppeteer installed
  *   - Extension built and ready to load
@@ -24,15 +24,16 @@ class FullTextAnalysisFlowTester {
   constructor(config = {}) {
     this.config = {
       extensionPath: config.extensionPath || path.resolve(__dirname, '../../'),
-      gatewayUrl: config.gatewayUrl || 
-                  (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) || 
-                  'https://api.aiguardian.ai',
+      gatewayUrl:
+        config.gatewayUrl ||
+        (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) ||
+        'https://api.aiguardian.ai',
       headless: config.headless !== undefined ? config.headless : false,
       slowMo: config.slowMo || 100,
       timeout: config.timeout || 30000,
-      ...config
+      ...config,
     };
-    
+
     this.browser = null;
     this.page = null;
     this.extensionId = null;
@@ -45,7 +46,7 @@ class FullTextAnalysisFlowTester {
    * Helper function to wait/delay (replaces deprecated waitForTimeout)
    */
   async delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -121,7 +122,7 @@ class FullTextAnalysisFlowTester {
   async launchBrowser() {
     console.log('\n🚀 Launching browser with extension...');
     console.log(`   Extension path: ${this.config.extensionPath}`);
-    
+
     this.browser = await puppeteer.launch({
       headless: this.config.headless,
       slowMo: this.config.slowMo,
@@ -129,8 +130,8 @@ class FullTextAnalysisFlowTester {
         `--disable-extensions-except=${this.config.extensionPath}`,
         `--load-extension=${this.config.extensionPath}`,
         '--disable-web-security', // Allow extension to access all URLs
-        '--disable-features=IsolateOrigins,site-per-process' // Allow extension to work on all pages
-      ]
+        '--disable-features=IsolateOrigins,site-per-process', // Allow extension to work on all pages
+      ],
     });
 
     // Wait for extension service worker to load
@@ -138,15 +139,15 @@ class FullTextAnalysisFlowTester {
       (target) => target.type() === 'service_worker',
       { timeout: 10000 }
     );
-    
+
     const partialExtensionUrl = extensionTarget.url() || '';
     this.extensionId = partialExtensionUrl.split('/')[2];
-    
+
     console.log(`✅ Extension loaded: ${this.extensionId}`);
-    
+
     // Create new page
     this.page = await this.browser.newPage();
-    
+
     // Set up network request monitoring
     this.page.on('request', (request) => {
       const url = request.url();
@@ -155,15 +156,15 @@ class FullTextAnalysisFlowTester {
           url: url,
           method: request.method(),
           timestamp: Date.now(),
-          type: 'backend_request'
+          type: 'backend_request',
         });
       }
     });
-    
+
     this.page.on('response', (response) => {
       const url = response.url();
       if (url.includes(this.config.gatewayUrl) || url.includes('api.aiguardian.ai')) {
-        const request = this.networkRequests.find(r => r.url === url);
+        const request = this.networkRequests.find((r) => r.url === url);
         if (request) {
           request.status = response.status();
           request.responseTime = Date.now() - request.timestamp;
@@ -177,17 +178,17 @@ class FullTextAnalysisFlowTester {
    */
   async setupTestPage() {
     console.log('\n📄 Setting up test page...');
-    
+
     // Create temporary HTML file
     const testHTML = this.createTestHTML();
     const testFilePath = path.join(__dirname, 'test-page.html');
     fs.writeFileSync(testFilePath, testHTML);
-    
+
     // Navigate to test page
     await this.page.goto(`file://${testFilePath}`, { waitUntil: 'networkidle0' });
-    
+
     console.log('✅ Test page loaded');
-    
+
     // Wait for content script to inject
     await this.delay(1000);
   }
@@ -197,27 +198,27 @@ class FullTextAnalysisFlowTester {
    */
   async selectText(selector) {
     console.log(`\n📝 Selecting text: ${selector}`);
-    
+
     const element = await this.page.$(selector);
     if (!element) {
       throw new Error(`Element not found: ${selector}`);
     }
-    
+
     // Get bounding box
     const box = await element.boundingBox();
     if (!box) {
       throw new Error(`Element has no bounding box: ${selector}`);
     }
-    
+
     // Simulate mouse selection
     await this.page.mouse.move(box.x + 10, box.y + 10);
     await this.page.mouse.down();
     await this.page.mouse.move(box.x + box.width - 10, box.y + box.height - 10);
     await this.page.mouse.up();
-    
+
     // Wait a bit for selection to register
     await this.delay(500);
-    
+
     console.log('✅ Text selected');
   }
 
@@ -226,13 +227,13 @@ class FullTextAnalysisFlowTester {
    */
   async checkBadgeDisplayed() {
     console.log('\n🔍 Checking for badge display...');
-    
+
     // Badge is created by content script, check if it exists
     const badgeExists = await this.page.evaluate(() => {
       const badges = document.querySelectorAll('[id^="aiguardian-badge"]');
       return badges.length > 0;
     });
-    
+
     if (badgeExists) {
       console.log('✅ Badge displayed');
       return true;
@@ -247,12 +248,12 @@ class FullTextAnalysisFlowTester {
    */
   async checkHighlightDisplayed() {
     console.log('\n🔍 Checking for text highlight...');
-    
+
     const highlightExists = await this.page.evaluate(() => {
       const highlights = document.querySelectorAll('[class*="aiguardian-highlight"]');
       return highlights.length > 0;
     });
-    
+
     if (highlightExists) {
       console.log('✅ Text highlighted');
       return true;
@@ -267,51 +268,51 @@ class FullTextAnalysisFlowTester {
    */
   async testTextAnalysisFlow(testTextSelector, testName) {
     console.log(`\n📋 Testing: ${testName}`);
-    
+
     try {
       // Clear previous network requests
       this.networkRequests = [];
-      
+
       // Select text
       await this.selectText(testTextSelector);
-      
+
       // Wait for analysis to complete (check for network request)
       let requestFound = false;
       const maxWait = 10000; // 10 seconds
       const startWait = Date.now();
-      
-      while (!requestFound && (Date.now() - startWait) < maxWait) {
+
+      while (!requestFound && Date.now() - startWait < maxWait) {
         await this.delay(500);
         requestFound = this.networkRequests.length > 0;
       }
-      
+
       if (!requestFound) {
         throw new Error('Backend request not detected - extension may not be sending requests');
       }
-      
+
       const request = this.networkRequests[0];
       console.log(`✅ Backend request detected`);
       console.log(`   URL: ${request.url}`);
       console.log(`   Method: ${request.method}`);
       console.log(`   Status: ${request.status || 'pending'}`);
-      
+
       // Wait for response
       if (request.status) {
         console.log(`   Response Time: ${request.responseTime}ms`);
-        
+
         if (request.status >= 200 && request.status < 300) {
           console.log(`✅ Backend responded successfully`);
         } else {
           console.warn(`⚠️  Backend returned status: ${request.status}`);
         }
       }
-      
+
       // Check for UI updates
       await this.delay(1000); // Wait for UI to update
-      
+
       const badgeDisplayed = await this.checkBadgeDisplayed();
       const highlightDisplayed = await this.checkHighlightDisplayed();
-      
+
       return {
         success: true,
         requestSent: true,
@@ -320,7 +321,7 @@ class FullTextAnalysisFlowTester {
         requestStatus: request.status,
         responseTime: request.responseTime,
         badgeDisplayed: badgeDisplayed,
-        highlightDisplayed: highlightDisplayed
+        highlightDisplayed: highlightDisplayed,
       };
     } catch (error) {
       console.error(`❌ ${testName}: FAILED`);
@@ -342,24 +343,24 @@ class FullTextAnalysisFlowTester {
     try {
       // Launch browser
       await this.launchBrowser();
-      
+
       // Setup test page
       await this.setupTestPage();
-      
+
       // Run tests
       const tests = [
         {
           name: 'Bias Detection Flow',
           selector: '#test-text-1',
-          description: 'Test complete flow with bias detection text'
+          description: 'Test complete flow with bias detection text',
         },
         {
           name: 'Trust Analysis Flow',
           selector: '#test-text-2',
-          description: 'Test complete flow with trust analysis text'
-        }
+          description: 'Test complete flow with trust analysis text',
+        },
       ];
-      
+
       for (const test of tests) {
         try {
           const result = await this.testTextAnalysisFlow(test.selector, test.name);
@@ -367,7 +368,7 @@ class FullTextAnalysisFlowTester {
             name: test.name,
             status: 'PASSED',
             result,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           console.log(`✅ ${test.name}: PASSED`);
         } catch (error) {
@@ -376,19 +377,18 @@ class FullTextAnalysisFlowTester {
             status: 'FAILED',
             error: error.message,
             stack: error.stack,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           console.error(`❌ ${test.name}: FAILED`);
           console.error(`   Error: ${error.message}`);
         }
-        
+
         // Wait between tests
         await this.delay(2000);
       }
-      
+
       // Generate report
       this.generateReport();
-      
     } catch (error) {
       console.error('\n💥 Test execution failed:', error);
       throw error;
@@ -400,14 +400,14 @@ class FullTextAnalysisFlowTester {
       if (this.browser) {
         await this.browser.close();
       }
-      
+
       // Clean up test HTML file
       const testFilePath = path.join(__dirname, 'test-page.html');
       if (fs.existsSync(testFilePath)) {
         fs.unlinkSync(testFilePath);
       }
     }
-    
+
     return this.testResults;
   }
 
@@ -416,11 +416,11 @@ class FullTextAnalysisFlowTester {
    */
   generateReport() {
     const totalTests = this.testResults.length;
-    const passedTests = this.testResults.filter(t => t.status === 'PASSED').length;
-    const failedTests = this.testResults.filter(t => t.status === 'FAILED').length;
+    const passedTests = this.testResults.filter((t) => t.status === 'PASSED').length;
+    const failedTests = this.testResults.filter((t) => t.status === 'FAILED').length;
     const successRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
     const duration = Date.now() - this.startTime;
-    
+
     console.log('\n' + '='.repeat(70));
     console.log('📊 FULL EXTENSION E2E TEST REPORT');
     console.log('='.repeat(70));
@@ -431,17 +431,17 @@ class FullTextAnalysisFlowTester {
     console.log(`Duration: ${duration}ms`);
     console.log(`Network Requests: ${this.networkRequests.length}`);
     console.log('='.repeat(70));
-    
+
     if (failedTests > 0) {
       console.log('\n❌ FAILED TESTS:');
       this.testResults
-        .filter(t => t.status === 'FAILED')
-        .forEach(test => {
+        .filter((t) => t.status === 'FAILED')
+        .forEach((test) => {
           console.log(`\n  ${test.name}:`);
           console.log(`    Error: ${test.error}`);
         });
     }
-    
+
     const report = {
       summary: {
         totalTests,
@@ -450,21 +450,21 @@ class FullTextAnalysisFlowTester {
         successRate: Math.round(successRate * 100) / 100,
         duration,
         networkRequests: this.networkRequests.length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       config: {
         extensionPath: this.config.extensionPath,
-        gatewayUrl: this.config.gatewayUrl
+        gatewayUrl: this.config.gatewayUrl,
       },
       networkRequests: this.networkRequests,
-      results: this.testResults
+      results: this.testResults,
     };
-    
+
     // Save report
     const reportPath = path.join(__dirname, 'full-text-analysis-flow-report.json');
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
     console.log(`\n📄 Detailed report saved to: ${reportPath}`);
-    
+
     return report;
   }
 }
@@ -473,19 +473,23 @@ class FullTextAnalysisFlowTester {
 if (require.main === module) {
   const tester = new FullTextAnalysisFlowTester({
     extensionPath: path.resolve(__dirname, '../../'),
-    gatewayUrl: (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) || 'https://api.aiguardian.ai',
+    gatewayUrl:
+      (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) ||
+      'https://api.aiguardian.ai',
     headless: process.env.HEADLESS === 'true',
-    slowMo: parseInt(process.env.SLOW_MO) || 100
+    slowMo: parseInt(process.env.SLOW_MO) || 100,
   });
-  
-  tester.runAllTests().then(results => {
-    const failed = results.filter(r => r.status === 'FAILED');
-    process.exit(failed.length > 0 ? 1 : 0);
-  }).catch(error => {
-    console.error('\n💥 Test execution failed:', error);
-    process.exit(1);
-  });
+
+  tester
+    .runAllTests()
+    .then((results) => {
+      const failed = results.filter((r) => r.status === 'FAILED');
+      process.exit(failed.length > 0 ? 1 : 0);
+    })
+    .catch((error) => {
+      console.error('\n💥 Test execution failed:', error);
+      process.exit(1);
+    });
 }
 
 module.exports = FullTextAnalysisFlowTester;
-

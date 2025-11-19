@@ -2,7 +2,7 @@
 
 /**
  * AiGuardian Chrome Extension - Packaging Script
- * 
+ *
  * Automates Chrome Web Store package creation:
  * - Validates manifest and structure
  * - Excludes development files
@@ -31,7 +31,9 @@ class ExtensionPackager {
 
     try {
       // Read version from manifest
-      const manifest = JSON.parse(fs.readFileSync(path.join(this.projectRoot, 'manifest.json'), 'utf8'));
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(this.projectRoot, 'manifest.json'), 'utf8')
+      );
       this.version = manifest.version;
 
       // Validate before packaging
@@ -73,7 +75,7 @@ class ExtensionPackager {
     }
 
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    
+
     if (manifest.manifest_version !== 3) {
       throw new Error('Must be Manifest V3');
     }
@@ -87,7 +89,7 @@ class ExtensionPackager {
       'src/service-worker.js',
       'src/content.js',
       'src/popup.html',
-      'src/popup.js'
+      'src/popup.js',
     ];
 
     for (const file of requiredFiles) {
@@ -102,7 +104,11 @@ class ExtensionPackager {
     const files = this.getAllFiles(srcDir);
     for (const file of files) {
       const content = fs.readFileSync(file, 'utf8');
-      if (content.match(/api_key\s*[:=]\s*['"][^'"]+['"]/i) && !file.includes('example') && !file.includes('test')) {
+      if (
+        content.match(/api_key\s*[:=]\s*['"][^'"]+['"]/i) &&
+        !file.includes('example') &&
+        !file.includes('test')
+      ) {
         console.warn(`⚠️  Potential API key found in: ${file}`);
       }
     }
@@ -136,7 +142,7 @@ class ExtensionPackager {
 
       // Include specific files from root
       const rootFiles = ['README.md', 'LICENSE'];
-      rootFiles.forEach(file => {
+      rootFiles.forEach((file) => {
         const filePath = path.join(this.projectRoot, file);
         if (fs.existsSync(filePath)) {
           archive.file(filePath, { name: file });
@@ -157,9 +163,9 @@ class ExtensionPackager {
           '**/.DS_Store',
           '**/package-lock.json',
           '**/npm-debug.log*',
-          '**/yarn-error.log*'
+          '**/yarn-error.log*',
         ],
-        cwd: this.projectRoot
+        cwd: this.projectRoot,
       });
 
       archive.finalize();
@@ -175,7 +181,7 @@ class ExtensionPackager {
       version: this.version,
       packaged: new Date().toISOString(),
       files: this.getIncludedFiles(),
-      size: this.getPackageSize()
+      size: this.getPackageSize(),
     };
 
     const manifestPath = path.join(this.packageDir, 'package-manifest.json');
@@ -188,18 +194,18 @@ class ExtensionPackager {
    */
   getAllFiles(dir, fileList = []) {
     const files = fs.readdirSync(dir);
-    
-    files.forEach(file => {
+
+    files.forEach((file) => {
       const filePath = path.join(dir, file);
       const stat = fs.statSync(filePath);
-      
+
       if (stat.isDirectory()) {
         this.getAllFiles(filePath, fileList);
       } else {
         fileList.push(filePath);
       }
     });
-    
+
     return fileList;
   }
 
@@ -208,18 +214,18 @@ class ExtensionPackager {
    */
   getIncludedFiles() {
     const files = [];
-    
-    ['manifest.json', 'src', 'assets'].forEach(item => {
+
+    ['manifest.json', 'src', 'assets'].forEach((item) => {
       const itemPath = path.join(this.projectRoot, item);
       if (fs.existsSync(itemPath)) {
         if (fs.statSync(itemPath).isDirectory()) {
-          files.push(...this.getAllFiles(itemPath).map(f => path.relative(this.projectRoot, f)));
+          files.push(...this.getAllFiles(itemPath).map((f) => path.relative(this.projectRoot, f)));
         } else {
           files.push(item);
         }
       }
     });
-    
+
     return files;
   }
 
@@ -242,4 +248,3 @@ if (require.main === module) {
 }
 
 module.exports = ExtensionPackager;
-

@@ -1,9 +1,9 @@
 /**
  * Authentication Pattern Validation Test
- * 
+ *
  * Validates that Clerk authentication fixes match existing codebase patterns.
  * This test ensures code consistency and adherence to established conventions.
- * 
+ *
  * Validates:
  * 1. Storage operation patterns
  * 2. Error handling patterns
@@ -25,7 +25,7 @@ const results = {
   passed: 0,
   failed: 0,
   warnings: 0,
-  tests: []
+  tests: [],
 };
 
 function test(name, condition, message) {
@@ -87,7 +87,10 @@ test(
 );
 
 // Compare with existing pattern in service-worker.js
-const serviceWorkerHasVerification = /chrome\.storage\.local\.get\(\[['"]clerk_user['"]\],\s*\(verifyData\)\s*=>/s.test(serviceWorkerCode);
+const serviceWorkerHasVerification =
+  /chrome\.storage\.local\.get\(\[['"]clerk_user['"]\],\s*\(verifyData\)\s*=>/s.test(
+    serviceWorkerCode
+  );
 test(
   'Pattern match: verifyStorage matches service-worker verification pattern',
   serviceWorkerHasVerification && /verifyStorage/s.test(authCallbackCode),
@@ -107,7 +110,8 @@ test(
 
 test(
   'auth-callback: verifyStorage resolves false on error',
-  /resolve\(false\)/s.test(authCallbackCode) && /chrome\.runtime\.lastError/s.test(authCallbackCode),
+  /resolve\(false\)/s.test(authCallbackCode) &&
+    /chrome\.runtime\.lastError/s.test(authCallbackCode),
   'Should resolve false when storage read fails'
 );
 
@@ -136,7 +140,8 @@ test(
 
 test(
   'auth-callback: Retry pattern matches gateway.js retry pattern',
-  /const\s+maxRetries\s*=\s*\d+/s.test(authCallbackCode) && /const\s+retryDelay\s*=\s*\d+/s.test(authCallbackCode),
+  /const\s+maxRetries\s*=\s*\d+/s.test(authCallbackCode) &&
+    /const\s+retryDelay\s*=\s*\d+/s.test(authCallbackCode),
   'Retry constants should match existing retry patterns'
 );
 
@@ -176,7 +181,8 @@ test(
 const hasServiceWorkerLogging = /Logger\.(info|warn|error)\(['"]\[BG\]/s.test(serviceWorkerCode);
 test(
   'Pattern match: Logging prefixes match existing patterns',
-  hasServiceWorkerLogging && /Logger\.(info|warn|error)\(['"]\[AuthCallback\]/s.test(authCallbackCode),
+  hasServiceWorkerLogging &&
+    /Logger\.(info|warn|error)\(['"]\[AuthCallback\]/s.test(authCallbackCode),
   'Logging should match [BG], [CS], [Popup] pattern'
 );
 
@@ -206,7 +212,7 @@ test(
 test(
   'auth-callback: Accesses clerk.session with await',
   /await\s+clerk\.session/s.test(authCallbackCode),
-  'Should await clerk.session (it\'s a Promise)'
+  "Should await clerk.session (it's a Promise)"
 );
 
 // Compare with existing Clerk access patterns
@@ -224,13 +230,15 @@ console.log('\n⚡ PATTERN 6: Promise Patterns');
 
 test(
   'auth-callback: storeAuthState returns Promise with resolve/reject',
-  /return\s+new\s+Promise\(\(resolve,\s*reject\)/s.test(authCallbackCode) && /storeAuthState/s.test(authCallbackCode),
+  /return\s+new\s+Promise\(\(resolve,\s*reject\)/s.test(authCallbackCode) &&
+    /storeAuthState/s.test(authCallbackCode),
   'Should return Promise with resolve/reject callbacks'
 );
 
 test(
   'auth-callback: verifyStorage returns Promise',
-  /async\s+verifyStorage\(/s.test(authCallbackCode) && /return\s+new\s+Promise\(\(resolve\)/s.test(authCallbackCode),
+  /async\s+verifyStorage\(/s.test(authCallbackCode) &&
+    /return\s+new\s+Promise\(\(resolve\)/s.test(authCallbackCode),
   'verifyStorage should be async and return Promise'
 );
 
@@ -247,13 +255,15 @@ test(
 
 test(
   'auth-callback: Handles primaryEmailAddress fallback',
-  /user\.primaryEmailAddress\?\.emailAddress\s*\|\|\s*user\.emailAddresses\?\.\[0\]\?\.emailAddress/s.test(authCallbackCode) || 
-   /primaryEmailAddress\?\.emailAddress.*emailAddresses\?\.\[0\]/s.test(authCallbackCode),
+  /user\.primaryEmailAddress\?\.emailAddress\s*\|\|\s*user\.emailAddresses\?\.\[0\]\?\.emailAddress/s.test(
+    authCallbackCode
+  ) || /primaryEmailAddress\?\.emailAddress.*emailAddresses\?\.\[0\]/s.test(authCallbackCode),
   'Should handle email address fallback pattern'
 );
 
 // Compare with auth.js user structure
-const authUserStructure = /clerk_user:\s*\{[\s\S]*id:\s*user\.id[\s\S]*email:\s*user\.primaryEmailAddress/s.test(authCode);
+const authUserStructure =
+  /clerk_user:\s*\{[\s\S]*id:\s*user\.id[\s\S]*email:\s*user\.primaryEmailAddress/s.test(authCode);
 test(
   'Pattern match: User structure matches auth.js',
   authUserStructure && /clerk_user:\s*\{[\s\S]*id:\s*user\.id/s.test(authCallbackCode),
@@ -279,7 +289,8 @@ test(
 
 test(
   'popup: Checks storage immediately on message receive',
-  /chrome\.storage\.local\.get\(\[['"]clerk_user['"]\],\s*async\s*\(data\)/s.test(popupCode) && /AUTH_CALLBACK_SUCCESS/s.test(popupCode),
+  /chrome\.storage\.local\.get\(\[['"]clerk_user['"]\],\s*async\s*\(data\)/s.test(popupCode) &&
+    /AUTH_CALLBACK_SUCCESS/s.test(popupCode),
   'Popup should check storage immediately when receiving callback success'
 );
 
@@ -314,14 +325,16 @@ console.log('\n🔗 PATTERN 10: Code Consistency');
 // Check that popup updateAuthUI checks storage first
 test(
   'popup: updateAuthUI checks storage first',
-  /chrome\.storage\.local\.get\(\[['"]clerk_user['"]\],\s*\(data\)/s.test(popupCode) && /updateAuthUI/s.test(popupCode),
+  /chrome\.storage\.local\.get\(\[['"]clerk_user['"]\],\s*\(data\)/s.test(popupCode) &&
+    /updateAuthUI/s.test(popupCode),
   'updateAuthUI should check storage first (fastest path)'
 );
 
 // Check that error messages are user-friendly
 test(
   'auth-callback: Error messages are descriptive',
-  /Authentication failed/s.test(authCallbackCode) && /no user session found/s.test(authCallbackCode),
+  /Authentication failed/s.test(authCallbackCode) &&
+    /no user session found/s.test(authCallbackCode),
   'Error messages should be descriptive and user-friendly'
 );
 
@@ -334,22 +347,23 @@ console.log(`✅ Passed: ${results.passed}`);
 console.log(`❌ Failed: ${results.failed}`);
 console.log(`⚠️  Warnings: ${results.warnings}`);
 console.log(`📈 Total: ${results.passed + results.failed + results.warnings}`);
-console.log(`🎯 Success Rate: ${((results.passed / (results.passed + results.failed)) * 100).toFixed(1)}%`);
+console.log(
+  `🎯 Success Rate: ${((results.passed / (results.passed + results.failed)) * 100).toFixed(1)}%`
+);
 
 if (results.failed > 0) {
   console.log('\n❌ Failed Tests:');
   results.tests
-    .filter(t => t.status === 'FAIL')
-    .forEach(t => console.log(`   - ${t.name}: ${t.message}`));
+    .filter((t) => t.status === 'FAIL')
+    .forEach((t) => console.log(`   - ${t.name}: ${t.message}`));
 }
 
 if (results.warnings > 0) {
   console.log('\n⚠️  Warnings:');
   results.tests
-    .filter(t => t.status === 'WARN')
-    .forEach(t => console.log(`   - ${t.name}: ${t.message}`));
+    .filter((t) => t.status === 'WARN')
+    .forEach((t) => console.log(`   - ${t.name}: ${t.message}`));
 }
 
 // Exit with appropriate code
 process.exit(results.failed > 0 ? 1 : 0);
-

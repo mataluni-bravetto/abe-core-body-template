@@ -1,6 +1,6 @@
 /**
  * AiGuardian Backend Compatibility Verification
- * 
+ *
  * This script verifies that the Chrome extension will work with the current backend
  * by analyzing API compatibility, data structures, and integration points.
  */
@@ -18,8 +18,8 @@ class BackendCompatibilityVerifier {
    */
   async runVerification() {
     console.log('🔍 Starting Backend Compatibility Verification');
-    console.log('=' .repeat(60));
-    
+    console.log('='.repeat(60));
+
     const checks = [
       { name: 'API Endpoint Compatibility', fn: this.verifyApiEndpoints },
       { name: 'Authentication Flow', fn: this.verifyAuthentication },
@@ -28,7 +28,7 @@ class BackendCompatibilityVerifier {
       { name: 'Error Handling Compatibility', fn: this.verifyErrorHandling },
       { name: 'Response Format Validation', fn: this.verifyResponseFormats },
       { name: 'Configuration Management', fn: this.verifyConfiguration },
-      { name: 'Logging Integration', fn: this.verifyLoggingIntegration }
+      { name: 'Logging Integration', fn: this.verifyLoggingIntegration },
     ];
 
     for (const check of checks) {
@@ -39,7 +39,7 @@ class BackendCompatibilityVerifier {
           name: check.name,
           status: 'COMPATIBLE',
           result,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         this.passedChecks++;
         console.log(`✅ ${check.name}: COMPATIBLE`);
@@ -48,7 +48,7 @@ class BackendCompatibilityVerifier {
           name: check.name,
           status: 'INCOMPATIBLE',
           error: error.message,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         console.error(`❌ ${check.name}: INCOMPATIBLE - ${error.message}`);
       }
@@ -65,11 +65,11 @@ class BackendCompatibilityVerifier {
   async verifyApiEndpoints() {
     // Extension expects these endpoints
     const extensionEndpoints = {
-      'analyze': 'analyze/text',
-      'health': 'health/live', 
-      'logging': 'logging',
-      'guards': 'guards',
-      'config': 'config/user'
+      analyze: 'analyze/text',
+      health: 'health/live',
+      logging: 'logging',
+      guards: 'guards',
+      config: 'config/user',
     };
 
     // Backend provides these endpoints (from OpenAPI spec)
@@ -78,32 +78,32 @@ class BackendCompatibilityVerifier {
         method: 'POST',
         path: '/api/v1/analyze/text',
         requiredFields: ['text'],
-        optionalFields: ['guards', 'options', 'metadata']
+        optionalFields: ['guards', 'options', 'metadata'],
       },
       'health/live': {
         method: 'GET',
         path: '/api/v1/health/live',
         requiredFields: [],
-        optionalFields: []
+        optionalFields: [],
       },
-      'logging': {
+      logging: {
         method: 'POST',
         path: '/api/v1/logging',
         requiredFields: ['level', 'message'],
-        optionalFields: ['metadata']
+        optionalFields: ['metadata'],
       },
-      'guards': {
+      guards: {
         method: 'GET',
         path: '/api/v1/guards',
         requiredFields: [],
-        optionalFields: []
+        optionalFields: [],
       },
       'config/user': {
         method: 'GET',
         path: '/api/v1/config/user',
         requiredFields: [],
-        optionalFields: []
-      }
+        optionalFields: [],
+      },
     };
 
     const compatibilityIssues = [];
@@ -123,7 +123,7 @@ class BackendCompatibilityVerifier {
       extensionEndpoints: Object.keys(extensionEndpoints).length,
       backendEndpoints: Object.keys(backendEndpoints).length,
       mappingCompatibility: true,
-      issues: compatibilityIssues
+      issues: compatibilityIssues,
     };
   }
 
@@ -134,12 +134,12 @@ class BackendCompatibilityVerifier {
     // Extension authentication headers
     const extensionAuth = {
       headers: {
-        'Authorization': 'Bearer ${apiKey}',
+        Authorization: 'Bearer ${apiKey}',
         'Content-Type': 'application/json',
         'X-Extension-Version': 'chrome.runtime.getManifest().version',
         'X-Request-ID': 'unique-request-id',
-        'X-Timestamp': 'ISO timestamp'
-      }
+        'X-Timestamp': 'ISO timestamp',
+      },
     };
 
     // Backend expects these headers (from OpenAPI spec)
@@ -147,12 +147,12 @@ class BackendCompatibilityVerifier {
       required: ['Authorization', 'Content-Type'],
       optional: ['X-Extension-Version', 'X-Request-ID', 'X-Timestamp'],
       authType: 'Bearer Token',
-      tokenFormat: 'JWT'
+      tokenFormat: 'JWT',
     };
 
     // Check header compatibility
-    const missingHeaders = backendAuth.required.filter(header => 
-      !Object.keys(extensionAuth.headers).includes(header)
+    const missingHeaders = backendAuth.required.filter(
+      (header) => !Object.keys(extensionAuth.headers).includes(header)
     );
 
     if (missingHeaders.length > 0) {
@@ -163,7 +163,7 @@ class BackendCompatibilityVerifier {
       authType: 'Bearer Token',
       requiredHeaders: backendAuth.required,
       optionalHeaders: backendAuth.optional,
-      compatibility: true
+      compatibility: true,
     };
   }
 
@@ -179,14 +179,14 @@ class BackendCompatibilityVerifier {
         options: {
           threshold: 'number',
           pipeline: 'string',
-          timestamp: 'ISO string'
+          timestamp: 'ISO string',
         },
         metadata: {
           source: 'string',
           url: 'string',
-          timestamp: 'ISO string'
-        }
-      }
+          timestamp: 'ISO string',
+        },
+      },
     };
 
     // Backend request structure (from OpenAPI spec)
@@ -197,14 +197,14 @@ class BackendCompatibilityVerifier {
         options: {
           threshold: 'number (0-1)',
           language: 'string',
-          context: 'string'
+          context: 'string',
         },
         metadata: {
           source: 'string',
           url: 'string',
-          timestamp: 'ISO string'
-        }
-      }
+          timestamp: 'ISO string',
+        },
+      },
     };
 
     // Extension response structure
@@ -212,20 +212,20 @@ class BackendCompatibilityVerifier {
       analysis_id: 'string',
       overall_score: 'number',
       guards: {
-        'guard_name': {
+        guard_name: {
           score: 'number',
           status: 'string',
           detected_biases: 'array',
           trust_metrics: 'object',
-          response_time_ms: 'number'
-        }
+          response_time_ms: 'number',
+        },
       },
       suggestions: 'array',
       metadata: {
         processing_time_ms: 'number',
         guards_used: 'number',
-        cache_hit: 'boolean'
-      }
+        cache_hit: 'boolean',
+      },
     };
 
     // Backend response structure (from OpenAPI spec)
@@ -235,38 +235,45 @@ class BackendCompatibilityVerifier {
       timestamp: 'ISO string',
       overall_score: 'number (0-1)',
       guards: {
-        'guard_name': {
+        guard_name: {
           score: 'number (0-1)',
           status: 'string (completed/failed/skipped)',
           detected_biases: 'array',
           trust_metrics: 'object',
-          response_time_ms: 'number'
-        }
+          response_time_ms: 'number',
+        },
       },
       suggestions: 'array of strings',
       metadata: {
         processing_time_ms: 'number',
         guards_used: 'number',
-        cache_hit: 'boolean'
-      }
+        cache_hit: 'boolean',
+      },
     };
 
     // Check structure compatibility
-    const requestCompatibility = this.compareStructures(extensionRequest.analyze, backendRequest['analyze/text']);
+    const requestCompatibility = this.compareStructures(
+      extensionRequest.analyze,
+      backendRequest['analyze/text']
+    );
     const responseCompatibility = this.compareStructures(extensionResponse, backendResponse);
 
     if (!requestCompatibility.compatible) {
-      throw new Error(`Request structure incompatibility: ${requestCompatibility.issues.join(', ')}`);
+      throw new Error(
+        `Request structure incompatibility: ${requestCompatibility.issues.join(', ')}`
+      );
     }
 
     if (!responseCompatibility.compatible) {
-      throw new Error(`Response structure incompatibility: ${responseCompatibility.issues.join(', ')}`);
+      throw new Error(
+        `Response structure incompatibility: ${responseCompatibility.issues.join(', ')}`
+      );
     }
 
     return {
       requestCompatibility: requestCompatibility,
       responseCompatibility: responseCompatibility,
-      overallCompatibility: true
+      overallCompatibility: true,
     };
   }
 
@@ -280,38 +287,38 @@ class BackendCompatibilityVerifier {
         enabled: true,
         threshold: 0.5,
         pipeline: 'bias_analysis_v2',
-        displayName: 'Bias Detection'
+        displayName: 'Bias Detection',
       },
       trustguard: {
         enabled: true,
         threshold: 0.7,
         pipeline: 'trust_analysis_v1',
-        displayName: 'Trust Analysis'
+        displayName: 'Trust Analysis',
       },
       contextguard: {
         enabled: false,
         threshold: 0.6,
         pipeline: 'context_analysis_v1',
-        displayName: 'Context Analysis'
+        displayName: 'Context Analysis',
       },
       securityguard: {
         enabled: false,
         threshold: 0.8,
         pipeline: 'security_analysis_v1',
-        displayName: 'Security Analysis'
+        displayName: 'Security Analysis',
       },
       tokenguard: {
         enabled: false,
         threshold: 0.5,
         pipeline: 'token_optimization_v1',
-        displayName: 'Token Optimization'
+        displayName: 'Token Optimization',
       },
       healthguard: {
         enabled: false,
         threshold: 0.5,
         pipeline: 'health_monitoring_v1',
-        displayName: 'Health Monitoring'
-      }
+        displayName: 'Health Monitoring',
+      },
     };
 
     // Backend guard services (from OpenAPI spec)
@@ -320,46 +327,46 @@ class BackendCompatibilityVerifier {
         name: 'biasguard',
         capabilities: ['bias_detection', 'gender_bias', 'racial_bias', 'cultural_bias'],
         threshold: 'number (0-1)',
-        status: 'healthy/degraded/unhealthy'
+        status: 'healthy/degraded/unhealthy',
       },
       trustguard: {
         name: 'trustguard',
         capabilities: ['trust_analysis', 'reliability_check', 'accuracy_verification'],
         threshold: 'number (0-1)',
-        status: 'healthy/degraded/unhealthy'
+        status: 'healthy/degraded/unhealthy',
       },
       contextguard: {
         name: 'contextguard',
         capabilities: ['context_drift_detection', 'memory_management'],
         threshold: 'number (0-1)',
-        status: 'healthy/degraded/unhealthy'
+        status: 'healthy/degraded/unhealthy',
       },
       securityguard: {
         name: 'securityguard',
         capabilities: ['security_scanning', 'threat_detection', 'vulnerability_assessment'],
         threshold: 'number (0-1)',
-        status: 'healthy/degraded/unhealthy'
+        status: 'healthy/degraded/unhealthy',
       },
       tokenguard: {
         name: 'tokenguard',
         capabilities: ['token_optimization', 'cost_reduction', 'efficiency_analysis'],
         threshold: 'number (0-1)',
-        status: 'healthy/degraded/unhealthy'
+        status: 'healthy/degraded/unhealthy',
       },
       healthguard: {
         name: 'healthguard',
         capabilities: ['system_monitoring', 'performance_metrics', 'health_checks'],
         threshold: 'number (0-1)',
-        status: 'healthy/degraded/unhealthy'
-      }
+        status: 'healthy/degraded/unhealthy',
+      },
     };
 
     // Check guard service compatibility
     const extensionGuardNames = Object.keys(extensionGuards);
     const backendGuardNames = Object.keys(backendGuards);
-    
-    const missingGuards = extensionGuardNames.filter(guard => !backendGuardNames.includes(guard));
-    const extraGuards = backendGuardNames.filter(guard => !extensionGuardNames.includes(guard));
+
+    const missingGuards = extensionGuardNames.filter((guard) => !backendGuardNames.includes(guard));
+    const extraGuards = backendGuardNames.filter((guard) => !extensionGuardNames.includes(guard));
 
     if (missingGuards.length > 0) {
       throw new Error(`Missing backend guard services: ${missingGuards.join(', ')}`);
@@ -370,7 +377,7 @@ class BackendCompatibilityVerifier {
       backendGuards: backendGuardNames.length,
       missingGuards,
       extraGuards,
-      compatibility: true
+      compatibility: true,
     };
   }
 
@@ -383,7 +390,7 @@ class BackendCompatibilityVerifier {
       retryAttempts: 3,
       retryDelay: 1000,
       timeout: 10000,
-      errorTypes: ['NetworkError', 'TimeoutError', 'ValidationError', 'AuthenticationError']
+      errorTypes: ['NetworkError', 'TimeoutError', 'ValidationError', 'AuthenticationError'],
     };
 
     // Backend error responses (from OpenAPI spec)
@@ -396,7 +403,7 @@ class BackendCompatibilityVerifier {
       429: 'Rate Limit Exceeded',
       500: 'Internal Server Error',
       502: 'Bad Gateway',
-      503: 'Service Unavailable'
+      503: 'Service Unavailable',
     };
 
     // Check error handling compatibility
@@ -411,7 +418,7 @@ class BackendCompatibilityVerifier {
       retryMechanism: true,
       timeoutHandling: true,
       errorCodeSupport: supportedErrorCodes.length,
-      compatibility: true
+      compatibility: true,
     };
   }
 
@@ -427,16 +434,16 @@ class BackendCompatibilityVerifier {
         types: {
           analysis_id: 'string',
           overall_score: 'number',
-          guards: 'object'
-        }
+          guards: 'object',
+        },
       },
       health: {
         required: ['status'],
         optional: ['version', 'timestamp', 'services'],
         types: {
-          status: 'string'
-        }
-      }
+          status: 'string',
+        },
+      },
     };
 
     // Backend response formats (from OpenAPI spec)
@@ -448,39 +455,43 @@ class BackendCompatibilityVerifier {
         overall_score: 'number (0-1)',
         guards: 'object',
         suggestions: 'array',
-        metadata: 'object'
+        metadata: 'object',
       },
       'health/live': {
         status: 'string (healthy/degraded/unhealthy)',
         version: 'string',
         timestamp: 'ISO string',
-        services: 'object'
-      }
+        services: 'object',
+      },
     };
 
     // Check response format compatibility
     const analyzeCompatibility = this.compareResponseFormats(
-      extensionValidation.analyze, 
+      extensionValidation.analyze,
       backendResponseFormats['analyze/text']
     );
-    
+
     const healthCompatibility = this.compareResponseFormats(
       extensionValidation.health,
       backendResponseFormats['health/live']
     );
 
     if (!analyzeCompatibility.compatible) {
-      throw new Error(`Analyze response format incompatibility: ${analyzeCompatibility.issues.join(', ')}`);
+      throw new Error(
+        `Analyze response format incompatibility: ${analyzeCompatibility.issues.join(', ')}`
+      );
     }
 
     if (!healthCompatibility.compatible) {
-      throw new Error(`Health response format incompatibility: ${healthCompatibility.issues.join(', ')}`);
+      throw new Error(
+        `Health response format incompatibility: ${healthCompatibility.issues.join(', ')}`
+      );
     }
 
     return {
       analyzeCompatibility,
       healthCompatibility,
-      overallCompatibility: true
+      overallCompatibility: true,
     };
   }
 
@@ -494,7 +505,7 @@ class BackendCompatibilityVerifier {
       api_key: 'string',
       guard_services: 'object',
       logging_config: 'object',
-      analysis_pipeline: 'string'
+      analysis_pipeline: 'string',
     };
 
     // Backend configuration endpoints
@@ -504,9 +515,9 @@ class BackendCompatibilityVerifier {
         response: {
           user_id: 'string (UUID)',
           guards: 'object',
-          preferences: 'object'
-        }
-      }
+          preferences: 'object',
+        },
+      },
     };
 
     // Check configuration compatibility
@@ -515,7 +526,7 @@ class BackendCompatibilityVerifier {
     return {
       extensionConfigFields: Object.keys(extensionConfig).length,
       backendConfigEndpoints: Object.keys(backendConfig).length,
-      compatibility: configCompatibility
+      compatibility: configCompatibility,
     };
   }
 
@@ -532,8 +543,8 @@ class BackendCompatibilityVerifier {
         extension_version: 'string',
         user_agent: 'string',
         analysis_id: 'string',
-        response_time: 'number'
-      }
+        response_time: 'number',
+      },
     };
 
     // Backend logging endpoint
@@ -541,7 +552,7 @@ class BackendCompatibilityVerifier {
       endpoint: '/api/v1/logging',
       method: 'POST',
       required: ['level', 'message'],
-      optional: ['metadata']
+      optional: ['metadata'],
     };
 
     // Check logging compatibility
@@ -550,7 +561,7 @@ class BackendCompatibilityVerifier {
     return {
       extensionLoggingFields: Object.keys(extensionLogging).length,
       backendLoggingEndpoint: backendLogging.endpoint,
-      compatibility: loggingCompatibility
+      compatibility: loggingCompatibility,
     };
   }
 
@@ -565,7 +576,7 @@ class BackendCompatibilityVerifier {
     const extensionFields = Object.keys(extension);
     const backendFields = Object.keys(backend);
 
-    const missingFields = extensionFields.filter(field => !backendFields.includes(field));
+    const missingFields = extensionFields.filter((field) => !backendFields.includes(field));
     if (missingFields.length > 0) {
       issues.push(`Missing backend fields: ${missingFields.join(', ')}`);
       compatible = false;
@@ -609,11 +620,11 @@ class BackendCompatibilityVerifier {
         passedChecks: this.passedChecks,
         failedChecks: this.totalChecks - this.passedChecks,
         compatibilityScore: Math.round(this.compatibilityScore * 100) / 100,
-        status: this.compatibilityScore >= 80 ? 'COMPATIBLE' : 'INCOMPATIBLE'
+        status: this.compatibilityScore >= 80 ? 'COMPATIBLE' : 'INCOMPATIBLE',
       },
       results: this.verificationResults,
       recommendations: this.generateRecommendations(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     console.log('\n' + '='.repeat(60));
@@ -624,7 +635,7 @@ class BackendCompatibilityVerifier {
     console.log(`Failed: ${this.totalChecks - this.passedChecks}`);
     console.log(`Compatibility Score: ${this.compatibilityScore.toFixed(2)}%`);
     console.log(`Status: ${report.summary.status}`);
-    
+
     if (this.compatibilityScore >= 80) {
       console.log('\n✅ CHROME EXTENSION IS COMPATIBLE WITH BACKEND');
     } else {
@@ -632,7 +643,7 @@ class BackendCompatibilityVerifier {
     }
 
     console.log('\n💡 RECOMMENDATIONS:');
-    report.recommendations.forEach(rec => {
+    report.recommendations.forEach((rec) => {
       console.log(`  - ${rec}`);
     });
 
@@ -649,7 +660,7 @@ class BackendCompatibilityVerifier {
    */
   generateRecommendations() {
     const recommendations = [];
-    
+
     if (this.compatibilityScore >= 90) {
       recommendations.push('Extension is fully compatible with backend - ready for deployment');
     } else if (this.compatibilityScore >= 80) {
@@ -658,7 +669,7 @@ class BackendCompatibilityVerifier {
       recommendations.push('Extension requires significant changes for backend compatibility');
     }
 
-    const failedChecks = this.verificationResults.filter(r => r.status === 'INCOMPATIBLE');
+    const failedChecks = this.verificationResults.filter((r) => r.status === 'INCOMPATIBLE');
     if (failedChecks.length > 0) {
       recommendations.push('Address failed compatibility checks before deployment');
     }

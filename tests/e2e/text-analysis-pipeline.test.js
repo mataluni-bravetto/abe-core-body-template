@@ -1,13 +1,13 @@
 /**
  * Text Analysis Pipeline Test
- * 
+ *
  * Tests the complete text analysis flow: gateway → backend API → response processing.
  * This test verifies that text analysis requests are properly formatted and sent to the backend,
  * and that responses are correctly parsed and validated.
- * 
+ *
  * USAGE:
  *   node tests/e2e/text-analysis-pipeline.test.js
- * 
+ *
  * ENVIRONMENT VARIABLES:
  *   AIGUARDIAN_GATEWAY_URL - Backend URL (default: https://api.aiguardian.ai)
  *   CLERK_SESSION_TOKEN - Clerk session token for authenticated requests (optional)
@@ -16,16 +16,18 @@
 class TextAnalysisPipelineTester {
   constructor(config = {}) {
     this.config = {
-      gatewayUrl: config.gatewayUrl || 
-                  (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) || 
-                  'https://api.aiguardian.ai',
-      clerkToken: config.clerkToken || 
-                  (typeof process !== 'undefined' && process.env.CLERK_SESSION_TOKEN) || 
-                  null,
+      gatewayUrl:
+        config.gatewayUrl ||
+        (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) ||
+        'https://api.aiguardian.ai',
+      clerkToken:
+        config.clerkToken ||
+        (typeof process !== 'undefined' && process.env.CLERK_SESSION_TOKEN) ||
+        null,
       timeout: config.timeout || 30000,
-      ...config
+      ...config,
     };
-    
+
     this.testResults = [];
     this.startTime = Date.now();
     this.requestId = 0;
@@ -68,19 +70,19 @@ class TextAnalysisPipelineTester {
     if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
       return AbortSignal.timeout(timeoutMs);
     }
-    
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
     }, timeoutMs);
-    
+
     const signal = controller.signal;
     if (signal.addEventListener) {
       signal.addEventListener('abort', () => {
         clearTimeout(timeoutId);
       });
     }
-    
+
     return signal;
   }
 
@@ -94,29 +96,32 @@ class TextAnalysisPipelineTester {
       'Content-Type': 'application/json',
       'X-Extension-Version': '1.0.0',
       'X-Request-ID': `test_${Date.now()}_${++this.requestId}`,
-      'X-Timestamp': new Date().toISOString()
+      'X-Timestamp': new Date().toISOString(),
     };
-    
+
     // Add authentication if available
     if (this.config.clerkToken) {
       headers['Authorization'] = `Bearer ${this.config.clerkToken}`;
     }
-    
+
     const options = {
       method,
       headers,
-      signal: this.createTimeoutSignal(this.config.timeout)
+      signal: this.createTimeoutSignal(this.config.timeout),
     };
-    
+
     if (payload && method !== 'GET') {
       options.body = JSON.stringify(payload);
     }
-    
+
     try {
       const response = await fetch(url, options);
       return response;
     } catch (error) {
-      if (error.name === 'TimeoutError' || (error.name === 'AbortError' && error.message.includes('aborted'))) {
+      if (
+        error.name === 'TimeoutError' ||
+        (error.name === 'AbortError' && error.message.includes('aborted'))
+      ) {
         throw new Error(`Request timeout after ${this.config.timeout}ms`);
       }
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
@@ -142,44 +147,44 @@ class TextAnalysisPipelineTester {
         text: text,
         contentType: options.contentType || 'text',
         scanLevel: options.scanLevel || 'standard',
-        context: options.context || 'webpage-content'
+        context: options.context || 'webpage-content',
       },
       user_id: options.user_id || null,
       session_id: analysisId,
       client_type: 'chrome',
-      client_version: '1.0.0'
+      client_version: '1.0.0',
     };
 
     try {
       const response = await this.makeRequest('POST', '/api/v1/guards/process', payload);
       const responseTime = Date.now() - startTime;
-      
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
         throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
       }
-      
+
       const result = await response.json();
-      
+
       // Validate response structure (matches backend response format)
       if (typeof result.success !== 'boolean') {
         throw new Error('Response missing success field');
       }
-      
+
       if (result.success === false) {
         throw new Error(`Backend returned error: ${result.error || 'Unknown error'}`);
       }
-      
+
       if (!result.data) {
         throw new Error('Response missing data field');
       }
-      
+
       return {
         success: true,
         data: result.data,
         processingTime: result.processing_time || 0,
         responseTime: responseTime,
-        analysisId: analysisId
+        analysisId: analysisId,
       };
     } catch (error) {
       throw error;
@@ -191,26 +196,27 @@ class TextAnalysisPipelineTester {
    */
   async testBiasGuardAnalysis() {
     const startTime = Date.now();
-    const testText = "Women are naturally better at multitasking than men. This is a scientific fact.";
-    
+    const testText =
+      'Women are naturally better at multitasking than men. This is a scientific fact.';
+
     try {
       console.log(`\n📋 Testing: Text Analysis - BiasGuard`);
       console.log(`   Text: "${testText.substring(0, 50)}..."`);
       console.log(`   Length: ${testText.length} characters`);
-      
+
       const result = await this.analyzeText(testText, {
         service_type: 'biasguard',
-        scanLevel: 'standard'
+        scanLevel: 'standard',
       });
-      
+
       const duration = Date.now() - startTime;
-      
+
       console.log(`✅ Text Analysis - BiasGuard: PASSED`);
       console.log(`   Response Time: ${result.responseTime}ms`);
       console.log(`   Backend Processing Time: ${result.processingTime}ms`);
       console.log(`   Analysis ID: ${result.analysisId}`);
       console.log(`   Has Data: ${!!result.data}`);
-      
+
       return {
         service: 'biasguard',
         success: true,
@@ -218,7 +224,7 @@ class TextAnalysisPipelineTester {
         processingTime: result.processingTime,
         hasData: !!result.data,
         dataKeys: Object.keys(result.data || {}),
-        duration: duration
+        duration: duration,
       };
     } catch (error) {
       console.error(`❌ Text Analysis - BiasGuard: FAILED`);
@@ -232,30 +238,31 @@ class TextAnalysisPipelineTester {
    */
   async testTrustGuardAnalysis() {
     const startTime = Date.now();
-    const testText = "This amazing product will revolutionize everything and make you rich overnight!";
-    
+    const testText =
+      'This amazing product will revolutionize everything and make you rich overnight!';
+
     try {
       console.log(`\n📋 Testing: Text Analysis - TrustGuard`);
       console.log(`   Text: "${testText.substring(0, 50)}..."`);
-      
+
       const result = await this.analyzeText(testText, {
         service_type: 'trustguard',
-        scanLevel: 'standard'
+        scanLevel: 'standard',
       });
-      
+
       const duration = Date.now() - startTime;
-      
+
       console.log(`✅ Text Analysis - TrustGuard: PASSED`);
       console.log(`   Response Time: ${result.responseTime}ms`);
       console.log(`   Backend Processing Time: ${result.processingTime}ms`);
-      
+
       return {
         service: 'trustguard',
         success: true,
         responseTime: result.responseTime,
         processingTime: result.processingTime,
         hasData: !!result.data,
-        duration: duration
+        duration: duration,
       };
     } catch (error) {
       console.error(`❌ Text Analysis - TrustGuard: FAILED`);
@@ -269,44 +276,52 @@ class TextAnalysisPipelineTester {
    */
   async testPayloadFormat() {
     console.log(`\n📋 Testing: Request Payload Format`);
-    
-    const testText = "This is a test text for payload validation.";
+
+    const testText = 'This is a test text for payload validation.';
     const payload = {
       service_type: 'biasguard',
       payload: {
         text: testText,
         contentType: 'text',
         scanLevel: 'standard',
-        context: 'webpage-content'
+        context: 'webpage-content',
       },
       session_id: `test_${Date.now()}`,
       client_type: 'chrome',
-      client_version: '1.0.0'
+      client_version: '1.0.0',
     };
-    
+
     // Validate payload structure matches gateway format
-    const requiredFields = ['service_type', 'payload', 'session_id', 'client_type', 'client_version'];
-    const missingFields = requiredFields.filter(field => !payload[field]);
-    
+    const requiredFields = [
+      'service_type',
+      'payload',
+      'session_id',
+      'client_type',
+      'client_version',
+    ];
+    const missingFields = requiredFields.filter((field) => !payload[field]);
+
     if (missingFields.length > 0) {
       throw new Error(`Payload missing required fields: ${missingFields.join(', ')}`);
     }
-    
+
     const payloadFields = ['text', 'contentType', 'scanLevel', 'context'];
-    const missingPayloadFields = payloadFields.filter(field => !payload.payload[field]);
-    
+    const missingPayloadFields = payloadFields.filter((field) => !payload.payload[field]);
+
     if (missingPayloadFields.length > 0) {
-      throw new Error(`Payload.payload missing required fields: ${missingPayloadFields.join(', ')}`);
+      throw new Error(
+        `Payload.payload missing required fields: ${missingPayloadFields.join(', ')}`
+      );
     }
-    
+
     console.log(`✅ Request Payload Format: PASSED`);
     console.log(`   All required fields present`);
     console.log(`   Payload structure matches gateway format`);
-    
+
     return {
       success: true,
       payloadValid: true,
-      hasAllFields: true
+      hasAllFields: true,
     };
   }
 
@@ -315,37 +330,37 @@ class TextAnalysisPipelineTester {
    */
   async testResponseParsing() {
     console.log(`\n📋 Testing: Response Parsing and Validation`);
-    
-    const testText = "This is a test for response parsing.";
-    
+
+    const testText = 'This is a test for response parsing.';
+
     try {
       const result = await this.analyzeText(testText, {
-        service_type: 'biasguard'
+        service_type: 'biasguard',
       });
-      
+
       // Validate response structure
       if (!result.success) {
         throw new Error('Response success field is false');
       }
-      
+
       if (!result.data) {
         throw new Error('Response missing data field');
       }
-      
+
       if (typeof result.responseTime !== 'number') {
         throw new Error('Response missing responseTime');
       }
-      
+
       console.log(`✅ Response Parsing and Validation: PASSED`);
       console.log(`   Response structure is valid`);
       console.log(`   Data field present: ${!!result.data}`);
       console.log(`   Response time tracked: ${result.responseTime}ms`);
-      
+
       return {
         success: true,
         responseValid: true,
         hasData: !!result.data,
-        responseTimeTracked: typeof result.responseTime === 'number'
+        responseTimeTracked: typeof result.responseTime === 'number',
       };
     } catch (error) {
       console.error(`❌ Response Parsing and Validation: FAILED`);
@@ -360,16 +375,18 @@ class TextAnalysisPipelineTester {
   async runAllTests() {
     // Try to automatically retrieve token from extension storage
     await this.initializeToken();
-    
+
     console.log('\n🚀 Starting Text Analysis Pipeline Tests');
     console.log('='.repeat(70));
     console.log(`Backend URL: ${this.config.gatewayUrl}`);
-    console.log(`Clerk Token: ${this.config.clerkToken ? '***configured***' : '⚠️  NOT SET (will test without auth)'}`);
+    console.log(
+      `Clerk Token: ${this.config.clerkToken ? '***configured***' : '⚠️  NOT SET (will test without auth)'}`
+    );
     console.log('='.repeat(70));
 
     const tests = [
       { name: 'Request Payload Format', fn: this.testPayloadFormat.bind(this) },
-      { name: 'Response Parsing', fn: this.testResponseParsing.bind(this) }
+      { name: 'Response Parsing', fn: this.testResponseParsing.bind(this) },
     ];
 
     // Only test actual analysis if Clerk token is available
@@ -391,7 +408,7 @@ class TextAnalysisPipelineTester {
           name: test.name,
           status: 'PASSED',
           result,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         this.testResults.push({
@@ -399,7 +416,7 @@ class TextAnalysisPipelineTester {
           status: 'FAILED',
           error: error.message,
           stack: error.stack,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         console.error(`❌ ${test.name}: FAILED`);
         console.error(`   Error: ${error.message}`);
@@ -415,11 +432,11 @@ class TextAnalysisPipelineTester {
    */
   generateReport() {
     const totalTests = this.testResults.length;
-    const passedTests = this.testResults.filter(t => t.status === 'PASSED').length;
-    const failedTests = this.testResults.filter(t => t.status === 'FAILED').length;
+    const passedTests = this.testResults.filter((t) => t.status === 'PASSED').length;
+    const failedTests = this.testResults.filter((t) => t.status === 'FAILED').length;
     const successRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
     const duration = Date.now() - this.startTime;
-    
+
     console.log('\n' + '='.repeat(70));
     console.log('📊 TEXT ANALYSIS PIPELINE TEST REPORT');
     console.log('='.repeat(70));
@@ -429,17 +446,17 @@ class TextAnalysisPipelineTester {
     console.log(`Success Rate: ${successRate.toFixed(1)}%`);
     console.log(`Duration: ${duration}ms`);
     console.log('='.repeat(70));
-    
+
     if (failedTests > 0) {
       console.log('\n❌ FAILED TESTS:');
       this.testResults
-        .filter(t => t.status === 'FAILED')
-        .forEach(test => {
+        .filter((t) => t.status === 'FAILED')
+        .forEach((test) => {
           console.log(`\n  ${test.name}:`);
           console.log(`    Error: ${test.error}`);
         });
     }
-    
+
     const report = {
       summary: {
         totalTests,
@@ -447,15 +464,15 @@ class TextAnalysisPipelineTester {
         failedTests,
         successRate: Math.round(successRate * 100) / 100,
         duration,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       config: {
         gatewayUrl: this.config.gatewayUrl,
-        clerkTokenConfigured: !!this.config.clerkToken
+        clerkTokenConfigured: !!this.config.clerkToken,
       },
-      results: this.testResults
+      results: this.testResults,
     };
-    
+
     // Save report if in Node.js environment
     if (typeof require !== 'undefined') {
       const fs = require('fs');
@@ -464,7 +481,7 @@ class TextAnalysisPipelineTester {
       fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
       console.log(`\n📄 Detailed report saved to: ${reportPath}`);
     }
-    
+
     return report;
   }
 }
@@ -477,23 +494,27 @@ if (typeof module !== 'undefined' && module.exports) {
 // Auto-run if executed directly in Node.js
 if (typeof require !== 'undefined' && require.main === module) {
   const tester = new TextAnalysisPipelineTester({
-    gatewayUrl: (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) || 'https://api.aiguardian.ai',
-    clerkToken: (typeof process !== 'undefined' && process.env.CLERK_SESSION_TOKEN) || null
+    gatewayUrl:
+      (typeof process !== 'undefined' && process.env.AIGUARDIAN_GATEWAY_URL) ||
+      'https://api.aiguardian.ai',
+    clerkToken: (typeof process !== 'undefined' && process.env.CLERK_SESSION_TOKEN) || null,
   });
-  
-  tester.runAllTests().then(results => {
-    const failed = results.filter(r => r.status === 'FAILED');
-    if (failed.length > 0) {
+
+  tester
+    .runAllTests()
+    .then((results) => {
+      const failed = results.filter((r) => r.status === 'FAILED');
+      if (failed.length > 0) {
+        process.exit(1);
+      }
+    })
+    .catch((error) => {
+      console.error('\n💥 Test execution failed:', error);
       process.exit(1);
-    }
-  }).catch(error => {
-    console.error('\n💥 Test execution failed:', error);
-    process.exit(1);
-  });
+    });
 }
 
 // Export for browser/extension context
 if (typeof window !== 'undefined') {
   window.TextAnalysisPipelineTester = TextAnalysisPipelineTester;
 }
-

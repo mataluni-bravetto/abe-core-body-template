@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
  * Backend Integration Test Runner
- * 
+ *
  * Simple script to run backend integration tests with proper configuration
- * 
+ *
  * Usage:
  *   node scripts/run-backend-integration-tests.js
  *   node scripts/run-backend-integration-tests.js --url http://localhost:8000
@@ -61,9 +61,10 @@ Examples:
 
 // Merge with environment variables
 const finalConfig = {
-  gatewayUrl: config.gatewayUrl || process.env.AIGUARDIAN_GATEWAY_URL || 'https://api.aiguardian.ai',
+  gatewayUrl:
+    config.gatewayUrl || process.env.AIGUARDIAN_GATEWAY_URL || 'https://api.aiguardian.ai',
   apiKey: config.apiKey || process.env.AIGUARDIAN_API_KEY || '',
-  timeout: config.timeout || 10000
+  timeout: config.timeout || 10000,
 };
 
 // Check if API key is provided
@@ -75,13 +76,13 @@ if (!finalConfig.apiKey) {
 // Run tests
 const tester = new BackendIntegrationTester(finalConfig);
 
-tester.runAllTests()
-  .then(results => {
-    const failed = results.filter(r => r.status === 'FAILED');
+tester
+  .runAllTests()
+  .then((results) => {
+    const failed = results.filter((r) => r.status === 'FAILED');
     process.exit(failed.length > 0 ? 1 : 0);
   })
-  .catch(error => {
+  .catch((error) => {
     console.error('\n💥 Test execution failed:', error);
     process.exit(1);
   });
-

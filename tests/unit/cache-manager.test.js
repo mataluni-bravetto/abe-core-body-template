@@ -8,19 +8,20 @@ if (typeof window !== 'undefined') {
     CACHE_TTL: 3600000, // 1 hour
     TIMEOUT: 5000,
     RETRY_ATTEMPTS: 2,
-    RETRY_DELAY: 1000
+    RETRY_DELAY: 1000,
   };
 
   window.Logger = {
     info: console.log,
     warn: console.warn,
-    error: console.error
+    error: console.error,
   };
 }
 
 import { testRunner } from './test-runner.js';
 
-const { test, assert, assertEqual, assertNotEqual, assertTrue, assertFalse, assertThrows } = testRunner;
+const { test, assert, assertEqual, assertNotEqual, assertTrue, assertFalse, assertThrows } =
+  testRunner;
 
 /**
  * Test Cache Manager Class
@@ -105,7 +106,7 @@ test('CacheManager cleans up expired entries', () => {
     data: { test: 'data' },
     createdAt: Date.now() - 10000,
     expiresAt: Date.now() - 5000,
-    lastAccessed: Date.now() - 5000
+    lastAccessed: Date.now() - 5000,
   });
 
   // Add valid entry
@@ -113,7 +114,7 @@ test('CacheManager cleans up expired entries', () => {
     data: { test: 'data' },
     createdAt: Date.now(),
     expiresAt: Date.now() + 10000,
-    lastAccessed: Date.now()
+    lastAccessed: Date.now(),
   });
 
   // Cleanup
@@ -168,8 +169,11 @@ test('CacheManager destroys correctly', () => {
 });
 
 // Run tests
-testRunner.run().then(results => {
-  Logger.info('[Cache Manager Tests] Completed:', results.summary);
-}).catch(error => {
-  Logger.error('[Cache Manager Tests] Failed:', error);
-});
+testRunner
+  .run()
+  .then((results) => {
+    Logger.info('[Cache Manager Tests] Completed:', results.summary);
+  })
+  .catch((error) => {
+    Logger.error('[Cache Manager Tests] Failed:', error);
+  });

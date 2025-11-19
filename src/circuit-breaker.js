@@ -1,9 +1,9 @@
 /**
  * Circuit Breaker for Chrome Extension MV3
- * 
+ *
  * Implements circuit breaker pattern to prevent infinite retries on backend failures.
  * Fails fast when backend is unavailable, reducing resource consumption.
- * 
+ *
  * States:
  * - CLOSED: Normal operation, requests pass through
  * - OPEN: Too many failures, requests fail immediately
@@ -16,7 +16,7 @@ class CircuitBreaker {
     this.failureThreshold = options.failureThreshold || 5; // Open after 5 failures
     this.resetTimeout = options.resetTimeout || 60000; // 1 minute cooldown
     this.timeout = options.timeout || 10000; // 10 second request timeout
-    
+
     // State
     this.state = 'CLOSED'; // CLOSED, OPEN, HALF_OPEN
     this.failureCount = 0;
@@ -24,19 +24,19 @@ class CircuitBreaker {
     this.nextAttempt = Date.now();
     this.lastFailureTime = null;
     this.lastSuccessTime = null;
-    
+
     // Statistics
     this.stats = {
       totalRequests: 0,
       totalFailures: 0,
       totalSuccesses: 0,
-      stateChanges: []
+      stateChanges: [],
     };
   }
 
   /**
    * Execute a function with circuit breaker protection
-   * 
+   *
    * @param {Function} fn - Async function to execute
    * @param {Object} context - Additional context for logging
    * @returns {Promise<any>} Result of the function
@@ -51,12 +51,12 @@ class CircuitBreaker {
         Logger.warn('[CircuitBreaker] Circuit OPEN - failing fast', {
           ...context,
           waitTimeSeconds: waitTime,
-          failureCount: this.failureCount
+          failureCount: this.failureCount,
         });
         this.stats.totalFailures++;
         throw new Error(`Circuit breaker is OPEN - backend unavailable. Retry in ${waitTime}s`);
       }
-      
+
       // Timeout expired - move to HALF_OPEN
       this.state = 'HALF_OPEN';
       this.failureCount = 0;
@@ -69,9 +69,9 @@ class CircuitBreaker {
       // Execute with timeout
       const result = await Promise.race([
         fn(),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Request timeout')), this.timeout)
-        )
+        ),
       ]);
 
       // Success
@@ -115,7 +115,7 @@ class CircuitBreaker {
       ...context,
       failureCount: this.failureCount,
       threshold: this.failureThreshold,
-      error: error.message
+      error: error.message,
     });
 
     if (this.state === 'HALF_OPEN') {
@@ -132,7 +132,7 @@ class CircuitBreaker {
       Logger.error('[CircuitBreaker] Circuit OPENED - too many failures', {
         ...context,
         failureCount: this.failureCount,
-        threshold: this.failureThreshold
+        threshold: this.failureThreshold,
       });
     }
   }
@@ -145,7 +145,7 @@ class CircuitBreaker {
       transition,
       reason,
       timestamp: new Date().toISOString(),
-      failureCount: this.failureCount
+      failureCount: this.failureCount,
     });
   }
 
@@ -159,7 +159,7 @@ class CircuitBreaker {
       nextAttempt: this.nextAttempt,
       lastFailureTime: this.lastFailureTime,
       lastSuccessTime: this.lastSuccessTime,
-      stats: { ...this.stats }
+      stats: { ...this.stats },
     };
   }
 
@@ -202,4 +202,3 @@ if (typeof window !== 'undefined') {
   window.CircuitBreaker = CircuitBreaker;
 }
 // In service worker context, available globally via importScripts
-

@@ -1,9 +1,9 @@
 /**
  * Constants for AiGuardian Chrome Extension
- * 
+ *
  * This module centralizes all configuration constants to improve maintainability
  * and reduce hardcoded values throughout the codebase.
- * 
+ *
  * Note: Using global variables instead of ES6 exports for Chrome extension compatibility
  */
 
@@ -15,7 +15,7 @@ const TEXT_ANALYSIS = {
   MAX_SELECTION_LENGTH: 5000,
   MAX_TEXT_LENGTH: 10000,
   DEBOUNCE_DELAY: 300,
-  BADGE_DISPLAY_TIME: 3000
+  BADGE_DISPLAY_TIME: 3000,
 };
 
 /**
@@ -26,7 +26,7 @@ const API_CONFIG = {
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
   MAX_REQUEST_SIZE: 10000,
-  CACHE_TTL: 30000 // 30 seconds
+  CACHE_TTL: 30000, // 30 seconds
 };
 
 /**
@@ -36,7 +36,7 @@ const SECURITY = {
   MAX_API_KEY_LENGTH: 200,
   MIN_API_KEY_LENGTH: 10,
   MAX_STRING_LENGTH: 1000,
-  MAX_PAYLOAD_LENGTH: 100
+  MAX_PAYLOAD_LENGTH: 100,
 };
 
 /**
@@ -45,7 +45,7 @@ const SECURITY = {
 const UI = {
   BADGE_DISPLAY_TIME: 3000,
   LOADING_TIMEOUT: 5000,
-  ANIMATION_DURATION: 300
+  ANIMATION_DURATION: 300,
 };
 
 /**
@@ -57,7 +57,7 @@ const ERROR_MESSAGES = {
   ANALYSIS_FAILED: 'Analysis failed',
   CONNECTION_FAILED: 'Connection to backend failed',
   INVALID_API_KEY: 'Invalid API key format',
-  TIMEOUT_ERROR: 'Request timed out'
+  TIMEOUT_ERROR: 'Request timed out',
 };
 
 /**
@@ -66,7 +66,7 @@ const ERROR_MESSAGES = {
 const SUCCESS_MESSAGES = {
   ANALYSIS_COMPLETE: 'Analysis complete',
   CONNECTION_SUCCESS: 'Connected to backend',
-  CONFIG_SAVED: 'Configuration saved'
+  CONFIG_SAVED: 'Configuration saved',
 };
 
 /**
@@ -76,7 +76,7 @@ const SUCCESS_MESSAGES = {
 // or when a special chrome.storage flag is present (see options.js for overrides).
 // Note: process.env.NODE_ENV may be undefined in MV3 runtime; we guard access defensively.
 // This flag is intentionally simple and is used only for gating developer-facing UI, not logic.
-const SHOW_DEV_UI = (function() {
+const SHOW_DEV_UI = (function () {
   try {
     if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development') {
       return true;
@@ -123,54 +123,54 @@ const DEFAULT_CONFIG = {
   GATEWAY_URL: 'https://api.aiguardian.ai',
   // For internal/testing: 'https://api.internal.aiguardian.ai'
   // For local development: 'http://localhost:8000'
-  
+
   // Clerk Publishable Key - Hardcoded fallback (safe to expose, publishable keys are public)
   // This is used if backend API doesn't return it and user hasn't configured manually
   CLERK_PUBLISHABLE_KEY: 'pk_test_ZmFjdHVhbC1oYXJlLTMuY2xlcmsuYWNjb3VudHMuZGV2JA',
-  
+
   API_KEY: '', // User must configure via extension options
   SERVICE_ENABLED: true,
   LOGGING_CONFIG: {
     level: 'info',
     enable_central_logging: true,
-    enable_local_logging: true
+    enable_local_logging: true,
   },
   ANALYSIS_PIPELINE: 'unified', // Uses /api/v1/guards/process endpoint
-  
+
   // Guard Services Configuration
   // Maps to backend guard services: TokenGuard, TrustGuard, ContextGuard, BiasGuard, HealthGuard
   GUARD_SERVICES: {
     // BiasGuard (Port 8004) - Bias detection and content analysis
-    biasguard: { 
-      enabled: true, 
+    biasguard: {
+      enabled: true,
       threshold: 0.5,
-      service_type: 'biasguard'
+      service_type: 'biasguard',
     },
     // TrustGuard (Port 8002) - Trust validation and reliability
-    trustguard: { 
-      enabled: true, 
+    trustguard: {
+      enabled: true,
       threshold: 0.7,
-      service_type: 'trustguard'
+      service_type: 'trustguard',
     },
     // ContextGuard (Port 8003) - Context drift detection
-    contextguard: { 
-      enabled: true, 
+    contextguard: {
+      enabled: true,
       threshold: 0.6,
-      service_type: 'contextguard'
+      service_type: 'contextguard',
     },
     // TokenGuard (Port 8001) - Token optimization
-    tokenguard: { 
-      enabled: false, 
+    tokenguard: {
+      enabled: false,
       threshold: 0.5,
-      service_type: 'tokenguard'
+      service_type: 'tokenguard',
     },
     // HealthGuard (Port 8006) - Health monitoring and validation
-    healthguard: { 
-      enabled: false, 
+    healthguard: {
+      enabled: false,
       threshold: 0.8,
-      service_type: 'healthguard'
-    }
-  }
+      service_type: 'healthguard',
+    },
+  },
 };
 
 /**
@@ -184,7 +184,7 @@ const HTTP_STATUS = {
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   INTERNAL_SERVER_ERROR: 500,
-  SERVICE_UNAVAILABLE: 503
+  SERVICE_UNAVAILABLE: 503,
 };
 
 /**
@@ -195,7 +195,7 @@ const LOG_LEVELS = {
   WARN: 'warn',
   INFO: 'info',
   DEBUG: 'debug',
-  TRACE: 'trace'
+  TRACE: 'trace',
 };
 
 /**
@@ -205,7 +205,7 @@ const ANALYSIS_TYPES = {
   BIAS_DETECTION: 'bias_detection',
   TOXICITY_DETECTION: 'toxicity_detection',
   SENTIMENT_ANALYSIS: 'sentiment_analysis',
-  FACT_CHECKING: 'fact_checking'
+  FACT_CHECKING: 'fact_checking',
 };
 
 /**
@@ -219,6 +219,5 @@ const EVENT_TYPES = {
   UPDATE_CENTRAL_CONFIG: 'UPDATE_CENTRAL_CONFIG',
   GET_DIAGNOSTICS: 'GET_DIAGNOSTICS',
   GET_TRACE_STATS: 'GET_TRACE_STATS',
-  TEST_GATEWAY_CONNECTION: 'TEST_GATEWAY_CONNECTION'
+  TEST_GATEWAY_CONNECTION: 'TEST_GATEWAY_CONNECTION',
 };
-

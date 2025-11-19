@@ -2,12 +2,12 @@
 
 /**
  * Console Log Replacement Script
- * 
+ *
  * Replaces console.log/error/warn/debug with Logger calls
- * 
+ *
  * USAGE:
  *   node scripts/replace-console-logs.js [--dry-run] [--backup]
- * 
+ *
  * OPTIONS:
  *   --dry-run    Show what would be changed without making changes
  *   --backup     Create backup files before modifying
@@ -22,21 +22,15 @@ const CREATE_BACKUP = process.argv.includes('--backup') || !DRY_RUN;
 
 // Mapping of console methods to Logger methods
 const CONSOLE_TO_LOGGER = {
-  'console.log': 'Logger.info',    // Default to info
+  'console.log': 'Logger.info', // Default to info
   'console.error': 'Logger.error',
   'console.warn': 'Logger.warn',
   'console.debug': 'Logger.debug',
-  'console.info': 'Logger.info'
+  'console.info': 'Logger.info',
 };
 
 // Patterns to detect debug vs info logs
-const DEBUG_PATTERNS = [
-  /\[DEBUG\]/i,
-  /debug/i,
-  /tracing/i,
-  /trace/i,
-  /verbose/i
-];
+const DEBUG_PATTERNS = [/\[DEBUG\]/i, /debug/i, /tracing/i, /trace/i, /verbose/i];
 
 const INFO_PATTERNS = [
   /\[INFO\]/i,
@@ -44,7 +38,7 @@ const INFO_PATTERNS = [
   /completed/i,
   /initialized/i,
   /attached/i,
-  /found/i
+  /found/i,
 ];
 
 /**
@@ -52,17 +46,17 @@ const INFO_PATTERNS = [
  */
 function determineLogLevel(message) {
   const msgStr = message.toLowerCase();
-  
+
   // Check for debug patterns first
-  if (DEBUG_PATTERNS.some(pattern => pattern.test(msgStr))) {
+  if (DEBUG_PATTERNS.some((pattern) => pattern.test(msgStr))) {
     return 'Logger.debug';
   }
-  
+
   // Check for info patterns
-  if (INFO_PATTERNS.some(pattern => pattern.test(msgStr))) {
+  if (INFO_PATTERNS.some((pattern) => pattern.test(msgStr))) {
     return 'Logger.info';
   }
-  
+
   // Default to info
   return 'Logger.info';
 }
@@ -73,28 +67,28 @@ function determineLogLevel(message) {
 function convertConsoleToLogger(line) {
   // Match console.method(...) patterns
   // Handle: console.log("msg"), console.error("msg", err), console.warn("msg", data)
-  
+
   // Pattern to match console.method( with balanced parentheses
   const consolePattern = /console\.(log|error|warn|debug|info)\s*\(/;
-  
+
   if (!consolePattern.test(line)) {
     return null;
   }
-  
+
   // Find the method
   const methodMatch = line.match(/console\.(log|error|warn|debug|info)/);
   if (!methodMatch) {
     return null;
   }
-  
+
   const method = methodMatch[1];
-  
+
   // Find the full call by matching balanced parentheses
   let parenCount = 0;
   let startIdx = line.indexOf('console.' + method);
   let callStart = line.indexOf('(', startIdx);
   let callEnd = -1;
-  
+
   for (let i = callStart; i < line.length; i++) {
     if (line[i] === '(') parenCount++;
     if (line[i] === ')') parenCount--;
@@ -103,15 +97,15 @@ function convertConsoleToLogger(line) {
       break;
     }
   }
-  
+
   if (callEnd === -1) {
     return null; // Unbalanced parentheses
   }
-  
+
   // Extract the full call
   const fullCall = line.substring(startIdx, callEnd + 1);
   const argsPart = line.substring(callStart + 1, callEnd);
-  
+
   // Determine Logger method
   let loggerMethod;
   if (method === 'log') {
@@ -126,10 +120,10 @@ function convertConsoleToLogger(line) {
   } else {
     loggerMethod = CONSOLE_TO_LOGGER[`console.${method}`];
   }
-  
+
   // Build replacement - preserve all arguments
   const replacement = fullCall.replace(`console.${method}(`, `${loggerMethod}(`);
-  
+
   // Replace in the line
   return line.substring(0, startIdx) + replacement + line.substring(callEnd + 1);
 }
@@ -141,40 +135,44 @@ function processFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split('\n');
   const changes = [];
-  
+
   const newLines = lines.map((line, index) => {
     // Skip if already using Logger
     if (line.includes('Logger.') && !line.includes('console.')) {
       return line;
     }
-    
+
     // Skip vendor files (like clerk.js) and logging.js (it defines Logger)
     if (filePath.includes('vendor/') || filePath.includes('logging.js')) {
       return line;
     }
-    
+
     // Check for console methods
-    if (line.includes('console.log') || line.includes('console.error') || 
-        line.includes('console.warn') || line.includes('console.debug') || 
-        line.includes('console.info')) {
+    if (
+      line.includes('console.log') ||
+      line.includes('console.error') ||
+      line.includes('console.warn') ||
+      line.includes('console.debug') ||
+      line.includes('console.info')
+    ) {
       const converted = convertConsoleToLogger(line);
       if (converted && converted !== line) {
         changes.push({
           line: index + 1,
           original: line.trim(),
-          replacement: converted.trim()
+          replacement: converted.trim(),
         });
         return converted;
       }
     }
-    
+
     return line;
   });
-  
+
   return {
     hasChanges: changes.length > 0,
     changes: changes,
-    newContent: newLines.join('\n')
+    newContent: newLines.join('\n'),
   };
 }
 
@@ -183,7 +181,7 @@ function processFile(filePath) {
  */
 function main() {
   console.log('🔍 Scanning for console statements...\n');
-  
+
   // Find all JS files in src/
   const files = [];
   function walkDir(dir) {
@@ -200,23 +198,23 @@ function main() {
       }
     }
   }
-  
+
   walkDir(SRC_DIR);
-  
+
   console.log(`Found ${files.length} JavaScript files\n`);
-  
+
   const results = [];
   let totalChanges = 0;
-  
+
   for (const file of files) {
     const result = processFile(file);
     if (result.hasChanges) {
       results.push({
         file: path.relative(SRC_DIR, file),
-        changes: result.changes
+        changes: result.changes,
       });
       totalChanges += result.changes.length;
-      
+
       if (!DRY_RUN) {
         // Create backup if requested
         if (CREATE_BACKUP) {
@@ -224,14 +222,16 @@ function main() {
           fs.copyFileSync(file, backupPath);
           console.log(`📦 Backup created: ${backupPath}`);
         }
-        
+
         // Write new content
         fs.writeFileSync(file, result.newContent, 'utf8');
-        console.log(`✅ Updated: ${path.relative(SRC_DIR, file)} (${result.changes.length} changes)`);
+        console.log(
+          `✅ Updated: ${path.relative(SRC_DIR, file)} (${result.changes.length} changes)`
+        );
       }
     }
   }
-  
+
   // Print summary
   console.log('\n' + '='.repeat(70));
   console.log('SUMMARY');
@@ -239,17 +239,17 @@ function main() {
   console.log(`Files processed: ${files.length}`);
   console.log(`Files with changes: ${results.length}`);
   console.log(`Total changes: ${totalChanges}`);
-  
+
   if (DRY_RUN) {
     console.log('\n⚠️  DRY RUN MODE - No files were modified');
     console.log('Run without --dry-run to apply changes\n');
-    
+
     // Show sample changes
     if (results.length > 0) {
       console.log('\nSample changes:');
       const sample = results[0];
       console.log(`\nFile: ${sample.file}`);
-      sample.changes.slice(0, 3).forEach(change => {
+      sample.changes.slice(0, 3).forEach((change) => {
         console.log(`  Line ${change.line}:`);
         console.log(`    - ${change.original}`);
         console.log(`    + ${change.replacement}`);
@@ -265,11 +265,11 @@ function main() {
       console.log('   You can delete them after verifying changes\n');
     }
   }
-  
+
   // List all files with changes
   if (results.length > 0) {
     console.log('\nFiles modified:');
-    results.forEach(result => {
+    results.forEach((result) => {
       console.log(`  - ${result.file}: ${result.changes.length} changes`);
     });
   }
@@ -287,4 +287,3 @@ if (require.main === module) {
 }
 
 module.exports = { processFile, convertConsoleToLogger };
-

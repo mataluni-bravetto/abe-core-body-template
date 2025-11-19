@@ -1,6 +1,6 @@
 /**
  * Security Enhancements for AiGuardian Chrome Extension
- * 
+ *
  * This script applies additional security measures to address
  * identified vulnerabilities and improve overall security.
  */
@@ -17,8 +17,8 @@ class SecurityEnhancer {
    */
   async applySecurityEnhancements() {
     console.log('🔒 Applying Security Enhancements');
-    console.log('=' .repeat(60));
-    
+    console.log('='.repeat(60));
+
     const enhancements = [
       { name: 'Add Input Validation', fn: this.addInputValidation },
       { name: 'Enhance Message Validation', fn: this.enhanceMessageValidation },
@@ -27,7 +27,7 @@ class SecurityEnhancer {
       { name: 'Add Data Encryption', fn: this.addDataEncryption },
       { name: 'Enhance CSP', fn: this.enhanceCSP },
       { name: 'Add Rate Limiting', fn: this.addRateLimiting },
-      { name: 'Add Request Validation', fn: this.addRequestValidation }
+      { name: 'Add Request Validation', fn: this.addRequestValidation },
     ];
 
     for (const enhancement of enhancements) {
@@ -37,7 +37,7 @@ class SecurityEnhancer {
         this.enhancements.push({
           name: enhancement.name,
           status: 'APPLIED',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         console.log(`✅ ${enhancement.name}: APPLIED`);
       } catch (error) {
@@ -45,7 +45,7 @@ class SecurityEnhancer {
           name: enhancement.name,
           status: 'FAILED',
           error: error.message,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         console.error(`❌ ${enhancement.name}: FAILED - ${error.message}`);
       }
@@ -189,7 +189,7 @@ if (typeof module !== 'undefined' && module.exports) {
   async enhanceMessageValidation() {
     // Read service_worker.js and add enhanced message validation
     let backgroundContent = fs.readFileSync('src/service_worker.js', 'utf8');
-    
+
     // Add message validation function
     const messageValidationCode = `
   /**
@@ -239,15 +239,19 @@ if (typeof module !== 'undefined' && module.exports) {
     // Insert the validation function before the message listener
     const insertPoint = backgroundContent.indexOf('chrome.runtime.onMessage.addListener');
     if (insertPoint !== -1) {
-      backgroundContent = backgroundContent.slice(0, insertPoint) + messageValidationCode + '\n\n  ' + backgroundContent.slice(insertPoint);
+      backgroundContent =
+        backgroundContent.slice(0, insertPoint) +
+        messageValidationCode +
+        '\n\n  ' +
+        backgroundContent.slice(insertPoint);
     }
-    
+
     // Update message listener to use validation
     backgroundContent = backgroundContent.replace(
       'chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {',
-      'chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {\n    try {\n      validateMessage(message, sender);\n    } catch (error) {\n      console.error(\'[BG] Message validation failed:\', error.message);\n      sendResponse({ success: false, error: error.message });\n      return;\n    }'
+      "chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {\n    try {\n      validateMessage(message, sender);\n    } catch (error) {\n      console.error('[BG] Message validation failed:', error.message);\n      sendResponse({ success: false, error: error.message });\n      return;\n    }"
     );
-    
+
     fs.writeFileSync('src/service_worker.js', backgroundContent);
   }
 
@@ -257,7 +261,7 @@ if (typeof module !== 'undefined' && module.exports) {
   async addOriginValidation() {
     // Read service_worker.js and add origin validation
     let backgroundContent = fs.readFileSync('src/service_worker.js', 'utf8');
-    
+
     // Add origin validation function
     const originValidationCode = `
   /**
@@ -292,15 +296,19 @@ if (typeof module !== 'undefined' && module.exports) {
     // Insert the validation function
     const insertPoint = backgroundContent.indexOf('function validateMessage');
     if (insertPoint !== -1) {
-      backgroundContent = backgroundContent.slice(0, insertPoint) + originValidationCode + '\n\n  ' + backgroundContent.slice(insertPoint);
+      backgroundContent =
+        backgroundContent.slice(0, insertPoint) +
+        originValidationCode +
+        '\n\n  ' +
+        backgroundContent.slice(insertPoint);
     }
-    
+
     // Update message listener to use origin validation
     backgroundContent = backgroundContent.replace(
       'validateMessage(message, sender);',
       'validateMessage(message, sender);\n      validateOrigin(sender);'
     );
-    
+
     fs.writeFileSync('src/service_worker.js', backgroundContent);
   }
 
@@ -310,7 +318,7 @@ if (typeof module !== 'undefined' && module.exports) {
   async improveErrorHandling() {
     // Read gateway.js and enhance error handling
     let gatewayContent = fs.readFileSync('src/gateway.js', 'utf8');
-    
+
     // Add comprehensive error handling
     const errorHandlingCode = `
   /**
@@ -351,10 +359,14 @@ if (typeof module !== 'undefined' && module.exports) {
     if (insertPoint !== -1) {
       const classStart = gatewayContent.indexOf('{', insertPoint);
       if (classStart !== -1) {
-        gatewayContent = gatewayContent.slice(0, classStart + 1) + errorHandlingCode + '\n  ' + gatewayContent.slice(classStart + 1);
+        gatewayContent =
+          gatewayContent.slice(0, classStart + 1) +
+          errorHandlingCode +
+          '\n  ' +
+          gatewayContent.slice(classStart + 1);
       }
     }
-    
+
     fs.writeFileSync('src/gateway.js', gatewayContent);
   }
 
@@ -445,12 +457,12 @@ if (typeof module !== 'undefined' && module.exports) {
   async enhanceCSP() {
     // Read manifest.json and enhance CSP
     const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
-    
+
     // Enhanced CSP
     manifest.content_security_policy = {
-      "extension_pages": "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self';"
+      extension_pages: "script-src 'self'; object-src 'self'; base-uri 'self'; form-action 'self';",
     };
-    
+
     fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2));
   }
 
@@ -539,7 +551,7 @@ if (typeof module !== 'undefined' && module.exports) {
   async addRequestValidation() {
     // Read gateway.js and add request validation
     let gatewayContent = fs.readFileSync('src/gateway.js', 'utf8');
-    
+
     // Add request validation function
     const requestValidationCode = `
   /**
@@ -599,16 +611,20 @@ if (typeof module !== 'undefined' && module.exports) {
     if (insertPoint !== -1) {
       const classStart = gatewayContent.indexOf('{', insertPoint);
       if (classStart !== -1) {
-        gatewayContent = gatewayContent.slice(0, classStart + 1) + requestValidationCode + '\n  ' + gatewayContent.slice(classStart + 1);
+        gatewayContent =
+          gatewayContent.slice(0, classStart + 1) +
+          requestValidationCode +
+          '\n  ' +
+          gatewayContent.slice(classStart + 1);
       }
     }
-    
+
     // Update sendToGateway to use validation
     gatewayContent = gatewayContent.replace(
       'async sendToGateway(endpoint, payload) {',
       'async sendToGateway(endpoint, payload) {\n    try {\n      this.validateRequest(endpoint, payload);\n    } catch (error) {\n      this.handleError(error, { endpoint, payload });\n      throw error;\n    }'
     );
-    
+
     fs.writeFileSync('src/gateway.js', gatewayContent);
   }
 
@@ -617,18 +633,18 @@ if (typeof module !== 'undefined' && module.exports) {
    */
   generateEnhancementReport() {
     const totalEnhancements = this.enhancements.length;
-    const appliedEnhancements = this.enhancements.filter(e => e.status === 'APPLIED').length;
-    const failedEnhancements = this.enhancements.filter(e => e.status === 'FAILED').length;
-    
+    const appliedEnhancements = this.enhancements.filter((e) => e.status === 'APPLIED').length;
+    const failedEnhancements = this.enhancements.filter((e) => e.status === 'FAILED').length;
+
     const report = {
       summary: {
         totalEnhancements,
         appliedEnhancements,
         failedEnhancements,
-        successRate: (appliedEnhancements / totalEnhancements) * 100
+        successRate: (appliedEnhancements / totalEnhancements) * 100,
       },
       enhancements: this.enhancements,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     console.log('\n' + '='.repeat(60));
@@ -638,7 +654,7 @@ if (typeof module !== 'undefined' && module.exports) {
     console.log(`Applied: ${appliedEnhancements}`);
     console.log(`Failed: ${failedEnhancements}`);
     console.log(`Success Rate: ${report.summary.successRate.toFixed(2)}%`);
-    
+
     // Save report
     fs.writeFileSync('security-enhancement-report.json', JSON.stringify(report, null, 2));
     console.log('\n📄 Enhancement report saved to: security-enhancement-report.json');
