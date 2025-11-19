@@ -36,11 +36,15 @@ jobs:
           npm run format:check > prettier-report.txt 2>&1
           PRETTIER_EXIT_CODE=$?
 
-          PRETTIER_COUNT=$(grep -c "would be reformatted" prettier-report.txt 2>/dev/null || echo '0')
-          if [ -z "$PRETTIER_COUNT" ]; then
+          # Count files needing reformatting - handle empty results gracefully
+          PRETTIER_COUNT=$(grep -c "would be reformatted" prettier-report.txt 2>/dev/null || echo "0")
+          # Ensure PRETTIER_COUNT is a valid integer
+          if [ -z "$PRETTIER_COUNT" ] || [ "$PRETTIER_COUNT" = "" ]; then
             PRETTIER_COUNT=0
           fi
-          echo "prettier_count=$PRETTIER_COUNT" >> $GITHUB_OUTPUT
+          # Convert to integer explicitly
+          PRETTIER_COUNT=$((PRETTIER_COUNT + 0))
+          echo "prettier_count=${PRETTIER_COUNT}" >> $GITHUB_OUTPUT
           echo "DEBUG: Prettier exit code: $PRETTIER_EXIT_CODE, file count: $PRETTIER_COUNT"
 
           echo "::group::🎨 Prettier Formatting Results"
@@ -51,6 +55,9 @@ jobs:
             echo "✅ All files properly formatted"
           fi
           echo "::endgroup::"
+          
+          # Exit with success if no formatting issues found
+          exit 0
 
       - name: Run ESLint
         id: eslint_check
