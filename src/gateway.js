@@ -1233,7 +1233,7 @@ class AiGuardianGateway {
         scoreSource = 'default (0)';
       }
 
-      // Clamp score into [0, 1] if it looks like a 0-1 value; ignore NaN
+      // Final validation and clamping
       if (typeof score === 'number' && !Number.isNaN(score)) {
         if (score < 0) {score = 0;}
         if (score > 1) {score = 1;}
@@ -1245,19 +1245,6 @@ class AiGuardianGateway {
         });
         score = 0;
         scoreSource = 'default (invalid)';
-      }
-      
-      // Final validation and clamping
-      if (typeof score === 'number' && !Number.isNaN(score)) {
-        if (score < 0) {score = 0;}
-        if (score > 1) {score = 1;}
-      } else {
-        Logger.warn('[Gateway] Final score validation failed, defaulting to 0', {
-          scoreType: typeof score,
-          isNaN: Number.isNaN(score),
-          scoreValue: score,
-        });
-        score = 0;
       }
       
       Logger.info('[Gateway] ✅ Final extracted score:', {
