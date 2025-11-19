@@ -114,12 +114,13 @@ npm test
 
 ## 📚 Documentation
 
+- **[Status](docs/STATUS.md)** - Current extension status and integration verification
 - **[SDK Documentation](sdk/README.md)** - Complete SDK API reference
 - **[Developer Guide](docs/guides/DEVELOPER_GUIDE.md)** - Extension development guide
 - **[Architecture](docs/architecture/ARCHITECTURE.md)** - System architecture
 - **[User Guide](docs/guides/USER_GUIDE.md)** - End-user documentation
 - **[Troubleshooting](docs/guides/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Auth Fixes](docs/technical/AUTH_FIXES.md)** - Authentication fixes and debugging
+- **[OAuth Configuration](docs/guides/OAUTH_CONFIGURATION.md)** - Authentication setup
 
 ## 🤝 Support
 

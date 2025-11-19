@@ -105,17 +105,17 @@
   function initializePopup() {
     Logger.info('Initializing AiGuardian popup');
 
-    // Hide developer-only auth UI in production unless SHOW_DEV_UI is enabled
+    // Auth section should ALWAYS be visible - users need to sign in
+    // Don't hide auth UI - it's required for production functionality
     try {
-      const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
-      if (!isDevUI) {
-        const authSection = document.getElementById('authSection');
-        if (authSection) {
-          authSection.style.display = 'none';
-        }
+      const authSection = document.getElementById('authSection');
+      if (authSection) {
+        // Ensure auth section is visible
+        authSection.style.display = '';
+        Logger.info('[Popup] Auth section visible');
       }
     } catch (e) {
-      Logger.warn('[Popup] Failed to apply dev UI flag', e);
+      Logger.warn('[Popup] Failed to ensure auth section visibility', e);
     }
 
     // Always show main content container so public users still see status/analysis UI
@@ -636,8 +636,7 @@
       return;
     }
 
-    // If dev UI is disabled, do not show any auth controls at all
-    const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
+    // Auth UI should ALWAYS be visible - users need to sign in
     const userProfile = document.getElementById('userProfile');
     const authButtons = document.getElementById('authButtons');
     const userAvatar = document.getElementById('userAvatar');
@@ -654,15 +653,6 @@
     } else {
       // Clear OAuth error if user is authenticated
       await clearOAuthError();
-    }
-
-    // In non-dev mode, hide all auth UI regardless of auth state, but still allow
-    // backend + Clerk auto-config to function behind the scenes.
-    if (!isDevUI) {
-      if (userProfile) userProfile.style.display = 'none';
-      if (authButtons) authButtons.style.display = 'none';
-      // Main content visibility is handled elsewhere; nothing to do here.
-      return;
     }
     
     if (isAuth) {
@@ -792,15 +782,15 @@
       
       analyzeBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: analyzeBtn, event: 'click', handler: clickHandler });
-      console.log('[Popup] Analyze button listener attached');
+      Logger.info('[Popup] Analyze button listener attached');
     } else {
-      console.error('[Popup] ERROR: analyzeBtn not found in DOM!');
+      Logger.error('[Popup] ERROR: analyzeBtn not found in DOM!');
     }
 
     // Settings link in footer
     const settingsLink = document.getElementById('settingsLink');
     if (settingsLink) {
-      console.log('[Popup] Found settingsLink, attaching listener');
+      Logger.info('[Popup] Found settingsLink, attaching listener');
       const clickHandler = async () => {
         try {
           await chrome.runtime.openOptionsPage();
@@ -813,16 +803,16 @@
 
       settingsLink.addEventListener('click', clickHandler);
       eventListeners.push({ element: settingsLink, event: 'click', handler: clickHandler });
-      console.log('[Popup] Settings link listener attached');
+      Logger.info('[Popup] Settings link listener attached');
     } else {
-      console.warn('[Popup] settingsLink not found in DOM');
+      Logger.warn('[Popup] settingsLink not found in DOM');
     }
 
 
     // Refresh subscription button
     const refreshSubscriptionBtn = document.getElementById('refreshSubscriptionBtn');
     if (refreshSubscriptionBtn) {
-      console.log('[Popup] Found refreshSubscriptionBtn, attaching listener');
+      Logger.info('[Popup] Found refreshSubscriptionBtn, attaching listener');
       const clickHandler = async () => {
         try {
           refreshSubscriptionBtn.textContent = '⏳ Refreshing...';
@@ -887,11 +877,9 @@
     const authCtaBtn = document.getElementById('authCtaBtn');
     // Hide auth CTA entirely when dev UI is disabled
     const isDevUI = typeof SHOW_DEV_UI !== 'undefined' && (SHOW_DEV_UI || window.__AIG_SHOW_DEV_UI === true);
-    if (!isDevUI && authCtaBtn) {
-      authCtaBtn.style.display = 'none';
-    }
-    if (authCtaBtn && isDevUI) {
-      console.log('[Popup] Found authCtaBtn, attaching listener');
+    // Sign in/Sign up button - ALWAYS visible and functional
+    if (authCtaBtn) {
+      Logger.info('[Popup] Found authCtaBtn, attaching listener');
       const clickHandler = async () => {
         try {
           // Instead of driving Clerk directly from the extension, open the
@@ -923,9 +911,12 @@
 
       authCtaBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: authCtaBtn, event: 'click', handler: clickHandler });
-      console.log('[Popup] Auth CTA button listener attached');
+      Logger.info('[Popup] Auth CTA button listener attached');
+      
+      // Ensure button is visible (show it even if dev UI is disabled)
+      authCtaBtn.style.display = '';
     } else {
-      console.warn('[Popup] authCtaBtn not found in DOM');
+      Logger.warn('[Popup] authCtaBtn not found in DOM');
     }
     
     // Clean up interval when popup closes
@@ -954,7 +945,7 @@
             }
           }
         } catch (err) {
-          console.error('Failed to sign out', err);
+          Logger.error('Failed to sign out', err);
           if (errorHandler) {
             errorHandler.showError('AUTH_SIGN_IN_FAILED'); // Using same error type since it's auth-related
           } else {
@@ -965,9 +956,9 @@
 
       signOutBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: signOutBtn, event: 'click', handler: clickHandler });
-      console.log('[Popup] Sign Out button listener attached');
+      Logger.info('[Popup] Sign Out button listener attached');
     } else {
-      console.warn('[Popup] signOutBtn not found in DOM (may be hidden)');
+      Logger.warn('[Popup] signOutBtn not found in DOM (may be hidden)');
     }
 
     // Status button - show diagnostic panel
@@ -1049,12 +1040,12 @@
     const refreshDiagnosticBtn = document.getElementById('refreshDiagnostic');
     if (refreshDiagnosticBtn) {
       const clickHandler = async () => {
-        console.log('[Popup] Refresh diagnostic button clicked');
+        Logger.info('[Popup] Refresh diagnostic button clicked');
         try {
           await runDiagnostics();
-          console.log('[Popup] Diagnostics refresh completed');
+          Logger.info('[Popup] Diagnostics refresh completed');
         } catch (err) {
-          console.error('[Popup] Error refreshing diagnostics:', err);
+          Logger.error('[Popup] Error refreshing diagnostics:', err);
         }
       };
       refreshDiagnosticBtn.addEventListener('click', clickHandler);
@@ -1073,12 +1064,12 @@
       };
       openSettingsFromDiagnosticBtn.addEventListener('click', clickHandler);
       eventListeners.push({ element: openSettingsFromDiagnosticBtn, event: 'click', handler: clickHandler });
-      console.log('[Popup] Open Settings From Diagnostic button listener attached');
+      Logger.info('[Popup] Open Settings From Diagnostic button listener attached');
     } else {
-      console.warn('[Popup] openSettingsFromDiagnosticBtn not found in DOM');
+      Logger.warn('[Popup] openSettingsFromDiagnosticBtn not found in DOM');
     }
     
-    console.log(`[Popup] Event listeners setup complete. Total listeners: ${eventListeners.length}`);
+    Logger.info(`[Popup] Event listeners setup complete. Total listeners: ${eventListeners.length}`);
   }
 
   /**
@@ -1087,14 +1078,12 @@
   async function loadSystemStatus() {
     try {
       const response = await sendMessageToBackground('GET_GUARD_STATUS');
-      if (response.success && response.status) {
+      if (response.success) {
         await updateSystemStatus(response.status);
       } else {
         // Include error information if available
-        Logger.warn('[Popup] System status request failed:', response.error);
         await updateSystemStatus({ 
           gateway_connected: false,
-          connected: false,
           error: response.error || 'Unknown error'
         });
       }
@@ -1103,7 +1092,6 @@
       // Include error message for better diagnostics
       await updateSystemStatus({ 
         gateway_connected: false,
-        connected: false,
         error: err.message || 'Failed to load status'
       });
     }
@@ -1357,7 +1345,8 @@
     if (!auth || !auth.isAuthenticated()) {
       const message = 'Please sign in on aiguardian.ai before running analysis.';
       if (statusLine) {
-        statusLine.textContent = `Last analysis: failed – ${message}`;
+        statusLine.textContent = `❌ ${message}`;
+        statusLine.style.color = '#F44336';
       }
       if (errorHandler) {
         errorHandler.showErrorFromException(new Error(message));
@@ -1390,9 +1379,12 @@
     if (analyzeBtn) {
       analyzeBtn.textContent = '⏳ Analyzing...';
       analyzeBtn.disabled = true;
+      analyzeBtn.style.opacity = '0.7';
+      analyzeBtn.style.cursor = 'wait';
     }
     if (statusLine) {
-      statusLine.textContent = 'Analyzing selected text…';
+      statusLine.textContent = '⏳ Analyzing selected text…';
+      statusLine.style.color = '#2196F3';
     }
     
     try {
@@ -1403,7 +1395,8 @@
       if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://'))) {
         const errorMsg = 'Cannot analyze text on this page. Please navigate to a regular webpage.';
         if (statusLine) {
-          statusLine.textContent = `Last analysis: failed – ${errorMsg}`;
+          statusLine.textContent = `❌ ${errorMsg}`;
+          statusLine.style.color = '#F44336';
         }
         if (errorHandler) {
           errorHandler.showError('ANALYSIS_NO_SELECTION', { customMessage: errorMsg });
@@ -1427,7 +1420,8 @@
           Logger.warn('[Popup] Content script not loaded on page:', tab.url);
           const contentScriptError = 'Extension not loaded on this page. Please refresh the page and try again.';
           if (statusLine) {
-            statusLine.textContent = `Last analysis: failed – ${contentScriptError}`;
+            statusLine.textContent = `❌ ${contentScriptError}`;
+            statusLine.style.color = '#F44336';
           }
           if (errorHandler) {
             errorHandler.showError('CONTENT_SCRIPT_NOT_LOADED');
@@ -1440,30 +1434,23 @@
         throw sendMessageErr;
       }
       
-      // CRITICAL: Check for errors in response before treating as success
-      if (response && response.success !== false && !response.error) {
-        // Validate response has valid data before displaying
-        if (response.score !== undefined || (response.analysis && Object.keys(response.analysis).length > 0)) {
-          updateAnalysisResult(response);
-          showSuccess('✅ Analysis complete!');
-          if (statusLine) {
-            const scoreText = typeof response.score === 'number' ? ` (score: ${response.score.toFixed(2)})` : '';
-            statusLine.textContent = `Last analysis: success${scoreText}`;
-          }
-          Logger.info('Analysis completed successfully');
-        } else {
-          // Response marked as success but has no data
-          const errorMsg = 'Analysis completed but no data returned';
-          Logger.warn('[Popup] Analysis response missing data:', response);
-          updateAnalysisResult({ success: false, error: errorMsg });
-          if (statusLine) {
-            statusLine.textContent = `Last analysis: failed – ${errorMsg}`;
-          }
-          if (errorHandler) {
-            errorHandler.showErrorFromException(new Error(errorMsg));
-          } else {
-            showFallbackError(errorMsg);
-          }
+      if (response && response.success) {
+        // LOG BACKEND RESPONSE IN POPUP FOR VERIFICATION
+        Logger.info('[Popup] ✅ BACKEND RESPONSE IN POPUP', {
+          hasResponse: !!response,
+          responseKeys: response ? Object.keys(response) : [],
+          responseSuccess: response?.success,
+          responseScore: response?.score,
+          responseAnalysis: response?.analysis,
+          fullResponse: response
+        });
+        
+        updateAnalysisResult(response);
+        showSuccess('✅ Analysis complete!');
+        if (statusLine) {
+          const scoreText = typeof response.score === 'number' ? ` (score: ${response.score.toFixed(2)})` : '';
+          statusLine.textContent = `✅ Success${scoreText}`;
+          statusLine.style.color = '#4CAF50';
         }
       } else {
         const errorMessage = response && response.error
@@ -1471,7 +1458,8 @@
           : 'Please select some text on the page to analyze.';
 
         if (statusLine) {
-          statusLine.textContent = `Last analysis: failed – ${errorMessage}`;
+          statusLine.textContent = `❌ Failed: ${errorMessage}`;
+          statusLine.style.color = '#F44336';
         }
 
         if (errorHandler) {
@@ -1486,7 +1474,7 @@
         }
       }
     } catch (err) {
-      console.error('Failed to trigger analysis', err);
+      Logger.error('Failed to trigger analysis', err);
       // Check if it's a content script error
       const errorMsg = err.message || '';
       if (errorMsg.includes('Receiving end does not exist') || 
@@ -1507,6 +1495,12 @@
       if (analyzeBtn) {
         analyzeBtn.textContent = originalText;
         analyzeBtn.disabled = false;
+        analyzeBtn.style.opacity = '1';
+        analyzeBtn.style.cursor = 'pointer';
+      }
+      // Reset status line color if not already set
+      if (statusLine && !statusLine.textContent.includes('✅') && !statusLine.textContent.includes('❌')) {
+        statusLine.style.color = '';
       }
     }
   }
@@ -1767,23 +1761,25 @@
    * Run comprehensive diagnostics
    */
   async function runDiagnostics() {
-    console.log('[Diagnostics] runDiagnostics() called');
+    Logger.info('[Diagnostics] runDiagnostics() called');
     const backendStatusEl = document.getElementById('backendStatus');
     const clerkKeyStatusEl = document.getElementById('clerkKeyStatus');
     const authStateStatusEl = document.getElementById('authStateStatus');
+    const tokenStatusEl = document.getElementById('tokenStatus');
 
-    if (!backendStatusEl || !clerkKeyStatusEl || !authStateStatusEl) {
-      console.error('[Diagnostics] Diagnostic elements not found:', {
+    if (!backendStatusEl || !clerkKeyStatusEl || !authStateStatusEl || !tokenStatusEl) {
+      Logger.error('[Diagnostics] Diagnostic elements not found:', {
         backendStatusEl: !!backendStatusEl,
         clerkKeyStatusEl: !!clerkKeyStatusEl,
-        authStateStatusEl: !!authStateStatusEl
+        authStateStatusEl: !!authStateStatusEl,
+        tokenStatusEl: !!tokenStatusEl
       });
       Logger.error('Diagnostic elements not found');
       return;
     }
 
     Logger.info('[Diagnostics] Starting diagnostic checks...');
-    console.log('[Diagnostics] All elements found, starting checks...');
+    Logger.info('[Diagnostics] All elements found, starting checks...');
 
     // Check backend connection (with timeout and direct fallback)
     backendStatusEl.textContent = 'Checking...';
@@ -1926,7 +1922,7 @@
     // Check auth state (synchronous - should be fast)
     authStateStatusEl.textContent = 'Checking...';
     authStateStatusEl.className = 'diagnostic-value';
-    console.log('[Diagnostics] Starting auth state check...');
+    Logger.info('[Diagnostics] Starting auth state check...');
     
     // Remove setTimeout and run directly
     try {
@@ -1941,36 +1937,78 @@
         hasUser: !!localData.clerk_user,
         hasToken: !!localData.clerk_token 
       });
-      console.log('[Diagnostics] Auth data from storage:', {
-        hasUser: !!localData.clerk_user,
-        hasToken: !!localData.clerk_token,
-        userId: localData.clerk_user?.id,
-        email: localData.clerk_user?.email,
-        authObjectExists: !!auth,
-        authIsAuthenticated: auth?.isAuthenticated?.()
-      });
 
       if (localData.clerk_user) {
         const email = localData.clerk_user.email || 'User';
         authStateStatusEl.textContent = `✅ Signed in (${email.substring(0, 20)}...)`;
         authStateStatusEl.className = 'diagnostic-value status-ok';
-        console.log('[Diagnostics] ✅ Auth state updated: Signed in');
+        Logger.info('[Diagnostics] ✅ Auth state updated: Signed in');
       } else if (auth && auth.isAuthenticated()) {
         const user = auth.getCurrentUser();
         const email = user?.email || user?.primaryEmailAddress?.emailAddress || 'User';
         authStateStatusEl.textContent = `✅ Signed in (${email.substring(0, 20)}...)`;
         authStateStatusEl.className = 'diagnostic-value status-ok';
-        console.log('[Diagnostics] ✅ Auth state updated: Signed in (from auth object)');
+        Logger.info('[Diagnostics] ✅ Auth state updated: Signed in (from auth object)');
       } else {
         authStateStatusEl.textContent = '⚠️ Not signed in';
         authStateStatusEl.className = 'diagnostic-value status-warning';
-        console.log('[Diagnostics] ⚠️ Auth state updated: Not signed in');
+        Logger.info('[Diagnostics] ⚠️ Auth state updated: Not signed in');
       }
     } catch (err) {
       authStateStatusEl.textContent = '❌ Error';
       authStateStatusEl.className = 'diagnostic-value status-error';
       Logger.error('[Diagnostics] Auth state check failed', err);
-      console.error('[Diagnostics] ❌ Auth state check error:', err);
+      Logger.error('[Diagnostics] ❌ Auth state check error:', err);
+    }
+
+    // Check token status and validation
+    tokenStatusEl.textContent = 'Checking...';
+    tokenStatusEl.className = 'diagnostic-value';
+    try {
+      const localData = await new Promise((resolve) => {
+        chrome.storage.local.get(['clerk_token'], (data) => {
+          resolve(data || {});
+        });
+      });
+
+      const token = localData.clerk_token;
+      if (token) {
+        // Validate token format (JWT tokens have 3 parts separated by dots)
+        const parts = token.split('.');
+        const isValidFormat = parts.length === 3;
+        
+        if (isValidFormat) {
+          try {
+            // Try to decode header to verify it's valid base64
+            const header = atob(parts[0]);
+            if (header.startsWith('{')) {
+              tokenStatusEl.textContent = `✅ Valid format (${token.length} chars)`;
+              tokenStatusEl.className = 'diagnostic-value status-ok';
+              Logger.info('[Diagnostics] Token format is valid');
+            } else {
+              tokenStatusEl.textContent = '⚠️ Invalid format';
+              tokenStatusEl.className = 'diagnostic-value status-warning';
+              Logger.warn('[Diagnostics] Token format invalid - header not JSON');
+            }
+          } catch (e) {
+            tokenStatusEl.textContent = '⚠️ Invalid format';
+            tokenStatusEl.className = 'diagnostic-value status-warning';
+            Logger.warn('[Diagnostics] Token format invalid - cannot decode:', e.message);
+          }
+        } else {
+          tokenStatusEl.textContent = '⚠️ Invalid format';
+          tokenStatusEl.className = 'diagnostic-value status-warning';
+          Logger.warn('[Diagnostics] Token format invalid - wrong number of parts');
+        }
+      } else {
+        tokenStatusEl.textContent = '⚠️ No token';
+        tokenStatusEl.className = 'diagnostic-value status-warning';
+        Logger.info('[Diagnostics] No token found');
+      }
+    } catch (err) {
+      tokenStatusEl.textContent = '❌ Error';
+      tokenStatusEl.className = 'diagnostic-value status-error';
+      Logger.error('[Diagnostics] Token check failed', err);
     }
 
     Logger.info('[Diagnostics] Diagnostic checks completed');

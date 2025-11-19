@@ -438,7 +438,7 @@ class AiGuardianGateway {
     try {
       clerkToken = await this.getClerkSessionToken();
     } catch (error) {
-      Logger.debug('[Gateway] Clerk token not available:', error.message);
+      Logger.warn('[Gateway] Clerk token not available:', error.message);
     }
 
     // Check subscription status before making request (only for analyze endpoint)
@@ -517,10 +517,32 @@ class AiGuardianGateway {
     // NO API key fallback - all requests must be authenticated via Clerk user session
     if (clerkToken) {
       headers['Authorization'] = 'Bearer ' + clerkToken;
+      // Log token status (without exposing full token)
+      const tokenPreview = clerkToken.substring(0, 20) + '...' + clerkToken.substring(clerkToken.length - 10);
+      Logger.info('[Gateway] Adding Authorization header with Clerk token', {
+        tokenLength: clerkToken.length,
+        tokenPreview: tokenPreview,
+        hasBearer: true
+      });
     } else {
       // If no Clerk token, request will fail with 401 - user must sign in
       Logger.warn('[Gateway] No Clerk session token available - user must authenticate');
     }
+
+    // Log request details for debugging (sanitized)
+    Logger.info('[Gateway] Request details', {
+      url: url,
+      method: 'POST',
+      headers: {
+        'Content-Type': headers['Content-Type'],
+        'X-Extension-Version': headers['X-Extension-Version'],
+        'X-Request-ID': headers['X-Request-ID'],
+        'Authorization': clerkToken ? 'Bearer [REDACTED]' : 'NOT SET',
+        'X-Timestamp': headers['X-Timestamp']
+      },
+      payloadSize: JSON.stringify(payload).length,
+      hasToken: !!clerkToken
+    });
 
     const requestOptions = {
       method: 'POST',
@@ -528,16 +550,156 @@ class AiGuardianGateway {
       body: JSON.stringify(payload)
     };
 
+<<<<<<< HEAD
+    let lastError;
+    let tokenRefreshed = false;
+    for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
+      try {
+        // Refresh Clerk token before first attempt to ensure we use fresh token
+        // This ensures we always use valid, non-expired Clerk user tokens
+        if (!tokenRefreshed && attempt === 1) {
+          const freshToken = await this.getClerkSessionToken();
+          if (freshToken && freshToken !== clerkToken) {
+            // Token was refreshed, update headers
+            headers['Authorization'] = 'Bearer ' + freshToken;
+            requestOptions.headers = headers;
+            clerkToken = freshToken;
+            tokenRefreshed = true;
+            Logger.info('[Gateway] Refreshed Clerk token before request');
+          }
+        }
+        
+        this.logger.trace(`Attempt ${attempt}/${this.config.retryAttempts}`, {
+          requestId,
+          endpoint: mappedEndpoint,
+          attempt,
+          hasToken: !!clerkToken
+        });
+        
+        const response = await fetch(url, requestOptions);
+        const responseTime = Date.now() - startTime;
+        
+        // Log response status
+        Logger.info('[Gateway] Response received', {
+          requestId,
+          status: response.status,
+          statusText: response.statusText,
+          responseTime,
+          attempt
+        });
+        
+        if (!response.ok) {
+          // If 401 Unauthorized, try refreshing token once and retry
+          if (response.status === 401 && attempt === 1 && !tokenRefreshed) {
+            Logger.warn('[Gateway] 401 Unauthorized - refreshing Clerk token and retrying');
+            const refreshedToken = await this.getClerkSessionToken();
+            if (refreshedToken && refreshedToken !== clerkToken) {
+              headers['Authorization'] = 'Bearer ' + refreshedToken;
+              requestOptions.headers = headers;
+              clerkToken = refreshedToken;
+              tokenRefreshed = true;
+              Logger.info('[Gateway] Token refreshed, retrying request');
+              // Retry immediately with fresh token
+              continue;
+            } else {
+              Logger.error('[Gateway] Could not refresh token after 401 - user must sign in');
+            }
+          }
+          
+          // Handle 403 Forbidden - likely authentication issue
+          if (response.status === 403) {
+            Logger.error('[Gateway] 403 Forbidden - authentication may have failed', {
+              requestId,
+              hasToken: !!clerkToken,
+              tokenRefreshed
+            });
+          }
+          
+          const errorText = await response.text();
+          const error = new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+          // Preserve status code for error handling
+          error.status = response.status;
+          error.statusText = response.statusText;
+          error.responseText = errorText;
+          throw error;
+        }
+        
+        const result = await response.json();
+        
+        // LOG BACKEND RESPONSE FOR CLIENT-SIDE VERIFICATION
+        Logger.info('[Gateway] ✅ BACKEND RESPONSE RECEIVED', {
+          requestId,
+          endpoint: mappedEndpoint,
+          statusCode: response.status,
+          responseTime: responseTime + 'ms',
+          responseKeys: Object.keys(result),
+          responsePreview: JSON.stringify(result).substring(0, 500),
+          fullResponse: result
+        });
+        
+        // Validate response data
+        const validationResult = this.validateApiResponse(result, endpoint);
+        if (!validationResult.isValid) {
+          this.logger.warn('API response validation failed', {
+=======
     // EPISTEMIC: Wrap fetch in circuit breaker for resilience
     const executeRequest = async () => {
       let lastError;
       for (let attempt = 1; attempt <= this.config.retryAttempts; attempt++) {
         try {
           this.logger.trace(`Attempt ${attempt}/${this.config.retryAttempts}`, {
+>>>>>>> dev
             requestId,
             endpoint: mappedEndpoint,
             attempt
           });
+<<<<<<< HEAD
+        }
+        
+        // Use transformed response if available (for mock API)
+        const finalResult = validationResult.transformedResponse || result;
+        
+        // LOG PROCESSED RESULT FOR CLIENT-SIDE VERIFICATION
+        Logger.info('[Gateway] ✅ RESPONSE PROCESSED', {
+          requestId,
+          isValid: validationResult.isValid,
+          finalResultKeys: Object.keys(finalResult),
+          finalResultPreview: JSON.stringify(finalResult).substring(0, 500),
+          fullFinalResult: finalResult
+        });
+        
+        // Update trace stats
+        this.traceStats.successes++;
+        this.traceStats.totalResponseTime += responseTime;
+        this.traceStats.averageResponseTime = this.traceStats.totalResponseTime / this.traceStats.requests;
+        
+        this.logger.info('Gateway request successful', {
+          requestId,
+          endpoint: mappedEndpoint,
+          attempt,
+          responseTime,
+          statusCode: response.status,
+          responseSize: JSON.stringify(finalResult).length
+        });
+        
+        return finalResult;
+      } catch (err) {
+        lastError = err;
+        const responseTime = Date.now() - startTime;
+        
+        this.logger.error('Gateway request failed', {
+          requestId,
+          endpoint: mappedEndpoint,
+          attempt,
+          error: err.message,
+          responseTime,
+          errorType: err.name
+        });
+        
+        if (attempt < this.config.retryAttempts) {
+          const delayTime = this.config.retryDelay * attempt;
+          this.logger.trace(`Retrying in ${delayTime}ms`, {
+=======
           
           const response = await fetch(url, requestOptions);
           const responseTime = Date.now() - startTime;
@@ -703,6 +865,7 @@ class AiGuardianGateway {
           const responseTime = Date.now() - startTime;
           
           this.logger.error('Gateway request failed', {
+>>>>>>> dev
             requestId,
             endpoint: mappedEndpoint,
             attempt,
@@ -812,7 +975,7 @@ class AiGuardianGateway {
             userId = storedUser.id;
           }
         } catch (error) {
-          Logger.debug('[Gateway] Could not get user ID:', error.message);
+          // User ID not critical for request - silently continue
         }
       }
 
@@ -1178,47 +1341,130 @@ class AiGuardianGateway {
    * Get Clerk session token (if available)
    * This is the primary authentication method - Clerk handles all user authentication
    * 
+   * ALWAYS tries to get fresh token from Clerk SDK first (if available)
+   * Falls back to stored token only if Clerk SDK is not accessible
+   * This ensures we use valid, non-expired tokens
+   * 
    * In service worker context, retrieves token from chrome.storage.local
-   * In popup/options context, can also get from Clerk SDK if available
+   * In popup/options context, gets fresh token from Clerk SDK
    */
   async getClerkSessionToken() {
+    const context = typeof window !== 'undefined' ? 'window' : 'service_worker';
+    Logger.info(`[Gateway] Getting Clerk token (context: ${context})`);
+    
     try {
-      // First, try to get token from storage (works in all contexts)
-      const storedToken = await this.getStoredClerkToken();
-      if (storedToken) {
-        return storedToken;
-      }
-
-      // If in window context and Clerk is available, try to get fresh token
+      // PRIORITY 1: Try to get fresh token from Clerk SDK (if in window context)
+      // This ensures we always use valid, non-expired tokens
       if (typeof window !== 'undefined' && window.Clerk) {
         try {
           const clerk = window.Clerk;
+          Logger.info('[Gateway] Clerk SDK available, attempting to get fresh token');
+          
           // Only call load() if it exists
           if (typeof clerk.load === 'function' && !clerk.loaded) {
+            Logger.info('[Gateway] Loading Clerk SDK...');
             await clerk.load();
           }
-          const session = await clerk.session;
-          if (session) {
-            const token = await session.getToken();
-            // Store token for future use
-            if (token) {
-              await this.storeClerkToken(token);
+          
+          // Check if user is authenticated
+          const user = clerk.user;
+          if (user) {
+            Logger.info(`[Gateway] User found: ${user.id}`);
+            const session = await clerk.session;
+            if (session) {
+              // Get fresh token from Clerk session
+              const token = await session.getToken();
+              // Always store fresh token for service worker access
+              if (token) {
+                // Validate token format (JWT tokens start with eyJ)
+                if (this.validateTokenFormat(token)) {
+                  await this.storeClerkToken(token);
+                  Logger.info('[Gateway] Retrieved fresh Clerk token from SDK (valid format)');
+                  return token;
+                } else {
+                  Logger.warn('[Gateway] Token from SDK has invalid format, falling back to stored token');
+                }
+              } else {
+                Logger.warn('[Gateway] No token available from Clerk session');
+              }
+            } else {
+              Logger.warn('[Gateway] No Clerk session found');
             }
-            return token;
+          } else {
+            Logger.warn('[Gateway] No Clerk user found');
           }
         } catch (e) {
-          Logger.debug('[Gateway] Could not get token from Clerk SDK:', e.message);
+          Logger.warn('[Gateway] Could not get fresh token from Clerk SDK:', e.message);
+          // Fall through to stored token
         }
+      } else {
+        Logger.info('[Gateway] Clerk SDK not available (service worker context or not loaded)');
+      }
+
+      // PRIORITY 2: Fall back to stored token (for service worker context)
+      // Service workers can't access Clerk SDK directly, so use stored token
+      Logger.info('[Gateway] Attempting to retrieve stored token from chrome.storage.local');
+      const storedToken = await this.getStoredClerkToken();
+      if (storedToken) {
+        // Validate stored token format
+        if (this.validateTokenFormat(storedToken)) {
+          Logger.info('[Gateway] Using stored Clerk token (service worker context)');
+          return storedToken;
+        } else {
+          Logger.error('[Gateway] Stored token has invalid format, clearing it');
+          await this.clearStoredClerkToken();
+          return null;
+        }
+      } else {
+        Logger.warn('[Gateway] No stored token found in chrome.storage.local');
       }
       
+      Logger.warn('[Gateway] No Clerk token available - user must sign in');
       return null;
     } catch (error) {
-      Logger.debug('[Gateway] Clerk token not available:', error.message);
+      Logger.error('[Gateway] Error getting Clerk token:', error.message);
       return null;
     }
   }
 
   /**
+<<<<<<< HEAD
+   * Validate token format (basic JWT format check)
+   * JWT tokens have format: header.payload.signature (base64 encoded)
+   * They typically start with "eyJ" (base64 for {"})
+   */
+  validateTokenFormat(token) {
+    if (!token || typeof token !== 'string') {
+      return false;
+    }
+    
+    // JWT tokens are base64 encoded and have 3 parts separated by dots
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return false;
+    }
+    
+    // First part should decode to JSON starting with {
+    try {
+      const header = atob(parts[0]);
+      if (!header.startsWith('{')) {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Clear stored Clerk token
+   */
+  async clearStoredClerkToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.remove(['clerk_token'], resolve);
+    });
+=======
    * EPISTEMIC: Refresh Clerk session token
    * Used for automatic token refresh on 401 errors
    * 
@@ -1282,6 +1528,7 @@ class AiGuardianGateway {
       Logger.error('[Gateway] Token refresh error:', error);
       return null;
     }
+>>>>>>> dev
   }
 
   /**
