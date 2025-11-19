@@ -109,6 +109,10 @@ module.exports = {
       globals: {
         gateway: 'readonly', // Test files may reference gateway instances
       },
+      rules: {
+        'no-useless-catch': 'warn', // Allow in tests (sometimes needed for error context)
+        'no-console': 'off', // Allow console in test files
+      },
     },
   ],
 };
