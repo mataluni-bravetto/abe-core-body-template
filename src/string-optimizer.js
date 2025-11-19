@@ -95,7 +95,18 @@ class StringOptimizer {
       .replace(/on\w+\s*=/gi, '')
       .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
       .replace(/<[^>]*>/g, '')
-      .replace(/[<>"'&]/g, '');
+      .replace(/[&<>"'`]/g, (match) => {
+        // SAFETY: Encode instead of remove to prevent data loss
+        const entityMap = {
+          '&': '&amp;', // FIRST - prevents double-escaping
+          '<': '<',
+          '>': '>',
+          '"': '"',
+          "'": '&#x27;',
+          '`': '&#x60;',
+        };
+        return entityMap[match];
+      });
   }
 
   /**

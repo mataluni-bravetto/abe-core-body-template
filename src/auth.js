@@ -132,7 +132,7 @@ class AiGuardianAuth {
         name: error.name,
         error: error,
       });
-      console.error('[Auth] Full error details:', error);
+      Logger.error('[Auth] Full error details:', error);
       return false;
     }
   }
@@ -198,7 +198,7 @@ class AiGuardianAuth {
       // Get gateway URL from settings (will use default if not configured)
       const gatewayUrl = await this.getGatewayUrl();
       if (!gatewayUrl) {
-        Logger.debug('[Auth] No gateway URL available, skipping public config fetch');
+        // No gateway URL available, skipping public config fetch
         return { error: 'No gateway URL configured', errorType: 'no_gateway' };
       }
 
@@ -596,7 +596,7 @@ class AiGuardianAuth {
         stack: error.stack,
         name: error.name,
       });
-      console.error('[Auth] Full error in checkUserSession:', error);
+      Logger.error('[Auth] Full error in checkUserSession:', error);
       // Fallback: check stored user
       const stored = await this.getStoredUser();
       if (stored) {

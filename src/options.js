@@ -1247,7 +1247,7 @@
     } catch (error) {
       output.textContent += `ERROR: ${error.message}\n`;
       output.textContent += `Stack: ${error.stack}\n`;
-      console.error('Sign-up test error:', error);
+      Logger.error('Sign-up test error:', error);
     }
   }
 

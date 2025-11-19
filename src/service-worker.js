@@ -11,16 +11,64 @@
 // Import the AiGuardian Gateway and dependencies
 // NOTE: Paths in importScripts are relative to this file's location (src/),
 // so we reference sibling files directly without a leading src/ segment.
-importScripts('constants.js');
-importScripts('logging.js');
-importScripts('string-optimizer.js');
-importScripts('cache-manager.js');
-importScripts('subscription-service.js');
-importScripts('mutex-helper.js'); // EPISTEMIC: Mutex patterns for race condition prevention
-importScripts('circuit-breaker.js'); // EPISTEMIC: Circuit breaker for resilience
-importScripts('gateway.js');
+try {
+  importScripts('constants.js');
+  importScripts('logging.js');
+  importScripts('string-optimizer.js');
+  importScripts('cache-manager.js');
+  importScripts('subscription-service.js');
+  importScripts('gateway.js');
+
+  // Verify critical dependencies loaded
+  if (typeof Logger === 'undefined') {
+    throw new Error('Logger not loaded - logging.js failed');
+  }
+  if (typeof DEFAULT_CONFIG === 'undefined') {
+    throw new Error('DEFAULT_CONFIG not loaded - constants.js failed');
+  }
+  if (typeof AiGuardianGateway === 'undefined') {
+    throw new Error('AiGuardianGateway not loaded - gateway.js failed');
+  }
+
+  Logger.info('[BG] All dependencies loaded successfully');
+} catch (importError) {
+  // Log error but don't crash - use console.error as fallback
+  try {
+    console.error('[BG] CRITICAL: Failed to load dependencies:', importError);
+    console.error('[BG] Import error details:', {
+      message: importError.message,
+      stack: importError.stack,
+      name: importError.name,
+    });
+  } catch (e) {
+    // Last resort - can't even log
+  }
+  // Re-throw to prevent service worker from continuing with broken state
+  throw importError;
+}
 
 let gateway = null;
+
+/**
+ * Initialize gateway with error handling
+ */
+function initializeGateway() {
+  try {
+    if (!gateway) {
+      if (typeof AiGuardianGateway === 'undefined') {
+        throw new Error('AiGuardianGateway class not available');
+      }
+      gateway = new AiGuardianGateway();
+      Logger.info('[BG] Gateway initialized successfully');
+    }
+    return gateway;
+  } catch (error) {
+    Logger.error('[BG] Failed to initialize gateway:', error);
+    // Don't throw - allow service worker to continue
+    // Gateway will be null and requests will fail gracefully
+    return null;
+  }
+}
 
 try {
   // Extension installation handler
@@ -28,8 +76,7 @@ try {
     Logger.info('[BG] Installed: AiGuardian Chrome Ext v1.0.0');
 
     // Initialize AiGuardian Gateway
-    gateway = new AiGuardianGateway();
-
+    gateway = initializeGateway();
     // Initialize default settings
     await initializeDefaultSettings();
 
@@ -43,7 +90,7 @@ try {
 
     // Initialize AiGuardian Gateway
     if (!gateway) {
-      gateway = new AiGuardianGateway();
+      gateway = initializeGateway();
     }
 
     // Recreate context menus on startup
@@ -57,7 +104,7 @@ try {
 
     // Initialize gateway
     if (!gateway) {
-      gateway = new AiGuardianGateway();
+      gateway = initializeGateway();
     }
 
     // CRITICAL: Initialize gateway connection
@@ -320,8 +367,7 @@ try {
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Log ALL incoming messages for debugging
     Logger.info('[BG] 📨 Message received:', { type: request.type, hasUser: !!request.user });
-    console.log('[BG] 📨 Incoming message:', request.type, request);
-
+    Logger.info('[BG] 📨 Incoming message:', request.type, request);
     try {
       switch (request.type) {
         case 'ANALYZE_TEXT':
@@ -543,8 +589,7 @@ try {
             firstName: request.user?.firstName,
             lastName: request.user?.lastName,
           });
-          console.log('[BG] Full request object:', request);
-
+          Logger.info('[BG] Full request object:', request);
           if (request.user) {
             // Store user even if token is not available (token fetch might fail)
             const storageData = {
@@ -559,7 +604,6 @@ try {
             chrome.storage.local.set(storageData, () => {
               if (chrome.runtime.lastError) {
                 Logger.error('[BG] ❌ Storage error:', chrome.runtime.lastError);
-                console.error('[BG] Storage error:', chrome.runtime.lastError);
                 sendResponse({ success: false, error: chrome.runtime.lastError.message });
               } else {
                 Logger.info('[BG] ✅ Successfully stored Clerk auth from content script', {
@@ -578,10 +622,10 @@ try {
                       '[BG] ✅ Storage verification successful - user stored:',
                       verifyData.clerk_user.id
                     );
-                    console.log('[BG] ✅ Verified user in storage:', verifyData.clerk_user);
+                    Logger.info('[BG] ✅ Verified user in storage:', verifyData.clerk_user);
                   } else {
                     Logger.error('[BG] ❌ Storage verification FAILED - user not found after set!');
-                    console.error('[BG] ❌ Verification failed - storage data:', verifyData);
+                    Logger.error('[BG] ❌ Verification failed - storage data:', verifyData);
                   }
                 });
 
@@ -593,7 +637,7 @@ try {
             return true;
           } else {
             Logger.warn('[BG] ⚠️ CLERK_AUTH_DETECTED message missing user data');
-            console.warn('[BG] Request object:', request);
+            Logger.warn('[BG] Request object:', request);
           }
           sendResponse({ success: true });
           return true;
@@ -615,32 +659,25 @@ try {
     try {
       Logger.info('[BG] Text analysis request received:', text?.substring(0, 50) + '...');
 
-      // CRITICAL: Ensure gateway exists and is initialized
+      // Ensure gateway is initialized
       if (!gateway) {
-        Logger.warn('[BG] Gateway not initialized, creating new instance...');
-        gateway = new AiGuardianGateway();
+        gateway = initializeGateway();
       }
 
-      // Ensure gateway is initialized before processing request
-      if (!gateway.isInitialized) {
-        Logger.info('[BG] Gateway not initialized, initializing now...');
-        try {
-          await gateway.initializeGateway();
-        } catch (initError) {
-          Logger.error('[BG] Gateway initialization failed:', initError);
-          sendResponse({
-            success: false,
-            error: 'Gateway initialization failed. Please refresh the extension and try again.',
-            status: 500,
-          });
-          return;
-        }
+      if (!gateway) {
+        throw new Error('Gateway not available - extension may not be properly initialized');
       }
 
       // TRACER BULLET: Use AI Guardians Gateway for analysis
       try {
         const analysisResult = await gateway.analyzeText(text);
-        Logger.info('[BG] Analysis result received:', analysisResult);
+        Logger.info('[BG] ✅ BACKEND RESULT RECEIVED IN SERVICE WORKER', {
+          hasResult: !!analysisResult,
+          resultKeys: analysisResult ? Object.keys(analysisResult) : [],
+          resultType: typeof analysisResult,
+          resultPreview: analysisResult ? JSON.stringify(analysisResult).substring(0, 500) : 'null',
+          fullResult: analysisResult,
+        });
 
         // Only save successful analyses to history
         // Check if result is successful and has valid data (not an error response)
@@ -676,12 +713,93 @@ try {
 
         sendResponse(analysisResult);
       } catch (error) {
-        Logger.error('[BG] Gateway analysis failed:', error);
+        Logger.error('[BG] Gateway analysis failed:', {
+          message: error.message,
+          status: error.status,
+          statusText: error.statusText,
+          responseText: error.responseText,
+        });
+
+        // Provide user-friendly error messages based on error type
+        let userMessage = 'Analysis failed. Please try again.';
+        let errorCode = 'UNKNOWN';
+        let actionable = false;
+
+        // Check HTTP status code first (most reliable)
+        if (error.status === 403) {
+          // 403 Forbidden - authentication token may be invalid or expired
+          userMessage = 'Authentication failed. Please sign in again to use analysis features.';
+          errorCode = 'AUTH_REQUIRED';
+          actionable = true;
+          Logger.warn('[BG] 403 Forbidden - token may be invalid or expired');
+        } else if (error.status === 401) {
+          // 401 Unauthorized - no token or invalid token
+          userMessage = 'Authentication required. Please sign in to use analysis features.';
+          errorCode = 'AUTH_REQUIRED';
+          actionable = true;
+          Logger.warn('[BG] 401 Unauthorized - user must sign in');
+        } else if (error.status === 429) {
+          userMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+          errorCode = 'RATE_LIMIT';
+        } else if (error.status >= 500) {
+          userMessage = 'Backend error. Please try again in a moment.';
+          errorCode = 'BACKEND_ERROR';
+        } else if (error.status === 408 || error.status === 504) {
+          userMessage =
+            'Request timed out. The backend may be slow or unavailable. Please try again.';
+          errorCode = 'TIMEOUT';
+        } else if (error.message) {
+          const errorMsg = error.message.toLowerCase();
+          const responseText = (error.responseText || '').toLowerCase();
+
+          // Authentication errors (check message and response text)
+          if (
+            errorMsg.includes('403') ||
+            errorMsg.includes('forbidden') ||
+            errorMsg.includes('401') ||
+            errorMsg.includes('unauthorized') ||
+            responseText.includes('authentication') ||
+            responseText.includes('unauthorized') ||
+            responseText.includes('forbidden') ||
+            responseText.includes('token')
+          ) {
+            userMessage = 'Authentication required. Please sign in to use analysis features.';
+            errorCode = 'AUTH_REQUIRED';
+            actionable = true;
+          }
+          // Network errors
+          else if (
+            errorMsg.includes('failed to fetch') ||
+            errorMsg.includes('network') ||
+            errorMsg.includes('connection') ||
+            errorMsg.includes('cors')
+          ) {
+            userMessage = 'Connection failed. Please check your internet connection and try again.';
+            errorCode = 'NETWORK_ERROR';
+          }
+          // Timeout errors
+          else if (errorMsg.includes('timeout') || errorMsg.includes('timed out')) {
+            userMessage =
+              'Request timed out. The backend may be slow or unavailable. Please try again.';
+            errorCode = 'TIMEOUT';
+          }
+          // Backend errors (500+)
+          else if (errorMsg.includes('500') || errorMsg.includes('server error')) {
+            userMessage = 'Backend error. Please try again in a moment.';
+            errorCode = 'BACKEND_ERROR';
+          }
+          // Use original message if it's user-friendly
+          else if (error.message.length < 100) {
+            userMessage = error.message;
+          }
+        }
+
         sendResponse({
           success: false,
-          error:
-            error.message ||
-            'Analysis failed. Please ensure you are authenticated and the backend is available.',
+          error: userMessage,
+          errorCode: errorCode,
+          statusCode: error.status || null,
+          actionable: actionable,
         });
       }
     } catch (err) {
@@ -739,6 +857,10 @@ try {
    */
   async function handleSubscriptionStatusRequest(sendResponse) {
     try {
+      if (!gateway) {
+        gateway = initializeGateway();
+      }
+
       if (!gateway || !gateway.subscriptionService) {
         sendResponse({
           success: false,
@@ -775,6 +897,10 @@ try {
    */
   function handleClearSubscriptionCache(sendResponse) {
     try {
+      if (!gateway) {
+        gateway = initializeGateway();
+      }
+
       if (gateway && gateway.subscriptionService) {
         gateway.subscriptionService.clearCache();
         Logger.info('[BG] Subscription cache cleared');
@@ -799,6 +925,10 @@ try {
    */
   async function handleGuardStatusRequest(sendResponse) {
     try {
+      if (!gateway) {
+        gateway = initializeGateway();
+      }
+
       if (!gateway) {
         throw new Error('AiGuardian Gateway not initialized');
       }
@@ -849,6 +979,10 @@ try {
   async function handleCentralConfigRequest(sendResponse) {
     try {
       if (!gateway) {
+        gateway = initializeGateway();
+      }
+
+      if (!gateway) {
         throw new Error('AiGuardian Gateway not initialized');
       }
 
@@ -866,6 +1000,10 @@ try {
   async function handleCentralConfigUpdate(payload, sendResponse) {
     try {
       if (!gateway) {
+        gateway = initializeGateway();
+      }
+
+      if (!gateway) {
         throw new Error('AiGuardian Gateway not initialized');
       }
 
@@ -882,6 +1020,10 @@ try {
    */
   async function handleDiagnosticsRequest(sendResponse) {
     try {
+      if (!gateway) {
+        gateway = initializeGateway();
+      }
+
       if (!gateway) {
         throw new Error('AiGuardian Gateway not initialized');
       }
@@ -901,6 +1043,10 @@ try {
   async function handleTraceStatsRequest(sendResponse) {
     try {
       if (!gateway) {
+        gateway = initializeGateway();
+      }
+
+      if (!gateway) {
         throw new Error('AiGuardian Gateway not initialized');
       }
 
@@ -917,6 +1063,10 @@ try {
    */
   async function handleGatewayConnectionTest(sendResponse) {
     try {
+      if (!gateway) {
+        gateway = initializeGateway();
+      }
+
       if (!gateway) {
         throw new Error('AiGuardian Gateway not initialized');
       }
@@ -945,14 +1095,25 @@ try {
   }
 
   // TRACER BULLET: Add periodic health checks
-  chrome.alarms.create('gateway_health_check', { periodInMinutes: 5 });
-
+  try {
+    chrome.alarms.create('gateway_health_check', { periodInMinutes: 5 });
+  } catch (alarmError) {
+    Logger.warn('[BG] Failed to create health check alarm:', alarmError);
+  }
   chrome.alarms.onAlarm.addListener(async (alarm) => {
-    if (alarm.name === 'gateway_health_check' && gateway) {
+    if (alarm.name === 'gateway_health_check') {
       try {
-        const isConnected = await gateway.testGatewayConnection();
-        if (!isConnected) {
-          Logger.warn('[BG] Gateway connection lost');
+        if (!gateway) {
+          gateway = initializeGateway();
+        }
+
+        if (gateway) {
+          const isConnected = await gateway.testGatewayConnection();
+          if (!isConnected) {
+            Logger.warn('[BG] Gateway connection lost');
+          }
+        } else {
+          Logger.warn('[BG] Gateway not available for health check');
         }
       } catch (err) {
         Logger.error('[BG] Health check failed:', err);
