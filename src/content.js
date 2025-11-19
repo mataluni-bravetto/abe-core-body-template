@@ -202,16 +202,21 @@
       return;
     }
     
-    // DEBUG: Log score details before display
-    Logger.info('[CS] 📊 Score details:', {
+    // DEBUG: Log score details before display using specialized biasScore logger
+    Logger.biasScore('Score details before display', {
       rawScore: response.score,
       scoreType: typeof response.score,
       isNumber: typeof response.score === 'number',
       isNaN: Number.isNaN(response.score),
       scorePercentage: Math.round(response.score * 100),
-      analysisBiasTypes: response.analysis?.bias_types || [],
-      analysisBiasType: response.analysis?.bias_type,
-      analysisConfidence: response.analysis?.confidence
+      biasTypes: response.analysis?.bias_types || [],
+      biasType: response.analysis?.bias_type,
+      confidence: response.analysis?.confidence,
+      responseStructure: {
+        hasScore: response.score !== undefined,
+        hasAnalysis: !!response.analysis,
+        analysisKeys: response.analysis ? Object.keys(response.analysis) : []
+      }
     });
 
     // TRACER BULLET: Highlight the text on the page
