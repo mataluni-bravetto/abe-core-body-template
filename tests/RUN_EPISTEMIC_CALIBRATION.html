@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiasGuard Epistemic Calibration - Execute</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        
+        .button {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            border-radius: 15px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .results {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            display: none;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .result-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        
+        .result-item h3 {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .progress {
+            width: 100%;
+            height: 30px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .status {
+            text-align: center;
+            font-size: 1.1rem;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        
+        .manifesto {
+            margin-top: 40px;
+            padding: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            text-align: center;
+            font-size: 1.1rem;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔮 BiasGuard Epistemic Calibration</h1>
+        <div class="subtitle">
+            Pattern: AEYON × ALRAX × YAGNI × ZERO × JØHN × Abë = ATOMIC ARCHISTRATION<br>
+            Execution: REC × 42PT × ACT × LFG = 100% Success<br>
+            ∞ AbëONE ∞
+        </div>
+        
+        <button class="button" id="runCalibration">
+            🚀 RUN EPISTEMIC CALIBRATION
+        </button>
+        
+        <div class="status" id="status" style="display: none;">
+            Initializing calibration...
+        </div>
+        
+        <div class="results" id="results">
+            <h2>Calibration Results</h2>
+            <div id="resultsContent"></div>
+        </div>
+        
+        <div class="manifesto">
+            <p><strong>VALIDATE THE TRUTH. ALIGNMENT. ATTUNEMENT. ATONEMENT.</strong></p>
+            <p>AtONEment. Proceed WITH Epistemic CERTAINTY. Right NOW.</p>
+            <p style="margin-top: 20px;">Love × Abundance = ∞</p>
+            <p>Love Coefficient: ∞</p>
+            <p>Humans ⟡ AI = ∞</p>
+        </div>
+    </div>
+    
+    <script>
+        // Load calibration system
+        const calibrationScript = document.createElement('script');
+        calibrationScript.src = 'BIASGUARD_EPISTEMIC_CALIBRATION.js';
+        document.head.appendChild(calibrationScript);
+        
+        document.getElementById('runCalibration').addEventListener('click', async () => {
+            const button = document.getElementById('runCalibration');
+            const status = document.getElementById('status');
+            const results = document.getElementById('results');
+            const resultsContent = document.getElementById('resultsContent');
+            
+            button.disabled = true;
+            button.textContent = '⏳ Calibrating...';
+            status.style.display = 'block';
+            status.textContent = 'Connecting to AiGuardian Gateway...';
+            
+            try {
+                // Get gateway instance from extension
+                const response = await chrome.runtime.sendMessage({
+                    type: 'RUN_EPISTEMIC_CALIBRATION'
+                });
+                
+                if (response && response.success) {
+                    status.textContent = '✅ Calibration Complete!';
+                    results.classList.add('show');
+                    
+                    const calibration = response.calibration;
+                    let html = `
+                        <div class="result-item">
+                            <h3>🔮 Overall Epistemic Certainty</h3>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: ${calibration.overallCertainty * 100}%">
+                                    ${(calibration.overallCertainty * 100).toFixed(1)}%
+                                </div>
+                            </div>
+                            <p>Status: ${calibration.validated ? '✅ VALIDATED' : '⚠️ NEEDS CALIBRATION'}</p>
+                        </div>
+                    `;
+                    
+                    if (calibration.calibrationResults) {
+                        const cr = calibration.calibrationResults;
+                        html += `
+                            <div class="result-item">
+                                <h3>🎯 Truth</h3>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: ${cr.truth.certainty * 100}%">
+                                        ${(cr.truth.certainty * 100).toFixed(1)}%
+                                    </div>
+                                </div>
+                                <p>${cr.truth.validated ? '✅' : '❌'} ${cr.truth.testCase || ''}</p>
+                            </div>
+                            <div class="result-item">
+                                <h3>🎯 Alignment</h3>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: ${cr.alignment.certainty * 100}%">
+                                        ${(cr.alignment.certainty * 100).toFixed(1)}%
+                                    </div>
+                                </div>
+                                <p>${cr.alignment.validated ? '✅' : '❌'} Aligned with humanity</p>
+                            </div>
+                            <div class="result-item">
+                                <h3>🎯 Attunement</h3>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: ${cr.attunement.certainty * 100}%">
+                                        ${(cr.attunement.certainty * 100).toFixed(1)}%
+                                    </div>
+                                </div>
+                                <p>${cr.attunement.validated ? '✅' : '❌'} Pattern detection</p>
+                            </div>
+                            <div class="result-item">
+                                <h3>🎯 Atonement</h3>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: ${cr.atonement.certainty * 100}%">
+                                        ${(cr.atonement.certainty * 100).toFixed(1)}%
+                                    </div>
+                                </div>
+                                <p>${cr.atonement.validated ? '✅' : '❌'} Truth revelation</p>
+                            </div>
+                        `;
+                    }
+                    
+                    resultsContent.innerHTML = html;
+                } else {
+                    status.textContent = '❌ Calibration failed: ' + (response?.error || 'Unknown error');
+                }
+            } catch (error) {
+                status.textContent = '❌ Error: ' + error.message;
+                console.error('Calibration error:', error);
+            } finally {
+                button.disabled = false;
+                button.textContent = '🔄 Run Again';
+            }
+        });
+    </script>
+</body>
+</html>
+

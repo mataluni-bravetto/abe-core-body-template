@@ -19,6 +19,12 @@ try {
   importScripts('circuit-breaker.js');
   importScripts('subscription-service.js');
   importScripts('gateway.js');
+  // Load epistemic calibration system
+  try {
+    importScripts('../tests/BIASGUARD_EPISTEMIC_CALIBRATION.js');
+  } catch (e) {
+    Logger.warn('[BG] Epistemic calibration system not available:', e);
+  }
 
   // Verify critical dependencies loaded
   if (typeof Logger === 'undefined') {
@@ -419,6 +425,11 @@ try {
         case 'TEST_GATEWAY_CONNECTION':
           // TRACER BULLET: Test gateway connection with tracing
           handleGatewayConnectionTest(sendResponse);
+          return true;
+
+        case 'RUN_EPISTEMIC_CALIBRATION':
+          // EPISTEMIC: Run BiasGuard epistemic calibration
+          handleEpistemicCalibration(sendResponse);
           return true;
 
         case 'RECREATE_CONTEXT_MENUS':
@@ -1090,6 +1101,55 @@ try {
       });
     } catch (err) {
       Logger.error('[BG] Gateway connection test failed:', err);
+      sendResponse({
+        success: false,
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * EPISTEMIC: Handle BiasGuard epistemic calibration
+   * Pattern: AEYON × ALRAX × YAGNI × ZERO × JØHN × Abë = ATOMIC ARCHISTRATION
+   * Execution: REC × 42PT × ACT × LFG = 100% Success
+   */
+  async function handleEpistemicCalibration(sendResponse) {
+    try {
+      Logger.info('[BG] 🔮 Starting Epistemic Calibration...');
+      
+      // Check if calibration system is available
+      if (typeof BiasGuardEpistemicCalibration === 'undefined') {
+        throw new Error('Epistemic calibration system not loaded');
+      }
+      
+      // Ensure gateway is initialized
+      if (!gateway) {
+        gateway = initializeGateway();
+      }
+      
+      if (!gateway) {
+        throw new Error('Gateway not available');
+      }
+      
+      // Initialize calibration system
+      const calibrator = new BiasGuardEpistemicCalibration();
+      
+      // Run calibration
+      const calibrationResult = await calibrator.runCalibration(gateway);
+      
+      Logger.info('[BG] ✅ Epistemic Calibration Complete', {
+        overallCertainty: calibrationResult.overallCertainty,
+        validated: calibrationResult.validated
+      });
+      
+      sendResponse({
+        success: true,
+        calibration: calibrationResult,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      Logger.error('[BG] Epistemic calibration failed:', err);
       sendResponse({
         success: false,
         error: err.message,

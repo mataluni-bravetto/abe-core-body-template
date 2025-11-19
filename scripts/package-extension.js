@@ -117,7 +117,7 @@ class ExtensionPackager {
   }
 
   /**
-   * Create zip file
+   * Create zip file - Chrome Web Store ready
    */
   async createZip(zipPath) {
     console.log('\n📦 Creating zip file...');
@@ -135,38 +135,46 @@ class ExtensionPackager {
       archive.on('error', reject);
       archive.pipe(output);
 
-      // Include files
+      // SAFETY: Only include files needed for Chrome Web Store
+      // Exclude: node_modules, .git, tests, scripts, docs, backups, etc.
+      
+      // 1. Manifest (required)
       archive.file('manifest.json', { name: 'manifest.json' });
-      archive.directory('src/', 'src/');
-      archive.directory('assets/', 'assets/');
-
-      // Include specific files from root
-      const rootFiles = ['README.md', 'LICENSE'];
-      rootFiles.forEach((file) => {
-        const filePath = path.join(this.projectRoot, file);
-        if (fs.existsSync(filePath)) {
-          archive.file(filePath, { name: file });
-        }
-      });
-
-      // Exclude development files
-      archive.glob('**/*', {
-        ignore: [
-          '**/node_modules/**',
-          '**/.git/**',
-          '**/tests/**',
-          '**/scripts/**',
-          '**/docs/**',
-          '**/*.test.js',
-          '**/*.spec.js',
-          '**/.env*',
-          '**/.DS_Store',
-          '**/package-lock.json',
-          '**/npm-debug.log*',
-          '**/yarn-error.log*',
-        ],
-        cwd: this.projectRoot,
-      });
+      
+      // 2. Source files (extension code)
+      const srcPath = path.join(this.projectRoot, 'src');
+      if (fs.existsSync(srcPath)) {
+        const srcFiles = this.getAllFiles(srcPath);
+        srcFiles.forEach((file) => {
+          const relativePath = path.relative(this.projectRoot, file);
+          // Exclude backups, maps, and test files
+          if (
+            !relativePath.includes('.backup') &&
+            !relativePath.includes('.map') &&
+            !relativePath.includes('.test.') &&
+            !relativePath.includes('.spec.')
+          ) {
+            archive.file(file, { name: relativePath });
+          }
+        });
+      }
+      
+      // 3. Assets (only icons referenced in manifest - exclude brand book PDFs/images)
+      const assetsPath = path.join(this.projectRoot, 'assets');
+      if (fs.existsSync(assetsPath)) {
+        const assetFiles = this.getAllFiles(assetsPath);
+        assetFiles.forEach((file) => {
+          const relativePath = path.relative(this.projectRoot, file);
+          // Only include icon files (png, jpg, svg) - exclude brand book folders
+          if (
+            (relativePath.match(/\.(png|jpg|jpeg|svg|webp)$/i)) &&
+            !relativePath.includes('Brand Book') &&
+            !relativePath.includes('brand-book')
+          ) {
+            archive.file(file, { name: relativePath });
+          }
+        });
+      }
 
       archive.finalize();
     });
