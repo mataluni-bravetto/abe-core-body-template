@@ -1212,6 +1212,44 @@ class AiGuardianGateway {
         score = 0;
       }
 
+      // EPISTEMIC: Also check top-level fields as fallback (some responses may have score at top level)
+      // This ensures we catch the score even if data structure varies
+      if (score === 0 && typeof response.bias_score === 'number') {
+        Logger.info('[Gateway] Found bias_score at top level, using it:', response.bias_score);
+        score = response.bias_score;
+      } else if (score === 0 && typeof response.score === 'number') {
+        Logger.info('[Gateway] Found score at top level, using it:', response.score);
+        score = response.score;
+      } else if (score === 0 && typeof response.confidence_score === 'number') {
+        Logger.info('[Gateway] Found confidence_score at top level, using it:', response.confidence_score);
+        score = response.confidence_score;
+      }
+      
+      // Final validation and clamping
+      if (typeof score === 'number' && !Number.isNaN(score)) {
+        if (score < 0) {score = 0;}
+        if (score > 1) {score = 1;}
+      } else {
+        Logger.warn('[Gateway] Final score validation failed, defaulting to 0', {
+          scoreType: typeof score,
+          isNaN: Number.isNaN(score),
+          scoreValue: score,
+        });
+        score = 0;
+      }
+      
+      Logger.info('[Gateway] ✅ Final extracted score:', {
+        score: score,
+        percentage: Math.round(score * 100) + '%',
+        source: data.bias_score !== undefined ? 'data.bias_score' : 
+                data.trust_score !== undefined ? 'data.trust_score' :
+                data.confidence !== undefined ? 'data.confidence' :
+                data.score !== undefined ? 'data.score' :
+                response.bias_score !== undefined ? 'response.bias_score' :
+                response.score !== undefined ? 'response.score' :
+                response.confidence_score !== undefined ? 'response.confidence_score' : 'default (0)'
+      });
+
       transformedResponse = {
         success: !!response.success,
         score,
