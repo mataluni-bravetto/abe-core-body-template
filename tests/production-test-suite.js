@@ -302,7 +302,7 @@ class ProductionTestSuite {
         } else {
           test.status = 'warning';
           Object.entries(checks).forEach(([key, value]) => {
-            if (!value) test.issues.push(`Missing: ${key}`);
+            if (!value) {test.issues.push(`Missing: ${key}`);}
           });
         }
 

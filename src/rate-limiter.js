@@ -18,7 +18,7 @@ class RateLimiter {
    */
   isAllowed(type, identifier = 'default') {
     const limit = this.limits[type];
-    if (!limit) return true;
+    if (!limit) {return true;}
 
     const key = `${type}:${identifier}`;
     const now = Date.now();
@@ -43,7 +43,7 @@ class RateLimiter {
    */
   getRemaining(type, identifier = 'default') {
     const limit = this.limits[type];
-    if (!limit) return Infinity;
+    if (!limit) {return Infinity;}
 
     const key = `${type}:${identifier}`;
     const now = Date.now();

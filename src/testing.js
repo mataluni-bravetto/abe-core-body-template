@@ -475,7 +475,7 @@ class AIGuardiansTester {
    * Sanitize response for logging
    */
   sanitizeResponse(response) {
-    if (!response) return response;
+    if (!response) {return response;}
 
     const sanitized = { ...response };
 

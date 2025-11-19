@@ -34,7 +34,7 @@ try {
 } catch (importError) {
   // Log error but don't crash - use console.error as fallback
   try {
-    Logger.error('[BG] CRITICAL: Failed to load dependencies:', importError);
+    console.error('[BG] CRITICAL: Failed to load dependencies:', importError);
     console.error('[BG] Import error details:', {
       message: importError.message,
       stack: importError.stack,

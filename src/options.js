@@ -116,7 +116,7 @@
     const sourceTextElement = document.getElementById('clerk_key_source_text');
     const sourceTextElementAdvanced = document.getElementById('clerk_key_source_text_advanced');
 
-    if (!statusElement || !sourceTextElement) return;
+    if (!statusElement || !sourceTextElement) {return;}
 
     const keySource = data.clerk_key_source || 'manual_config';
     const cachedAt = data.clerk_key_cached_at;
@@ -130,8 +130,8 @@
       if (cachedAt) {
         const cacheAge = Math.floor((Date.now() - cachedAt) / 1000 / 60); // minutes
         let ageText = '';
-        if (cacheAge < 1) ageText = 'just now';
-        else if (cacheAge < 60) ageText = `${cacheAge} minute${cacheAge > 1 ? 's' : ''} ago`;
+        if (cacheAge < 1) {ageText = 'just now';}
+        else if (cacheAge < 60) {ageText = `${cacheAge} minute${cacheAge > 1 ? 's' : ''} ago`;}
         else {
           const hours = Math.floor(cacheAge / 60);
           ageText = `${hours} hour${hours > 1 ? 's' : ''} ago`;
@@ -202,12 +202,12 @@
       } else {
         // Hide subscription section if unable to load
         const section = document.getElementById('subscriptionSection');
-        if (section) section.style.display = 'none';
+        if (section) {section.style.display = 'none';}
       }
     } catch (err) {
       Logger.error('Failed to load subscription info', err);
       const section = document.getElementById('subscriptionSection');
-      if (section) section.style.display = 'none';
+      if (section) {section.style.display = 'none';}
     }
   }
 
@@ -222,7 +222,7 @@
     const usageEl = document.getElementById('subscriptionUsage');
     const upgradeBtn = document.getElementById('upgrade_subscription');
 
-    if (!section) return;
+    if (!section) {return;}
 
     // Show subscription section
     section.style.display = 'block';
@@ -353,7 +353,7 @@
     const resultElement = document.getElementById('oauth_config_result');
     const testButton = document.getElementById('test_oauth_config');
 
-    if (!resultElement || !testButton) return;
+    if (!resultElement || !testButton) {return;}
 
     // Update UI to show testing state
     testButton.disabled = true;
@@ -796,7 +796,7 @@
       const part = parts[i];
 
       // Skip empty strings
-      if (!part) continue;
+      if (!part) {continue;}
 
       // Handle HTML tags
       if (part.startsWith('<')) {
@@ -894,7 +894,7 @@
     const testButton = document.getElementById('test_connection');
     const gatewayInput = document.getElementById('connection_gateway_url');
 
-    if (!statusElement || !resultElement || !testButton || !gatewayInput) return;
+    if (!statusElement || !resultElement || !testButton || !gatewayInput) {return;}
 
     const gatewayUrl = gatewayInput.value.trim() || 'https://api.aiguardian.ai';
 
@@ -1103,7 +1103,7 @@
    */
   async function checkAuthState() {
     const output = document.getElementById('auth_debug_output');
-    if (!output) return;
+    if (!output) {return;}
 
     output.style.display = 'block';
     output.textContent = 'Checking auth state...\n';
@@ -1224,7 +1224,7 @@
    */
   async function testSignUpFlow() {
     const output = document.getElementById('auth_debug_output');
-    if (!output) return;
+    if (!output) {return;}
 
     output.style.display = 'block';
     output.textContent = 'Testing sign-up flow...\n';

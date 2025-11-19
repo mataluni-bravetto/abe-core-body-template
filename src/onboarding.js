@@ -56,7 +56,7 @@ class AiGuardianOnboarding {
    * Show the welcome onboarding tooltip
    */
   async showWelcomeTooltip() {
-    if (this.tooltipShown) return;
+    if (this.tooltipShown) {return;}
 
     try {
       // Create overlay

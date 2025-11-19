@@ -139,6 +139,8 @@ class ErrorHandlingTester {
 
     const testText = 'Short'; // Less than MIN_SELECTION_LENGTH (10)
 
+    // SAFETY: Try/catch needed to handle network errors gracefully in tests
+    // eslint-disable-next-line no-useless-catch
     try {
       const payload = {
         service_type: 'biasguard',
@@ -292,6 +294,8 @@ class ErrorHandlingTester {
         throw new Error(`Unexpected status: ${response.status}, expected 400 or 404`);
       }
     } catch (error) {
+      // SAFETY: Re-throw with added context for better test error messages
+      // eslint-disable-next-line no-useless-catch
       throw new Error(`Invalid service type test failed: ${error.message}`);
     }
   }

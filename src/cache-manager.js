@@ -61,7 +61,7 @@ class CacheManager {
    */
   get(key) {
     const cached = this.cache.get(key);
-    if (!cached) return null;
+    if (!cached) {return null;}
 
     // Check if expired
     if (Date.now() > cached.expiresAt) {

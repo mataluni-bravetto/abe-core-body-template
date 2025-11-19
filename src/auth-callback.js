@@ -85,7 +85,7 @@ class AuthCallbackHandler {
    * Handle Clerk authentication callback
    */
   async handleCallback() {
-    if (this.isProcessing) return;
+    if (this.isProcessing) {return;}
     this.isProcessing = true;
 
     try {

@@ -448,4 +448,4 @@ class ExtensionWorkflowTester {
         const result = await testFn();
         if (result !== false) {
           passedTests++;
-          console.log(`✅ Test ${i + 1} completed
+          console.log(`✅ Test ${i + 1} completed`);
