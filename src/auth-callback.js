@@ -545,7 +545,7 @@ class AuthCallbackHandler {
           },
           token: token,
         },
-        (response) => {
+        (_response) => {
           if (chrome.runtime.lastError) {
             Logger.warn(
               '[AuthCallback] Message send error (may be normal if popup closed):',
@@ -627,7 +627,7 @@ class AuthCallbackHandler {
           errorDescription: errorDescription,
           errorType: 'AUTH_OAUTH_REDIRECT_URI_MISMATCH',
         },
-        (response) => {
+        (_response) => {
           // Handle errors in callback - chrome.runtime.sendMessage uses callbacks, not Promises
           if (chrome.runtime.lastError) {
             // Ignore if no listener (this is expected if popup is closed)

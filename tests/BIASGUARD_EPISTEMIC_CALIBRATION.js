@@ -279,14 +279,18 @@ class BiasGuardEpistemicCalibration {
     
     let matches = 0;
     expectedSet.forEach(type => {
-      if (detectedSet.has(type)) matches++;
+      if (detectedSet.has(type)) {
+        matches++;
+      }
     });
     
     const precision = matches / detectedTypes.length; // How many detected are correct?
     const recall = matches / expectedTypes.length; // How many expected did we catch?
     
     // F1 score - harmonic mean of precision and recall
-    if (precision + recall === 0) return 0;
+    if (precision + recall === 0) {
+      return 0;
+    }
     return (2 * precision * recall) / (precision + recall);
   }
 
@@ -427,7 +431,9 @@ class BiasGuardEpistemicCalibration {
    */
   calculateOverallCalibration(results) {
     const validResults = results.filter(r => r.epistemicCertainty);
-    if (validResults.length === 0) return 0;
+    if (validResults.length === 0) {
+      return 0;
+    }
     
     const totalCertainty = validResults.reduce((sum, r) => {
       return sum + (r.epistemicCertainty?.certainty || 0);

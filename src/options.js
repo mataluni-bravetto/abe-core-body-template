@@ -83,7 +83,11 @@
           const trimmedKey = data.clerk_publishable_key.trim();
           if (trimmedKey !== data.clerk_publishable_key) {
             // Key has whitespace, save trimmed version
-            chrome.storage.sync.set({ clerk_publishable_key: trimmedKey });
+            chrome.storage.sync.set({ clerk_publishable_key: trimmedKey }, () => {
+              if (chrome.runtime.lastError) {
+                Logger.error('[Options] Failed to save trimmed Clerk key:', chrome.runtime.lastError.message);
+              }
+            });
             data.clerk_publishable_key = trimmedKey;
           }
         }
@@ -184,7 +188,12 @@
   function sendMessageToBackground(type, payload = null) {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({ type, payload }, (response) => {
-        resolve(response || { success: false, error: 'No response' });
+        if (chrome.runtime.lastError) {
+          Logger.error('[Options] Message to background failed:', chrome.runtime.lastError.message);
+          resolve({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          resolve(response || { success: false, error: 'No response' });
+        }
       });
     });
   }
@@ -310,8 +319,15 @@
    */
   async function manageSubscription() {
     try {
-      const data = await new Promise((resolve) => {
-        chrome.storage.sync.get(['gateway_url'], resolve);
+      const data = await new Promise((resolve, reject) => {
+        chrome.storage.sync.get(['gateway_url'], (result) => {
+          if (chrome.runtime.lastError) {
+            Logger.error('[Options] Failed to get gateway_url:', chrome.runtime.lastError.message);
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(result);
+          }
+        });
       });
 
       const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
@@ -332,8 +348,15 @@
    */
   async function upgradeSubscription() {
     try {
-      const data = await new Promise((resolve) => {
-        chrome.storage.sync.get(['gateway_url'], resolve);
+      const data = await new Promise((resolve, reject) => {
+        chrome.storage.sync.get(['gateway_url'], (result) => {
+          if (chrome.runtime.lastError) {
+            Logger.error('[Options] Failed to get gateway_url:', chrome.runtime.lastError.message);
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(result);
+          }
+        });
       });
 
       const gatewayUrl = data.gateway_url || 'https://api.aiguardian.ai';
@@ -371,8 +394,15 @@
 
     try {
       // Get Clerk publishable key
-      const syncData = await new Promise((resolve) => {
-        chrome.storage.sync.get(['clerk_publishable_key'], resolve);
+      const syncData = await new Promise((resolve, reject) => {
+        chrome.storage.sync.get(['clerk_publishable_key'], (result) => {
+          if (chrome.runtime.lastError) {
+            Logger.error('[Options] Failed to get Clerk key:', chrome.runtime.lastError.message);
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(result);
+          }
+        });
       });
 
       let publishableKey = syncData.clerk_publishable_key;
@@ -1117,8 +1147,15 @@
         );
       });
 
-      const localData = await new Promise((resolve) => {
-        chrome.storage.local.get(['clerk_user', 'clerk_token'], resolve);
+      const localData = await new Promise((resolve, reject) => {
+        chrome.storage.local.get(['clerk_user', 'clerk_token'], (result) => {
+          if (chrome.runtime.lastError) {
+            Logger.error('[Options] Failed to get auth data:', chrome.runtime.lastError.message);
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(result);
+          }
+        });
       });
 
       let debug = '=== AUTH STATE DEBUG ===\n\n';

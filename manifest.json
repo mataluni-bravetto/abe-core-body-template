@@ -10,7 +10,8 @@
     "alarms",
     "contextMenus",
     "clipboardWrite",
-    "identity"
+    "identity",
+    "scripting"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -81,7 +82,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/clerk-callback.html", "src/vendor/clerk.js"],
+      "resources": ["src/clerk-callback.html", "src/vendor/clerk.js", "src/clerk-bridge.js"],
       "matches": ["<all_urls>"]
     }
   ]

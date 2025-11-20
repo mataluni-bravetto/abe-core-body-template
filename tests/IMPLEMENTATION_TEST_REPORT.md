@@ -121,7 +121,7 @@
 
 ## 6. Documentation
 
-- ✅ `BACKEND_SCORE_REQUIREMENTS.md` updated with:
+- ✅ `docs/setup/BACKEND_SCORE_REQUIREMENTS.md` updated with:
   - Optimized extraction order
   - ScoreUtils utilities documentation
   - Enhanced debugging section

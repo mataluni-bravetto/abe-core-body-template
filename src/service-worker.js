@@ -153,8 +153,13 @@ try {
       }
 
       if (Object.keys(settingsToSave).length > 0) {
-        chrome.storage.sync.set(settingsToSave);
-        Logger.info('[BG] Initialized default settings');
+        chrome.storage.sync.set(settingsToSave, () => {
+          if (chrome.runtime.lastError) {
+            Logger.error('[BG] Failed to initialize default settings:', chrome.runtime.lastError.message);
+          } else {
+            Logger.info('[BG] Initialized default settings');
+          }
+        });
       }
     });
   }
@@ -237,6 +242,10 @@ try {
             chrome.tabs.sendMessage(tab.id, {
               type: 'SHOW_ANALYSIS_RESULT',
               payload: response,
+            }, () => {
+              if (chrome.runtime.lastError) {
+                Logger.warn('[BG] Failed to send analysis result to content script:', chrome.runtime.lastError.message);
+              }
             });
           });
         }
@@ -252,13 +261,22 @@ try {
 
       case 'copy-analysis':
         chrome.storage.local.get(['last_analysis'], (data) => {
+          if (chrome.runtime.lastError) {
+            Logger.error('[BG] Failed to read last_analysis:', chrome.runtime.lastError.message);
+            return;
+          }
           if (data.last_analysis) {
             const analysisText = JSON.stringify(data.last_analysis, null, 2);
             chrome.tabs.sendMessage(tab.id, {
               type: 'COPY_TO_CLIPBOARD',
               payload: analysisText,
+            }, () => {
+              if (chrome.runtime.lastError) {
+                Logger.warn('[BG] Failed to send copy command to content script:', chrome.runtime.lastError.message);
+              } else {
+                Logger.info('[BG] Analysis copied to clipboard');
+              }
             });
-            Logger.info('[BG] Analysis copied to clipboard');
           }
         });
         break;
@@ -266,8 +284,13 @@ try {
       case 'clear-highlights':
         chrome.tabs.sendMessage(tab.id, {
           type: 'CLEAR_HIGHLIGHTS',
+        }, () => {
+          if (chrome.runtime.lastError) {
+            Logger.warn('[BG] Failed to send clear highlights command:', chrome.runtime.lastError.message);
+          } else {
+            Logger.info('[BG] Highlights cleared');
+          }
         });
-        Logger.info('[BG] Highlights cleared');
         break;
     }
   });
@@ -282,22 +305,37 @@ try {
           case 'analyze-selection':
             chrome.tabs.sendMessage(tabs[0].id, {
               type: 'ANALYZE_SELECTION_COMMAND',
+            }, () => {
+              if (chrome.runtime.lastError) {
+                Logger.warn('[BG] Failed to send analyze command:', chrome.runtime.lastError.message);
+              } else {
+                Logger.info('[BG] Analyze selection command triggered');
+              }
             });
-            Logger.info('[BG] Analyze selection command triggered');
             break;
 
           case 'clear-highlights':
             chrome.tabs.sendMessage(tabs[0].id, {
               type: 'CLEAR_HIGHLIGHTS',
+            }, () => {
+              if (chrome.runtime.lastError) {
+                Logger.warn('[BG] Failed to send clear highlights command:', chrome.runtime.lastError.message);
+              } else {
+                Logger.info('[BG] Clear highlights command triggered');
+              }
             });
-            Logger.info('[BG] Clear highlights command triggered');
             break;
 
           case 'show-history':
             chrome.tabs.sendMessage(tabs[0].id, {
               type: 'SHOW_HISTORY',
+            }, () => {
+              if (chrome.runtime.lastError) {
+                Logger.warn('[BG] Failed to send show history command:', chrome.runtime.lastError.message);
+              } else {
+                Logger.info('[BG] Show history command triggered');
+              }
             });
-            Logger.info('[BG] Show history command triggered');
             break;
         }
       }
@@ -453,6 +491,84 @@ try {
           // TRACER BULLET: Clear subscription cache
           handleClearSubscriptionCache(sendResponse);
           return true;
+
+        case 'E2E_TEST_STORAGE_GET':
+          // E2E TEST: Bridge for storage access from webpage console
+          // Allows test script to access extension storage via message passing
+          (async () => {
+            try {
+              const keys = request.keys || [];
+              const area = request.area || 'local';
+              const storageArea = area === 'sync' ? chrome.storage.sync : chrome.storage.local;
+
+              storageArea.get(keys, (data) => {
+                if (chrome.runtime.lastError) {
+                  Logger.error('[BG] E2E test storage get error:', chrome.runtime.lastError);
+                  sendResponse({ success: false, error: chrome.runtime.lastError.message });
+                  return;
+                }
+                Logger.info('[BG] E2E test storage get success:', { keys, area, hasData: !!data });
+                sendResponse({ success: true, data: data });
+              });
+            } catch (error) {
+              Logger.error('[BG] E2E test storage get exception:', error);
+              sendResponse({ success: false, error: error.message });
+            }
+          })();
+          return true; // Keep message channel open for async response
+
+        case 'INJECT_CLERK_BRIDGE':
+          // CRITICAL FIX: Inject bridge script into MAIN world using chrome.scripting API
+          // This is required in Manifest V3 to access page's window.Clerk
+          (async () => {
+            try {
+              if (typeof chrome.scripting === 'undefined' || !chrome.scripting.executeScript) {
+                Logger.error('[BG] chrome.scripting API not available');
+                sendResponse({ success: false, error: 'scripting API not available' });
+                return;
+              }
+
+              // Get the tab that sent the message
+              const tabId = sender.tab?.id;
+              if (!tabId) {
+                Logger.error('[BG] No tab ID available for bridge injection');
+                sendResponse({ success: false, error: 'No tab ID' });
+                return;
+              }
+
+              // Check if bridge is already injected to prevent duplicates
+              try {
+                const checkResults = await chrome.scripting.executeScript({
+                  target: { tabId: tabId },
+                  func: () => window.__aiGuardianBridgeLoaded,
+                  world: 'MAIN'
+                });
+                
+                if (checkResults[0]?.result) {
+                  Logger.info('[BG] Bridge already injected, skipping duplicate injection');
+                  sendResponse({ success: true, alreadyInjected: true });
+                  return;
+                }
+              } catch (checkError) {
+                // Check failed - continue with injection anyway
+                Logger.debug('[BG] Could not check bridge status, proceeding with injection:', checkError);
+              }
+
+              // Inject bridge script into MAIN world (page context)
+              await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                files: ['src/clerk-bridge.js'],
+                world: 'MAIN' // CRITICAL: Must be MAIN world to access window.Clerk
+              });
+
+              Logger.info('[BG] Successfully injected Clerk bridge into MAIN world');
+              sendResponse({ success: true });
+            } catch (error) {
+              Logger.error('[BG] Failed to inject bridge script:', error);
+              sendResponse({ success: false, error: error.message });
+            }
+          })();
+          return true; // Keep channel open for async response
 
         case 'GET_CLERK_KEY':
           // Get Clerk publishable key from storage, fallback to hardcoded default
@@ -723,14 +839,24 @@ try {
             // Save as last analysis for copy feature - store only essential data to avoid quota issues
             try {
               // Store minimal data to avoid quota exceeded errors
+              // Store minimal data to avoid quota exceeded errors
+              // Ensure success flag is explicitly set (handles undefined case)
               const minimalAnalysis = {
                 score: analysisResult.score,
                 timestamp: new Date().toISOString(),
                 summary: analysisResult.analysis?.popup_data?.summary || 
                          analysisResult.analysis?.summary || 
                          'Analysis complete',
-                success: analysisResult.success
+                // Explicitly set success: true for successful analyses (undefined treated as success)
+                success: analysisResult.success !== false ? true : false
               };
+              
+              Logger.info('[BG] Prepared minimalAnalysis for storage:', {
+                score: minimalAnalysis.score,
+                hasSummary: !!minimalAnalysis.summary,
+                success: minimalAnalysis.success,
+                timestamp: minimalAnalysis.timestamp,
+              });
               
               // Log size before storing
               const minimalAnalysisSize = JSON.stringify(minimalAnalysis).length;
@@ -762,9 +888,13 @@ try {
                           isQuotaError: chrome.runtime.lastError.message.includes('quota') || chrome.runtime.lastError.message.includes('QUOTA'),
                         });
                       } else {
-                        Logger.info('[BG] Successfully stored last_analysis:', {
+                        Logger.info('[BG] ✅ Successfully stored last_analysis - score update will trigger popup refresh:', {
+                          score: minimalAnalysis.score,
+                          success: minimalAnalysis.success,
+                          timestamp: minimalAnalysis.timestamp,
                           minimalAnalysisSize,
                           minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                          note: 'Storage change event will notify popup to update UI',
                         });
                       }
                     });
@@ -783,6 +913,12 @@ try {
                         minimalAnalysisSize,
                         minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
                         isQuotaError: chrome.runtime.lastError.message.includes('quota') || chrome.runtime.lastError.message.includes('QUOTA'),
+                      });
+                    } else {
+                      Logger.info('[BG] ✅ Successfully stored last_analysis (fallback after quota check error):', {
+                        score: minimalAnalysis.score,
+                        success: minimalAnalysis.success,
+                        timestamp: minimalAnalysis.timestamp,
                       });
                     }
                   });
@@ -807,9 +943,13 @@ try {
                       });
                     }
                   } else {
-                    Logger.info('[BG] Successfully stored last_analysis (fallback):', {
+                    Logger.info('[BG] ✅ Successfully stored last_analysis (fallback) - score update will trigger popup refresh:', {
+                      score: minimalAnalysis.score,
+                      success: minimalAnalysis.success,
+                      timestamp: minimalAnalysis.timestamp,
                       minimalAnalysisSize,
                       minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                      note: 'Storage change event will notify popup to update UI',
                     });
                   }
                 });
@@ -1455,6 +1595,7 @@ try {
       }
       
       // Initialize calibration system
+      // eslint-disable-next-line no-undef
       const calibrator = new BiasGuardEpistemicCalibration();
       
       // Run calibration

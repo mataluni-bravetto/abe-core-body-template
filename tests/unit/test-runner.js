@@ -25,6 +25,7 @@ class SimpleTestRunner {
     this.assertNotEqual = this.assertNotEqual.bind(this);
     this.assertTrue = this.assertTrue.bind(this);
     this.assertFalse = this.assertFalse.bind(this);
+    this.assertNull = this.assertNull.bind(this);
     this.assertThrows = this.assertThrows.bind(this);
   }
 
@@ -59,6 +60,12 @@ class SimpleTestRunner {
   assertFalse(value, message = 'Value is not falsy') {
     if (value) {
       throw new Error(message);
+    }
+  }
+
+  assertNull(value, message = 'Value is not null') {
+    if (value !== null) {
+      throw new Error(`${message}: expected null, got ${value}`);
     }
   }
 

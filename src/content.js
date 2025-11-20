@@ -151,7 +151,7 @@
    */
   function displayAnalysisResults(response, range) {
     // DEBUG: Log full response structure to diagnose score extraction
-    Logger.info('[CS] 🔍 Displaying analysis results - Full response structure:', {
+    Logger.info('[CS] 🔍 Displaying analysis results - Score update flow:', {
       hasResponse: !!response,
       success: response?.success,
       hasScore: response?.score !== undefined,
@@ -159,8 +159,7 @@
       scoreType: typeof response?.score,
       hasAnalysis: !!response?.analysis,
       analysisKeys: response?.analysis ? Object.keys(response?.analysis) : [],
-      analysisPreview: response?.analysis ? JSON.stringify(response?.analysis).substring(0, 300) : 'null',
-      fullResponsePreview: JSON.stringify(response).substring(0, 500)
+      note: 'Content script displaying score immediately - popup will update via storage listener',
     });
     
     // Check for error responses first - don't display "Score: 0%" for failed analyses
@@ -214,12 +213,16 @@
       return;
     }
 
-    // Validate score is a number
-    if (typeof response.score !== 'number' || Number.isNaN(response.score)) {
-      Logger.warn('[CS] ⚠️ Analysis response has invalid score type:', {
+    // Validate score is a number AND in valid range (0-1)
+    if (typeof response.score !== 'number' || 
+        Number.isNaN(response.score) ||
+        response.score < 0 || 
+        response.score > 1) {
+      Logger.warn('[CS] ⚠️ Analysis response has invalid score:', {
         score: response.score,
         scoreType: typeof response.score,
         isNaN: Number.isNaN(response.score),
+        isOutOfRange: response.score < 0 || response.score > 1,
       });
       showErrorBadge('Score unavailable - Analysis incomplete. Invalid score format.', 'warning');
       return;
@@ -245,14 +248,37 @@
     });
 
     // TRACER BULLET: Highlight the text on the page (only if score is a valid number)
+    // CRITICAL FIX: Convert score (0-1) to percentage (0-100) for getScoreColor()
     if (range && typeof response.score === 'number' && !Number.isNaN(response.score)) {
-      highlightSelection(range, response.score);
+      const scorePercentage = Math.round(response.score * 100);
+      highlightSelection(range, scorePercentage);
     }
 
     // Convert score to percentage (0-100)
     // Note: score of 0 is valid (backend explicitly returned 0, meaning no bias detected)
     const score = Math.round(response.score * 100);
     const analysis = response.analysis || {};
+
+    // EPISTEMIC CERTAINTY VALIDATION: Validate 97.8% threshold
+    const confidence = analysis.confidence;
+    const epistemicThreshold = 0.978; // 97.8% epistemic certainty threshold
+    
+    if (confidence !== undefined && confidence !== null && typeof confidence === 'number') {
+      if (confidence < epistemicThreshold) {
+        Logger.warn('[CS] ⚠️ Confidence below epistemic threshold (97.8%):', {
+          confidence: Math.round(confidence * 100) + '%',
+          threshold: '97.8%',
+          difference: Math.round((epistemicThreshold - confidence) * 100) + '%',
+          score: score + '%'
+        });
+      } else {
+        Logger.info('[CS] ✅ Confidence meets epistemic threshold:', {
+          confidence: Math.round(confidence * 100) + '%',
+          threshold: '97.8%',
+          score: score + '%'
+        });
+      }
+    }
 
     // Create enhanced badge with more information
     const badge = document.createElement('div');
@@ -279,6 +305,14 @@
       typeDiv.style.cssText = 'font-size: 10px; margin-top: 4px;';
       typeDiv.textContent = `Type: ${analysis.bias_type}`;
       badge.appendChild(typeDiv);
+    }
+
+    // EPISTEMIC CERTAINTY WARNING: Show warning if confidence below 97.8%
+    if (confidence !== undefined && confidence !== null && typeof confidence === 'number' && confidence < epistemicThreshold) {
+      const warningDiv = document.createElement('div');
+      warningDiv.style.cssText = 'font-size: 10px; margin-top: 4px; color: #FF9800; font-weight: 600;';
+      warningDiv.textContent = `⚠️ Low confidence (${Math.round(confidence * 100)}%)`;
+      badge.appendChild(warningDiv);
     }
 
     badge.style.cssText = `
@@ -440,8 +474,12 @@
     // Remove any existing modal
     const existingModal = document.querySelector('.aiguardian-analysis-modal');
     const existingOverlay = document.querySelector('.aiguardian-modal-overlay');
-    if (existingModal) existingModal.remove();
-    if (existingOverlay) existingOverlay.remove();
+    if (existingModal) {
+      existingModal.remove();
+    }
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
 
     // DEBUG: Log response structure to diagnose score extraction
     Logger.info('[CS] Modal - Full response structure:', {
@@ -711,7 +749,7 @@
       issuesLabel.style.cssText = 'font-size: 12px; font-weight: 600; color: #F44336; margin-bottom: 12px; text-transform: uppercase;';
       issuesSection.appendChild(issuesLabel);
 
-      issues.forEach((issue, idx) => {
+      issues.forEach((issue, _idx) => {
         const issueDiv = document.createElement('div');
         issueDiv.style.cssText = `
           padding: 12px;
@@ -736,7 +774,7 @@
       recLabel.style.cssText = 'font-size: 12px; font-weight: 600; color: #4CAF50; margin-bottom: 12px; text-transform: uppercase;';
       recSection.appendChild(recLabel);
 
-      recommendations.forEach((rec, idx) => {
+      recommendations.forEach((rec, _idx) => {
         const recDiv = document.createElement('div');
         recDiv.style.cssText = `
           padding: 12px;
@@ -957,6 +995,39 @@
     return null;
   }
 
+  /**
+   * Helper function to retrieve Clerk session token
+   * Returns null if token cannot be retrieved (non-fatal)
+   * @param {Object} clerk - Clerk SDK instance
+   * @returns {Promise<string|null>} Clerk session token or null
+   */
+  async function getClerkToken(clerk) {
+    if (!clerk) {
+      return null;
+    }
+    
+    try {
+      // Ensure Clerk is loaded
+      if (typeof clerk.load === 'function' && !clerk.loaded) {
+        await clerk.load();
+      }
+      
+      // Get session
+      const session = await clerk.session;
+      if (session) {
+        const token = await session.getToken();
+        if (token) {
+          Logger.info('[CS] Successfully retrieved Clerk token');
+          return token;
+        }
+      }
+    } catch (e) {
+      Logger.warn('[CS] Could not get token from Clerk (non-fatal):', e.message);
+    }
+    
+    return null;
+  }
+
   // Detect Clerk authentication on accounts.dev pages
   // When Clerk redirects to /default-redirect, extract session info
   // Check if we're on a Clerk account page OR the AiGuardian landing page
@@ -980,8 +1051,130 @@
     readyState: document.readyState,
   });
 
+  // Reset userDetected flag on page navigation
+  window.addEventListener('beforeunload', () => {
+    userDetected = false;
+    Logger.info('[CS] Page unloading - resetting userDetected flag');
+  });
+
+  // Listen for storage changes to reset flag on logout
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.clerk_user) {
+        // User logged out - reset detection flag
+        if (!changes.clerk_user.newValue && changes.clerk_user.oldValue) {
+          userDetected = false;
+          Logger.info('[CS] User logged out - resetting userDetected flag');
+        }
+      }
+    });
+  }
+
   if (isClerkPage) {
     Logger.info('[CS] Content script running on Clerk page:', window.location.hostname);
+    
+    // CRITICAL: Set up listener BEFORE injecting bridge to avoid race condition
+    // Listen for messages from the bridge script
+    window.addEventListener('message', (event) => {
+      // Validate message source and structure
+      if (event.source !== window) {
+        return;
+      }
+      if (event.data?.type !== 'AI_GUARDIAN_CLERK_DATA') {
+        return;
+      }
+      if (!event.data?.payload) {
+        return;
+      }
+      
+      // Security: Validate message signature
+      if (event.data._signature !== 'aiGuardianBridge') {
+        Logger.warn('[CS] Invalid message signature - ignoring');
+        return;
+      }
+      
+      // Validate payload structure
+      if (!event.data.payload.user || !event.data.payload.user.id) {
+        Logger.warn('[CS] Invalid payload structure - ignoring');
+        return;
+      }
+      
+      const { user, token } = event.data.payload;
+      Logger.info('[CS] Received Clerk data from bridge script', user.id);
+      
+      if (user && !userDetected) {
+        userDetected = true;
+        
+        chrome.runtime.sendMessage(
+          {
+            type: 'CLERK_AUTH_DETECTED',
+            user: user,
+            token: token,
+          },
+          (response) => {
+             if (!chrome.runtime.lastError) {
+                Logger.info('[CS] Successfully sent bridge auth to extension');
+             }
+          }
+        );
+      }
+    });
+
+    async function injectClerkBridge() {
+      try {
+        // CRITICAL FIX: Inject bridge script into MAIN world (page context)
+        // Content scripts run in isolated world and cannot access page's window.Clerk
+        // We need to inject an inline script that runs in MAIN world
+        
+        // Method 1: Use chrome.scripting.executeScript from service worker (preferred)
+        // Request service worker to inject the script
+        chrome.runtime.sendMessage({ 
+          type: 'INJECT_CLERK_BRIDGE',
+          url: window.location.href 
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            Logger.warn('[CS] Service worker injection failed, using inline method:', chrome.runtime.lastError);
+            // Fallback: Inject inline script that loads bridge in MAIN world
+            injectInlineBridge();
+          } else {
+            Logger.info('[CS] Bridge injection requested from service worker');
+          }
+        });
+      } catch (e) {
+        Logger.error('[CS] Failed to inject bridge script:', e);
+        // Fallback to inline injection
+        injectInlineBridge();
+      }
+    }
+
+    // Fallback: Inject inline script that runs in MAIN world
+    function injectInlineBridge() {
+      try {
+        // Create inline script that loads the bridge script
+        // This script runs in MAIN world context
+        const bridgeUrl = chrome.runtime.getURL('src/clerk-bridge.js');
+        const inlineScript = document.createElement('script');
+        // Use JSON.stringify for proper URL escaping
+        inlineScript.textContent = `
+          (function() {
+            if (window.__aiGuardianBridgeLoaded) {
+              return;
+            }
+            const script = document.createElement('script');
+            script.src = ${JSON.stringify(bridgeUrl)};
+            script.onload = function() { this.remove(); };
+            (document.head || document.documentElement).appendChild(script);
+          })();
+        `;
+        // Inject into page's document (not content script's isolated context)
+        (document.head || document.documentElement).appendChild(inlineScript);
+        inlineScript.remove(); // Clean up
+        Logger.info('[CS] Injected bridge script via inline method (MAIN world)');
+      } catch (e) {
+        Logger.error('[CS] Inline injection failed:', e);
+      }
+    }
+
     Logger.info('[CS] Page URL:', window.location.href);
     Logger.info('[CS] Document ready state:', document.readyState);
     Logger.info('[CS] Clerk page detected - starting auth detection');
@@ -1099,6 +1292,15 @@
 
                 if (user) {
                   Logger.info('[CS] Found user via SDK:', user.id);
+                  
+                  // Get token
+                  let token = null;
+                  try {
+                    token = await getClerkToken(clerk);
+                  } catch (e) {
+                    Logger.warn('[CS] Could not get token (non-fatal):', e.message);
+                  }
+                  
                   // Send user data immediately
                   chrome.runtime.sendMessage(
                     {
@@ -1113,7 +1315,7 @@
                         username: user.username,
                         imageUrl: user.imageUrl || user.profileImageUrl,
                       },
-                      token: null,
+                      token: token,
                     },
                     (response) => {
                       if (chrome.runtime.lastError) {
@@ -1137,6 +1339,18 @@
 
                   if (session && session.userId) {
                     Logger.info('[CS] Found session with userId:', session.userId);
+                    
+                    // Get token from session
+                    let token = null;
+                    try {
+                      token = await session.getToken();
+                      if (token) {
+                        Logger.info('[CS] Successfully retrieved token from session');
+                      }
+                    } catch (e) {
+                      Logger.warn('[CS] Could not get token from session (non-fatal):', e.message);
+                    }
+                    
                     chrome.runtime.sendMessage(
                       {
                         type: 'CLERK_AUTH_DETECTED',
@@ -1148,7 +1362,7 @@
                           username: null,
                           imageUrl: null,
                         },
-                        token: null,
+                        token: token,
                       },
                       (response) => {
                         if (chrome.runtime.lastError) {
@@ -1244,75 +1458,95 @@
                 lastName: authUserPayload.lastName,
               });
 
-              try {
-                Logger.info('[CS] About to call chrome.runtime.sendMessage');
-                Logger.info('[CS] Sending message now:', {
-                  type: 'CLERK_AUTH_DETECTED',
-                  user: authUserPayload,
-                });
-
-                // Ensure service worker is active by checking runtime
-                if (!chrome.runtime.id) {
-                  Logger.error('[CS] ❌ Extension runtime not available');
-                  Logger.error('[CS] Extension runtime not available');
-                  return;
-                }
-
-                chrome.runtime.sendMessage(
-                  {
+              // Wrap async token retrieval in IIFE to avoid making checkSignedInPage async
+              (async () => {
+                try {
+                  Logger.info('[CS] About to call chrome.runtime.sendMessage');
+                  
+                  // Try to get token if Clerk SDK is available
+                  let token = null;
+                  try {
+                    const clerk = getClerkInstance();
+                    if (clerk) {
+                      token = await getClerkToken(clerk);
+                    }
+                  } catch (e) {
+                    // SDK not accessible - this is expected for page content fallback
+                  }
+                  
+                  Logger.info('[CS] Sending message now:', {
                     type: 'CLERK_AUTH_DETECTED',
                     user: authUserPayload,
-                    token: null,
-                  },
-                  (response) => {
-                    // Check if callback was called (might be undefined if service worker didn't respond)
-                    Logger.info('[CS] sendMessage callback executed');
-                    Logger.info(
-                      '[CS] Callback executed, lastError:',
-                      chrome.runtime.lastError,
-                      'response:',
-                      response
-                    );
+                    hasToken: !!token,
+                  });
 
-                    if (chrome.runtime.lastError) {
-                      Logger.error(
-                        '[CS] ❌ Failed to send page-detected auth:',
-                        chrome.runtime.lastError.message
-                      );
-                      Logger.error('[CS] Runtime error:', chrome.runtime.lastError);
-                    } else {
-                      Logger.info('[CS] ✅ Successfully sent page-detected auth to extension:', {
-                        name: extractedName,
-                        email: emailMatch ? emailMatch[0] : null,
-                        response: response,
-                      });
-                      Logger.info('[CS] ✅ Message sent successfully, response:', response);
-                      userDetected = true;
-
-                      // Also verify storage was updated
-                      chrome.storage.local.get(['clerk_user'], (result) => {
-                        if (result.clerk_user) {
-                          Logger.info(
-                            '[CS] ✅ Verified user stored in extension:',
-                            result.clerk_user.id
-                          );
-                          Logger.info('[CS] ✅ User confirmed in storage:', result.clerk_user);
-                        } else {
-                          Logger.warn('[CS] ⚠️ User not found in storage after message send');
-                          Logger.warn('[CS] User not in storage:', result);
-                        }
-                      });
-                    }
+                  // Ensure service worker is active by checking runtime
+                  if (!chrome.runtime.id) {
+                    Logger.error('[CS] ❌ Extension runtime not available');
+                    Logger.error('[CS] Extension runtime not available');
+                    return;
                   }
-                );
 
-                // Also log after the sendMessage call to verify it was called
-                Logger.info('[CS] sendMessage call completed (callback may execute later)');
-                Logger.info('[CS] sendMessage call completed');
-              } catch (error) {
-                Logger.error('[CS] ❌ Exception sending CLERK_AUTH_DETECTED message:', error);
-                Logger.error('[CS] Exception:', error);
-              }
+                  chrome.runtime.sendMessage(
+                    {
+                      type: 'CLERK_AUTH_DETECTED',
+                      user: authUserPayload,
+                      token: token,
+                    },
+                    (response) => {
+                      // Check if callback was called (might be undefined if service worker didn't respond)
+                      Logger.info('[CS] sendMessage callback executed');
+                      Logger.info(
+                        '[CS] Callback executed, lastError:',
+                        chrome.runtime.lastError,
+                        'response:',
+                        response
+                      );
+
+                      if (chrome.runtime.lastError) {
+                        Logger.error(
+                          '[CS] ❌ Failed to send page-detected auth:',
+                          chrome.runtime.lastError.message
+                        );
+                        Logger.error('[CS] Runtime error:', chrome.runtime.lastError);
+                      } else {
+                        Logger.info('[CS] ✅ Successfully sent page-detected auth to extension:', {
+                          name: extractedName,
+                          email: emailMatch ? emailMatch[0] : null,
+                          response: response,
+                        });
+                        Logger.info('[CS] ✅ Message sent successfully, response:', response);
+                        userDetected = true;
+
+                        // Also verify storage was updated
+                        chrome.storage.local.get(['clerk_user'], (result) => {
+                          if (chrome.runtime.lastError) {
+                            Logger.warn('[CS] Failed to verify storage update:', chrome.runtime.lastError.message);
+                            return;
+                          }
+                          if (result.clerk_user) {
+                            Logger.info(
+                              '[CS] ✅ Verified user stored in extension:',
+                              result.clerk_user.id
+                            );
+                            Logger.info('[CS] ✅ User confirmed in storage:', result.clerk_user);
+                          } else {
+                            Logger.warn('[CS] ⚠️ User not found in storage after message send');
+                            Logger.warn('[CS] User not in storage:', result);
+                          }
+                        });
+                      }
+                    }
+                  );
+
+                  // Also log after the sendMessage call to verify it was called
+                  Logger.info('[CS] sendMessage call completed (callback may execute later)');
+                  Logger.info('[CS] sendMessage call completed');
+                } catch (error) {
+                  Logger.error('[CS] ❌ Exception sending CLERK_AUTH_DETECTED message:', error);
+                  Logger.error('[CS] Exception:', error);
+                }
+              })();
             } else {
               Logger.warn(
                 '[CS] Page shows signed in but no user info could be extracted from page content'
@@ -1350,6 +1584,7 @@
     // IMPORTANT: Clerk SDK loads asynchronously via <script async>, so we need to wait for window.load event
     function startAuthCheck() {
       Logger.info('[CS] Starting auth check');
+      injectClerkBridge();
       checkSignedInPage();
       checkClerkAuth();
     }
@@ -1558,51 +1793,63 @@
                     '[CS] Page indicates user is signed in but redirect failed - attempting to extract session'
                   );
 
-                  // Try to get session even if user object isn't available
-                  try {
-                    if (clerk.session && typeof clerk.session.then === 'function') {
-                      const session = await clerk.session;
-                      if (session && session.userId) {
-                        Logger.info('[CS] Found session with userId:', session.userId);
-                        // Try to get user from session
-                        let userFromSession = null;
-                        try {
-                          // Some Clerk versions expose user via session
-                          if (session.user) {
-                            userFromSession = session.user;
-                          } else if (typeof session.getUser === 'function') {
-                            userFromSession = await session.getUser();
-                          }
-                        } catch (userErr) {
-                          // Could not get user from session (non-critical)
-                        }
+                      // Try to get session even if user object isn't available
+                      try {
+                        if (clerk.session && typeof clerk.session.then === 'function') {
+                          const session = await clerk.session;
+                          if (session && session.userId) {
+                            Logger.info('[CS] Found session with userId:', session.userId);
+                            
+                            // Get token from session
+                            let token = null;
+                            try {
+                              token = await session.getToken();
+                              if (token) {
+                                Logger.info('[CS] Successfully retrieved token from session');
+                              }
+                            } catch (e) {
+                              Logger.warn('[CS] Could not get token (non-fatal):', e.message);
+                            }
+                            
+                            // Try to get user from session
+                            let userFromSession = null;
+                            try {
+                              // Some Clerk versions expose user via session
+                              if (session.user) {
+                                userFromSession = session.user;
+                              } else if (typeof session.getUser === 'function') {
+                                userFromSession = await session.getUser();
+                              }
+                            } catch (userErr) {
+                              // Could not get user from session (non-critical)
+                            }
 
-                        // Send what we have
-                        chrome.runtime.sendMessage(
-                          {
-                            type: 'CLERK_AUTH_DETECTED',
-                            user: userFromSession
-                              ? {
-                                  id: userFromSession.id,
-                                  email:
-                                    userFromSession.primaryEmailAddress?.emailAddress ||
-                                    userFromSession.emailAddresses?.[0]?.emailAddress,
-                                  firstName: userFromSession.firstName,
-                                  lastName: userFromSession.lastName,
-                                  username: userFromSession.username,
-                                  imageUrl:
-                                    userFromSession.imageUrl || userFromSession.profileImageUrl,
-                                }
-                              : {
-                                  id: session.userId,
-                                  email: null,
-                                  firstName: null,
-                                  lastName: null,
-                                  username: null,
-                                  imageUrl: null,
-                                },
-                            token: null,
-                          },
+                            // Send what we have
+                            chrome.runtime.sendMessage(
+                              {
+                                type: 'CLERK_AUTH_DETECTED',
+                                user: userFromSession
+                                  ? {
+                                      id: userFromSession.id,
+                                      email:
+                                        userFromSession.primaryEmailAddress?.emailAddress ||
+                                        userFromSession.emailAddresses?.[0]?.emailAddress,
+                                      firstName: userFromSession.firstName,
+                                      lastName: userFromSession.lastName,
+                                      username: userFromSession.username,
+                                      imageUrl:
+                                        userFromSession.imageUrl || userFromSession.profileImageUrl,
+                                    }
+                                  : {
+                                      id: session.userId,
+                                      email: null,
+                                      firstName: null,
+                                      lastName: null,
+                                      username: null,
+                                      imageUrl: null,
+                                    },
+                                token: token,
+                              },
                           (response) => {
                             if (chrome.runtime.lastError) {
                               Logger.error(
@@ -1661,31 +1908,46 @@
 
             if (checkCookiesForAuth() || emailMatch) {
               Logger.info('[CS] Found auth indicators - sending minimal user data');
-              chrome.runtime.sendMessage(
-                {
-                  type: 'CLERK_AUTH_DETECTED',
-                  user: {
-                    id: 'signed-in-user',
-                    email: emailMatch ? emailMatch[0] : null,
-                    firstName: null,
-                    lastName: null,
-                    username: null,
-                    imageUrl: null,
-                  },
-                  token: null,
-                },
-                (response) => {
-                  if (!chrome.runtime.lastError) {
-                    Logger.info('[CS] Sent page-detected auth to extension');
-                    userDetected = true;
-                  } else {
-                    Logger.error(
-                      '[CS] Could not send page-detected auth:',
-                      chrome.runtime.lastError
-                    );
+              
+              // Wrap async token retrieval in IIFE since checkClerkAuth is not async
+              (async () => {
+                // Try to get token if Clerk SDK is available
+                let token = null;
+                try {
+                  const clerk = getClerkInstance();
+                  if (clerk) {
+                    token = await getClerkToken(clerk);
                   }
+                } catch (e) {
+                  // SDK may not be accessible - this is a fallback detection
                 }
-              );
+                
+                chrome.runtime.sendMessage(
+                  {
+                    type: 'CLERK_AUTH_DETECTED',
+                    user: {
+                      id: 'signed-in-user',
+                      email: emailMatch ? emailMatch[0] : null,
+                      firstName: null,
+                      lastName: null,
+                      username: null,
+                      imageUrl: null,
+                    },
+                    token: token,
+                  },
+                  (response) => {
+                    if (!chrome.runtime.lastError) {
+                      Logger.info('[CS] Sent page-detected auth to extension');
+                      userDetected = true;
+                    } else {
+                      Logger.error(
+                        '[CS] Could not send page-detected auth:',
+                        chrome.runtime.lastError
+                      );
+                    }
+                  }
+                );
+              })();
             }
           } else if (checkCookiesForAuth()) {
             Logger.info(
@@ -1721,6 +1983,15 @@
                 if (user && !userDetected) {
                   userDetected = true;
                   Logger.info('[CS] Post-load re-check: User detected!', user.id);
+                  
+                  // Get token
+                  let token = null;
+                  try {
+                    token = await getClerkToken(clerk);
+                  } catch (e) {
+                    Logger.warn('[CS] Post-load re-check: Could not get token (non-fatal):', e.message);
+                  }
+                  
                   chrome.runtime.sendMessage(
                     {
                       type: 'CLERK_AUTH_DETECTED',
@@ -1734,7 +2005,7 @@
                         username: user.username,
                         imageUrl: user.imageUrl || user.profileImageUrl,
                       },
-                      token: null,
+                      token: token,
                     },
                     (response) => {
                       if (!chrome.runtime.lastError) {
@@ -1767,14 +2038,9 @@
         Logger.info('[CS] Received FORCE_CHECK_AUTH message, triggering check...');
         Logger.info('[CS] Current page:', window.location.href);
 
-        // Check if we're on ANY Clerk page (including organization pages)
-        const isAnyClerkPage =
-          window.location.hostname.includes('accounts.dev') ||
-          window.location.hostname.includes('clerk.accounts.dev') ||
-          window.location.hostname.includes('accounts.clerk.com') ||
-          window.location.hostname.includes('accounts.clerk.dev');
-
-        if (isAnyClerkPage) {
+        // Use the same isClerkPage condition that the main auth detection uses
+        // This includes both Clerk pages and aiguardian.ai pages
+        if (isClerkPage) {
           Logger.info('[CS] On Clerk page, forcing immediate auth check...');
 
           // Reset detection flag to allow re-check
@@ -1803,10 +2069,7 @@
                   // Get session token if possible
                   let token = null;
                   try {
-                    const session = await clerk.session;
-                    if (session) {
-                      token = await session.getToken();
-                    }
+                    token = await getClerkToken(clerk);
                   } catch (e) {
                     // Could not get token (non-fatal)
                   }
@@ -2027,6 +2290,11 @@
    */
   function showAnalysisHistory() {
     chrome.storage.sync.get(['analysis_history'], (data) => {
+      if (chrome.runtime.lastError) {
+        Logger.error('[CS] Failed to load analysis history:', chrome.runtime.lastError.message);
+        showErrorBadge('Failed to load history. Please try again.', 'error');
+        return;
+      }
       const history = data.analysis_history || [];
 
       if (history.length === 0) {

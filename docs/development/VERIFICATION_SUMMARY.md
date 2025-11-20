@@ -151,5 +151,5 @@ if (biasScore && result.score !== undefined && typeof result.score === 'number')
 
 ✅ **VERIFIED**: The extension correctly processes backend responses and displays bias scores throughout the entire data flow. All layers include proper logging, error handling, and UI updates.
 
-For detailed verification, see `BACKEND_PROCESSING_VERIFICATION.md`.
+For detailed verification, see `docs/development/BACKEND_PROCESSING_VERIFICATION.md`.
 

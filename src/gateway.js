@@ -1223,6 +1223,28 @@ class AiGuardianGateway {
         },
 
         /**
+         * Check if a value is zero (handles 0, 0.0, -0, etc.)
+         * @param {*} value - Value to check
+         * @returns {boolean} True if value is zero
+         */
+        isZero(value) {
+          return value === 0 || value === 0.0 || Object.is(value, -0) || Object.is(value, 0);
+        },
+
+        /**
+         * Convert score (0-1) to percentage (0-100)
+         * @param {number} score - Score value (0-1)
+         * @returns {number} Percentage (0-100)
+         */
+        scoreToPercentage(score) {
+          if (score === null || score === undefined || Number.isNaN(score)) {
+            return null;
+          }
+          const clamped = this.clampScore(score);
+          return Math.round(clamped * 100);
+        },
+
+        /**
          * Normalize a score value (clamp and validate)
          * @param {*} value - Value to normalize
          * @param {string} source - Source path for logging
@@ -1368,9 +1390,9 @@ class AiGuardianGateway {
           ? data.raw_response[0]?.score : null;
         
         extractionPaths = [
-          // Priority 1: popup_data.bias_score (backend always includes this for Chrome)
+          // Priority 1: popup_data.bias_score (backend always includes this for Chrome - HIGHEST PRIORITY)
           { value: data.popup_data?.bias_score, source: 'data.popup_data.bias_score' },
-          // Priority 2: Top-level bias_score (primary field)
+          // Priority 2: Top-level bias_score (primary field - reliable source)
           { value: data.bias_score, source: 'data.bias_score' },
           // Priority 3: raw_response[0].bias_score (fallback)
           { value: rawResponseBiasScore, source: 'raw_response[0].bias_score' },
@@ -1381,6 +1403,8 @@ class AiGuardianGateway {
           { value: response.bias_score, source: 'response.bias_score' },
           // Priority 5: popup_data.score (fallback)
           { value: data.popup_data?.score, source: 'data.popup_data.score' },
+          // Priority 5.5: popup_data.confidence (fallback - zero is valid)
+          { value: data.popup_data?.confidence, source: 'data.popup_data.confidence' },
           // Priority 6: content_script_data fields
           { value: data.content_script_data?.bias_score, source: 'data.content_script_data.bias_score' },
           { value: data.content_script_data?.score, source: 'data.content_script_data.score' },
@@ -1422,12 +1446,8 @@ class AiGuardianGateway {
 
       // Try each extraction path
       for (const path of extractionPaths) {
-        // Special handling: Skip popup_data.confidence if it's 0 (0 might mean "no confidence" not "no bias")
-        // We'll check it in fallback logic with > 0 condition
-        if (path.source === 'data.popup_data.confidence' && path.value === 0) {
-          Logger.info(`[Gateway] Skipping ${path.source} (value is 0, might mean "no confidence" not "no bias")`);
-          continue;
-        }
+        // Zero is a valid score value - extractScore() already properly validates it
+        // No need to skip zero values - they represent legitimate zero confidence/bias scores
         
         const extracted = extractScore(path.value, path.source);
         if (extracted !== null) {
@@ -1473,28 +1493,28 @@ class AiGuardianGateway {
             });
             
             if (firstResult.is_poisoned === false) {
-              // Calculate bias score from confidence when bias_score is missing
               // When is_poisoned=false, backend determined text is NOT biased
-              // Higher confidence in "not poisoned" = lower bias score
+              // Smart fallback: Use confidence to reflect uncertainty in "not biased" determination
+              // Formula: (1 - confidence) * 0.3
+              // Rationale: Low confidence in "not biased" determination suggests uncertainty,
+              // so higher score reflects that uncertainty (e.g., confidence=0.0 → score=0.3)
+              // High confidence (1.0) means backend is certain it's not biased → score=0.0
               const confidence = typeof firstResult.confidence === 'number' && !Number.isNaN(firstResult.confidence)
                 ? firstResult.confidence
-                : 1.0;
+                : 1.0; // Default to 1.0 if missing/invalid (high confidence = not biased)
+              score = ScoreUtils.clampScore((1 - confidence) * 0.3);
+              scoreSource = 'derived from raw_response[0].is_poisoned=false (fallback)';
               
-              // Since is_poisoned=false, we know it's NOT biased, so score should be low
-              // Scale uncertainty to a low bias range (0-0.3) to reflect "not biased" determination
-              // confidence=1.0 → score=0.0 (very confident it's not biased)
-              // confidence=0.5 → score=0.15 (uncertain, but still "not biased")
-              // confidence=0.0 → score=0.3 (not confident, but backend says "not biased")
-              const uncertainty = 1 - confidence;
-              const calculatedScore = uncertainty * 0.3; // Scale to 0-0.3 range
-              score = ScoreUtils.clampScore(calculatedScore);
-              scoreSource = 'derived from raw_response[0].confidence (is_poisoned=false fallback)';
-              
-              Logger.info('[Gateway] Calculated score from confidence (is_poisoned=false):', {
-                confidence,
-                uncertainty: uncertainty.toFixed(2),
+              Logger.info('[Gateway] Calculated score from is_poisoned=false:', {
+                is_poisoned: firstResult.is_poisoned,
+                rawConfidence: firstResult.confidence,
+                usedConfidence: confidence,
+                formula: '(1 - confidence) * 0.3',
                 calculatedScore: score,
-                scorePercentage: (score * 100).toFixed(1) + '%'
+                scorePercentage: ScoreUtils.scoreToPercentage(score) !== null 
+                  ? ScoreUtils.scoreToPercentage(score) + '%' 
+                  : 'N/A',
+                note: 'Smart fallback: Low confidence in "not biased" determination suggests uncertainty'
               });
             } else if (firstResult.is_poisoned === true) {
               const confidence = typeof firstResult.confidence === 'number' && !Number.isNaN(firstResult.confidence)
@@ -1552,7 +1572,7 @@ class AiGuardianGateway {
         scoreType: score === null ? 'null (missing)' : typeof score,
         percentage: score !== null ? Math.round(score * 100) + '%' : 'N/A',
         source: scoreSource,
-        isZero: score === 0,
+        isZero: ScoreUtils.isZero(score),
         isMissing: score === null,
         isZeroBecauseNotFound: false, // We no longer default to 0
         extractionSummary: {
@@ -1562,15 +1582,11 @@ class AiGuardianGateway {
             value: p.value,
             type: typeof p.value,
             wasChecked: true,
-            wasSkipped: p.source === 'data.popup_data.confidence' && p.value === 0,
             extracted: extractScore(p.value, p.source),
           })),
           pathsThatHadValues: extractionPaths
             .filter(p => p.value !== null && p.value !== undefined)
             .map(p => ({ path: p.source, value: p.value, type: typeof p.value })),
-          pathsThatWereSkipped: extractionPaths
-            .filter(p => p.source === 'data.popup_data.confidence' && p.value === 0)
-            .map(p => ({ path: p.source, reason: 'value is 0, might mean "no confidence" not "no bias"' })),
         },
         fallbackInfo: score === null ? {
           checkedRawResponse: Array.isArray(data.raw_response) && data.raw_response.length > 0,
@@ -1579,7 +1595,7 @@ class AiGuardianGateway {
             ? Object.keys(data.raw_response[0]) 
             : [],
         } : null,
-        diagnosticNote: score === 0 && scoreSource.includes('is_poisoned=false') 
+        diagnosticNote: ScoreUtils.isZero(score) && scoreSource.includes('is_poisoned=false') 
           ? 'Score is 0 because backend returned is_poisoned=false. If text is biased, backend may not be detecting bias correctly.'
           : score === null
           ? 'No score field found in backend response. Backend should return data.bias_score or similar field.'
@@ -1833,6 +1849,52 @@ class AiGuardianGateway {
       });
     }
   }
+
+  /**
+   * Clear stored Clerk token from chrome.storage.local
+   */
+  async clearStoredClerkToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.remove(['clerk_token'], resolve);
+    });
+  }
+
+  /**
+   * Validate Clerk token format (JWT tokens have 3 parts separated by dots)
+   * @param {string} token - Token to validate
+   * @returns {boolean} True if token format is valid
+   */
+  validateTokenFormat(token) {
+    if (!token || typeof token !== 'string') {
+      return false;
+    }
+
+    // JWT tokens have 3 parts: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return false;
+    }
+
+    // Validate each part is base64-like (non-empty)
+    for (const part of parts) {
+      if (!part || part.length === 0) {
+        return false;
+      }
+    }
+
+    // Try to decode header to verify it's valid base64
+    try {
+      const header = atob(parts[0]);
+      if (!header.startsWith('{')) {
+        return false; // JWT header should be JSON
+      }
+    } catch (e) {
+      return false; // Invalid base64
+    }
+
+    return true;
+  }
+
   delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }

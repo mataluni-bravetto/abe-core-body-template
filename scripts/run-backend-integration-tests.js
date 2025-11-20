@@ -10,7 +10,6 @@
  *   node scripts/run-backend-integration-tests.js --url https://api.aiguardian.ai --key your-api-key
  */
 
-const path = require('path');
 const BackendIntegrationTester = require('../tests/integration/backend-integration.test.js');
 
 // Parse command line arguments

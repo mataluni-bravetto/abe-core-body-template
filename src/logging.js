@@ -23,9 +23,15 @@ const Logger = {
           seen.add(value);
         }
         // Handle non-serializable values
-        if (value === undefined) return '[undefined]';
-        if (typeof value === 'function') return '[Function]';
-        if (value instanceof Error) return value.toString();
+        if (value === undefined) {
+          return '[undefined]';
+        }
+        if (typeof value === 'function') {
+          return '[Function]';
+        }
+        if (value instanceof Error) {
+          return value.toString();
+        }
         return value;
       }, 2);
     } catch (e) {

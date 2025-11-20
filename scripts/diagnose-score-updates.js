@@ -179,9 +179,15 @@
     console.log('   • Score percentage:', (lastAnalysis.score * 100).toFixed(1) + '%');
   } else {
     console.error('❌ Score update issues detected:');
-    if (!isAuthenticated) console.error('   • Not authenticated');
-    if (!hasAnalysis) console.error('   • No analysis object');
-    if (!hasScore) console.error('   • Score is missing from response');
+    if (!isAuthenticated) {
+      console.error('   • Not authenticated');
+    }
+    if (!hasAnalysis) {
+      console.error('   • No analysis object');
+    }
+    if (!hasScore) {
+      console.error('   • Score is missing from response');
+    }
   }
   
   console.log('\n💡 Next Steps:');
