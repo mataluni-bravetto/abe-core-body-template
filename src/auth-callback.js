@@ -187,16 +187,46 @@ class AuthCallbackHandler {
       }
 
       if (user) {
-        // Get session token before storing
+        // Get session token before storing - WITH RETRY LOGIC
+        // CRITICAL: Token must be stored for service worker to authenticate requests
         let token = null;
-        try {
-          const session = await clerk.session;
-          if (session) {
-            token = await session.getToken();
-            Logger.info('[AuthCallback] Session token retrieved');
+        const maxTokenRetries = 5;
+        const tokenRetryDelay = 300;
+        
+        for (let tokenAttempt = 0; tokenAttempt < maxTokenRetries; tokenAttempt++) {
+          try {
+            const session = await clerk.session;
+            if (session) {
+              token = await session.getToken();
+              if (token) {
+                Logger.info(`[AuthCallback] ✅ Session token retrieved on attempt ${tokenAttempt + 1}`);
+                break;
+              } else {
+                Logger.warn(`[AuthCallback] Session exists but token is null on attempt ${tokenAttempt + 1}`);
+              }
+            } else {
+              Logger.warn(`[AuthCallback] No session found on attempt ${tokenAttempt + 1}`);
+            }
+          } catch (e) {
+            Logger.warn(`[AuthCallback] Could not get token on attempt ${tokenAttempt + 1}:`, e.message);
           }
-        } catch (e) {
-          Logger.warn('[AuthCallback] Could not get token:', e);
+          
+          // Wait before retry (except on last attempt)
+          if (tokenAttempt < maxTokenRetries - 1 && !token) {
+            Logger.info(`[AuthCallback] Waiting ${tokenRetryDelay}ms before token retry...`);
+            await new Promise((resolve) => setTimeout(resolve, tokenRetryDelay));
+            
+            // Try reloading Clerk SDK to refresh session state
+            if (typeof clerk.load === 'function' && !clerk.loaded) {
+              await clerk.load();
+            }
+          }
+        }
+        
+        if (!token) {
+          Logger.error('[AuthCallback] ⚠️ CRITICAL: Could not retrieve token after all retries');
+          Logger.error('[AuthCallback] User will be stored without token - authentication may fail');
+          Logger.error('[AuthCallback] User should sign in again if authentication issues occur');
         }
 
         // Store authentication state in extension storage
@@ -391,23 +421,48 @@ class AuthCallbackHandler {
           reject(new Error(chrome.runtime.lastError.message));
         } else {
           Logger.info('[AuthCallback] Storage write completed successfully');
-          // Immediately verify the write worked
-          chrome.storage.local.get(['clerk_user', 'clerk_token'], (verifyData) => {
-            if (chrome.runtime.lastError) {
-              Logger.error(
-                '[AuthCallback] Immediate verification read error:',
-                chrome.runtime.lastError
-              );
-            } else {
+          // Immediately verify the write worked with retry logic
+          let verificationAttempts = 0;
+          const maxAttempts = 3;
+          
+          const verifyStorage = () => {
+            chrome.storage.local.get(['clerk_user', 'clerk_token'], (verifyData) => {
+              if (chrome.runtime.lastError) {
+                Logger.error(
+                  '[AuthCallback] Immediate verification read error:',
+                  chrome.runtime.lastError
+                );
+                resolve(); // Resolve anyway to not block auth flow
+                return;
+              }
+              
+              const hasUser = !!verifyData.clerk_user;
+              const hasToken = !!verifyData.clerk_token;
+              const userIdMatches = verifyData.clerk_user?.id === dataToStore.clerk_user.id;
+              
               Logger.info('[AuthCallback] Immediate verification:', {
-                hasUser: !!verifyData.clerk_user,
+                attempt: verificationAttempts + 1,
+                hasUser,
                 userId: verifyData.clerk_user?.id,
-                hasToken: !!verifyData.clerk_token,
-                matches: verifyData.clerk_user?.id === dataToStore.clerk_user.id,
+                hasToken,
+                tokenLength: verifyData.clerk_token?.length || 0,
+                userIdMatches,
               });
-            }
-          });
-          resolve();
+              
+              // If token is missing but we just stored it, retry after short delay
+              if (!hasToken && verificationAttempts < maxAttempts - 1) {
+                verificationAttempts++;
+                setTimeout(verifyStorage, 100); // Retry after 100ms
+              } else {
+                if (!hasToken) {
+                  Logger.warn('[AuthCallback] Token verification failed after retries - may need manual refresh');
+                }
+                resolve();
+              }
+            });
+          };
+          
+          verifyStorage();
         }
       });
     });

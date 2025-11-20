@@ -576,8 +576,59 @@ class AiGuardianAuth {
       if (user) {
         this.user = user;
         Logger.info('[Auth] User session found:', user.id || 'stored');
-        // Store the user in extension storage if not already stored
-        await this.storeAuthState(user);
+        
+        // CRITICAL: Get and store the token so service worker can access it
+        // Try multiple times if needed - Clerk SDK session might not be ready immediately
+        let token = null;
+        const maxTokenRetries = 3;
+        const tokenRetryDelay = 200;
+
+        for (let attempt = 0; attempt < maxTokenRetries; attempt++) {
+          try {
+            const session = await this.clerk.session;
+            if (session) {
+              token = await session.getToken();
+              if (token) {
+                Logger.info(`[Auth] ✅ Retrieved token from Clerk session on attempt ${attempt + 1}`);
+                break;
+              } else {
+                Logger.warn(`[Auth] Session exists but token is null on attempt ${attempt + 1}`);
+              }
+            } else {
+              Logger.warn(`[Auth] No session found on attempt ${attempt + 1}`);
+            }
+          } catch (e) {
+            Logger.warn(`[Auth] Could not get token from session on attempt ${attempt + 1}:`, e.message);
+          }
+          
+          // Wait before retry (except on last attempt)
+          if (attempt < maxTokenRetries - 1 && !token) {
+            await new Promise((resolve) => setTimeout(resolve, tokenRetryDelay));
+            // Try reloading Clerk SDK
+            if (typeof this.clerk.load === 'function' && !this.clerk.loaded) {
+              await this.clerk.load();
+            }
+          }
+        }
+
+        // Fallback to stored token if session retrieval failed
+        if (!token) {
+          Logger.warn('[Auth] Could not get token from session, trying stored token...');
+          token = await this.getStoredToken();
+          if (token) {
+            Logger.info('[Auth] Using stored token as fallback');
+          }
+        }
+        
+        // Store the user AND token in extension storage
+        await this.storeAuthState(user, token);
+        
+        if (token) {
+          Logger.info('[Auth] ✅ Token stored successfully for service worker access');
+        } else {
+          Logger.warn('[Auth] ⚠️ No token available to store - service worker may not be able to authenticate');
+          Logger.warn('[Auth] User may need to sign in again to refresh token');
+        }
       } else {
         // If no user found, try to sync from Clerk's session
         // This handles cases where Clerk redirected to default page instead of callback

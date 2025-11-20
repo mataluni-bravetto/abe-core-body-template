@@ -172,17 +172,20 @@
       if (
         response?.status === 401 ||
         errorMessage.includes('Unauthorized') ||
-        errorMessage.includes('authenticated')
+        errorMessage.includes('authenticated') ||
+        errorMessage.includes('sign in')
       ) {
-        errorMessage = 'Please sign in on aiguardian.ai to analyze text.';
+        errorMessage = 'Score unavailable - Please sign in to analyze text.';
       } else if (response?.status === 403 || errorMessage.includes('Forbidden')) {
-        errorMessage = 'Access denied. Please check your subscription.';
+        errorMessage = 'Score unavailable - Access denied. Please check your subscription.';
       } else if (response?.status === 429 || errorMessage.includes('rate limit')) {
-        errorMessage = 'Rate limit exceeded. Please try again later.';
+        errorMessage = 'Score unavailable - Rate limit exceeded. Please try again later.';
       } else if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
-        errorMessage = 'Request timed out. Please try again.';
-      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-        errorMessage = 'Network error. Please check your connection.';
+        errorMessage = 'Score unavailable - Request timed out. Please try again.';
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('connection')) {
+        errorMessage = 'Score unavailable - Backend connection required. Please check your connection.';
+      } else if (response?.status === 404) {
+        errorMessage = 'Score unavailable - Backend endpoint not found.';
       }
 
       Logger.error('[CS] Analysis failed:', errorMessage);
@@ -191,14 +194,34 @@
     }
 
     // Validate that we have a valid score before displaying
+    // Handle three cases: null/undefined (missing), valid number including 0, invalid type
     if (response.score === undefined || response.score === null) {
-      Logger.warn('[CS] ⚠️ Analysis response missing score:', {
+      Logger.warn('[CS] ⚠️ Analysis response missing score (null/undefined):', {
         responseKeys: Object.keys(response || {}),
-        responsePreview: JSON.stringify(response).substring(0, 500),
         hasAnalysis: !!response?.analysis,
-        analysisKeys: response?.analysis ? Object.keys(response?.analysis) : []
+        analysisKeys: response?.analysis ? Object.keys(response?.analysis) : [],
+        serviceType: response?.service_type,
+        scoreValue: response.score,
+        scoreType: typeof response.score,
       });
-      showErrorBadge('Analysis incomplete. Please try again.', 'warning');
+      
+      // More specific error message
+      const errorMessage = response.analysis && Object.keys(response.analysis).length > 0
+        ? 'Score unavailable - Analysis completed but bias_score field missing from backend response'
+        : 'Score unavailable - Analysis incomplete or failed';
+        
+      showErrorBadge(errorMessage, 'warning');
+      return;
+    }
+
+    // Validate score is a number
+    if (typeof response.score !== 'number' || Number.isNaN(response.score)) {
+      Logger.warn('[CS] ⚠️ Analysis response has invalid score type:', {
+        score: response.score,
+        scoreType: typeof response.score,
+        isNaN: Number.isNaN(response.score),
+      });
+      showErrorBadge('Score unavailable - Analysis incomplete. Invalid score format.', 'warning');
       return;
     }
     
@@ -208,22 +231,26 @@
       scoreType: typeof response.score,
       isNumber: typeof response.score === 'number',
       isNaN: Number.isNaN(response.score),
-      scorePercentage: Math.round(response.score * 100),
+      scorePercentage: response.score !== null ? Math.round(response.score * 100) : 'N/A',
+      isZero: response.score === 0,
+      isMissing: response.score === null || response.score === undefined,
       biasTypes: response.analysis?.bias_types || [],
       biasType: response.analysis?.bias_type,
       confidence: response.analysis?.confidence,
       responseStructure: {
-        hasScore: response.score !== undefined,
+        hasScore: response.score !== undefined && response.score !== null,
         hasAnalysis: !!response.analysis,
         analysisKeys: response.analysis ? Object.keys(response.analysis) : []
       }
     });
 
-    // TRACER BULLET: Highlight the text on the page
-    if (range && typeof response.score === 'number') {
+    // TRACER BULLET: Highlight the text on the page (only if score is a valid number)
+    if (range && typeof response.score === 'number' && !Number.isNaN(response.score)) {
       highlightSelection(range, response.score);
     }
 
+    // Convert score to percentage (0-100)
+    // Note: score of 0 is valid (backend explicitly returned 0, meaning no bias detected)
     const score = Math.round(response.score * 100);
     const analysis = response.analysis || {};
 
@@ -234,6 +261,7 @@
     badgeContent.style.cssText = 'display: flex; align-items: center; gap: 8px;';
 
     const scoreSpan = document.createElement('span');
+    // Display score: 0% is valid (no bias), null would have been caught above
     scoreSpan.textContent = 'Bias Score: ' + score + '%';
 
     const confidenceSpan = document.createElement('span');
@@ -297,6 +325,12 @@
    */
   function highlightSelection(range, score) {
     try {
+      // Check if range is collapsed (no selection)
+      if (range.collapsed) {
+        Logger.warn('[CS] Range is collapsed, cannot highlight');
+        return;
+      }
+
       const highlightSpan = document.createElement('span');
       highlightSpan.style.backgroundColor = getScoreColor(score);
       highlightSpan.style.color = '#FFFFFF';
@@ -304,11 +338,29 @@
       highlightSpan.style.padding = '2px 1px';
       highlightSpan.className = 'aiguardian-highlight'; // Add class for easy cleanup
 
-      // The surroundContents method is a clean way to wrap the selection.
+      // Try surroundContents first (preferred method - clean and simple)
       // It can fail if the selection spans across incompatible DOM nodes.
-      range.surroundContents(highlightSpan);
-
-      activeHighlights.push(highlightSpan);
+      try {
+        range.surroundContents(highlightSpan);
+        activeHighlights.push(highlightSpan);
+      } catch (surroundError) {
+        // Fallback: Manual DOM manipulation for incompatible nodes
+        Logger.warn('[CS] surroundContents failed, using fallback method:', surroundError.message);
+        
+        try {
+          // Extract contents and wrap in highlight span
+          const contents = range.extractContents();
+          highlightSpan.appendChild(contents);
+          
+          // Insert the highlighted span at the range start
+          range.insertNode(highlightSpan);
+          
+          activeHighlights.push(highlightSpan);
+        } catch (fallbackError) {
+          Logger.error('[CS] Fallback highlighting also failed:', fallbackError.message);
+          // Silently fail - highlighting is non-critical, analysis still works
+        }
+      }
     } catch (e) {
       Logger.error('[CS] Failed to highlight text:', e.message);
     }
@@ -373,22 +425,406 @@
   }
 
   /**
-   * TRACER BULLET: Detailed analysis modal (placeholder)
+   * Show detailed analysis modal dialog
    */
   function showDetailedAnalysis(response) {
     Logger.info('[CS] Showing detailed analysis');
-    // TODO: Replace alert with proper modal dialog
     showModalAnalysis(response);
   }
 
   /**
-   * Show analysis results in a proper modal (placeholder for future enhancement)
+   * Show analysis results in a proper modal dialog
+   * @param {Object} response - Analysis response object
    */
   function showModalAnalysis(response) {
-    // Temporary alert - replace with proper modal in future update
-    alert(
-      `Detailed Analysis:\nScore: ${Math.round(response.score * 100)}%\nType: ${response.analysis?.bias_type || 'Unknown'}`
-    );
+    // Remove any existing modal
+    const existingModal = document.querySelector('.aiguardian-analysis-modal');
+    const existingOverlay = document.querySelector('.aiguardian-modal-overlay');
+    if (existingModal) existingModal.remove();
+    if (existingOverlay) existingOverlay.remove();
+
+    // DEBUG: Log response structure to diagnose score extraction
+    Logger.info('[CS] Modal - Full response structure:', {
+      hasResponse: !!response,
+      score: response?.score,
+      scoreType: typeof response?.score,
+      isZero: response?.score === 0,
+      isNull: response?.score === null,
+      isUndefined: response?.score === undefined,
+      hasAnalysis: !!response?.analysis,
+      analysisKeys: response?.analysis ? Object.keys(response?.analysis) : [],
+      fullResponse: JSON.stringify(response).substring(0, 500)
+    });
+
+    // Extract data with fallbacks
+    // IMPORTANT: Distinguish between score: 0 (valid - no bias) and score: null/undefined (missing)
+    // If score is 0 but there's no analysis data, it might be a fallback/default value
+    const hasValidScore = response.score !== null && response.score !== undefined && typeof response.score === 'number';
+    const hasAnalysisData = response.analysis && Object.keys(response.analysis).length > 0;
+    
+    // If score is 0 but no analysis data exists, treat as missing (show N/A)
+    const score = hasValidScore && (response.score !== 0 || hasAnalysisData)
+      ? Math.round(response.score * 100) 
+      : null;
+    const analysis = response.analysis || {};
+    const biasType = analysis.bias_type || analysis.type || 'Unknown';
+    const confidence = analysis.confidence !== null && analysis.confidence !== undefined
+      ? Math.round(analysis.confidence * 100)
+      : null;
+    const biasTypes = analysis.bias_types || (analysis.bias_type ? [analysis.bias_type] : []);
+    const issues = analysis.issues || [];
+    const recommendations = analysis.recommendations || [];
+    const summary = analysis.summary || '';
+
+    // Get score color (getScoreColor expects 0-100 percentage)
+    const scoreColor = score !== null ? getScoreColor(score) : '#999';
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'aiguardian-modal-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 2147483646;
+      animation: fadeIn 0.2s ease-out;
+    `;
+
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'aiguardian-analysis-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      color: #333;
+      padding: 0;
+      border-radius: 12px;
+      z-index: 2147483647;
+      max-width: 600px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      font: 14px system-ui, sans-serif;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    // Add animations
+    if (!document.getElementById('aiguardian-modal-styles')) {
+      const style = document.createElement('style');
+      style.id = 'aiguardian-modal-styles';
+      style.textContent = `
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideIn {
+          from { 
+            opacity: 0;
+            transform: translate(-50%, -45%);
+          }
+          to { 
+            opacity: 1;
+            transform: translate(-50%, -50%);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Create header
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 2px solid #f0f0f0;
+      background: linear-gradient(135deg, #081c3d 0%, #134390 50%, #1c64d9 100%);
+      color: white;
+      border-radius: 12px 12px 0 0;
+    `;
+
+    const title = document.createElement('h2');
+    title.textContent = '🔍 Detailed Analysis';
+    title.style.cssText = 'margin: 0; font-size: 20px; font-weight: 600;';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = `
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: white;
+      padding: 0;
+      width: 36px;
+      height: 36px;
+      line-height: 1;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    `;
+    closeBtn.onmouseover = () => closeBtn.style.background = 'rgba(255, 255, 255, 0.3)';
+    closeBtn.onmouseout = () => closeBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+
+    const closeModal = () => {
+      modal.remove();
+      overlay.remove();
+    };
+    closeBtn.onclick = closeModal;
+
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    modal.appendChild(header);
+
+    // Create content container
+    const content = document.createElement('div');
+    content.style.cssText = 'padding: 24px;';
+
+    // Score section
+    if (score !== null) {
+      const scoreSection = document.createElement('div');
+      scoreSection.style.cssText = `
+        text-align: center;
+        padding: 20px;
+        margin-bottom: 24px;
+        background: ${scoreColor}15;
+        border-radius: 8px;
+        border: 2px solid ${scoreColor}40;
+      `;
+
+      const scoreLabel = document.createElement('div');
+      scoreLabel.textContent = 'Bias Score';
+      scoreLabel.style.cssText = 'font-size: 12px; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;';
+
+      const scoreValue = document.createElement('div');
+      scoreValue.textContent = `${score}%`;
+      scoreValue.style.cssText = `
+        font-size: 48px;
+        font-weight: 700;
+        color: ${scoreColor};
+        margin-bottom: 8px;
+      `;
+
+      scoreSection.appendChild(scoreLabel);
+      scoreSection.appendChild(scoreValue);
+      content.appendChild(scoreSection);
+    } else {
+      // Show "Score Unavailable" message when score is missing
+      const scoreSection = document.createElement('div');
+      scoreSection.style.cssText = `
+        text-align: center;
+        padding: 20px;
+        margin-bottom: 24px;
+        background: #f5f5f515;
+        border-radius: 8px;
+        border: 2px solid #99999940;
+      `;
+
+      const scoreLabel = document.createElement('div');
+      scoreLabel.textContent = 'Bias Score';
+      scoreLabel.style.cssText = 'font-size: 12px; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;';
+
+      const scoreValue = document.createElement('div');
+      scoreValue.textContent = 'N/A';
+      scoreValue.style.cssText = `
+        font-size: 48px;
+        font-weight: 700;
+        color: #999;
+        margin-bottom: 8px;
+      `;
+
+      const scoreNote = document.createElement('div');
+      scoreNote.textContent = 'Score unavailable - Analysis incomplete or failed';
+      scoreNote.style.cssText = 'font-size: 12px; color: #999; margin-top: 8px;';
+
+      scoreSection.appendChild(scoreLabel);
+      scoreSection.appendChild(scoreValue);
+      scoreSection.appendChild(scoreNote);
+      content.appendChild(scoreSection);
+    }
+
+    // Details grid
+    const detailsGrid = document.createElement('div');
+    detailsGrid.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;';
+
+    // Bias Type
+    const biasTypeDiv = document.createElement('div');
+    biasTypeDiv.style.cssText = 'padding: 12px; background: #f5f5f5; border-radius: 6px;';
+    const biasTypeLabel = document.createElement('div');
+    biasTypeLabel.textContent = 'Bias Type';
+    biasTypeLabel.style.cssText = 'font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase;';
+    const biasTypeValue = document.createElement('div');
+    biasTypeValue.textContent = biasType;
+    biasTypeValue.style.cssText = 'font-weight: 600; color: #333;';
+    biasTypeDiv.appendChild(biasTypeLabel);
+    biasTypeDiv.appendChild(biasTypeValue);
+
+    // Confidence
+    if (confidence !== null) {
+      const confidenceDiv = document.createElement('div');
+      confidenceDiv.style.cssText = 'padding: 12px; background: #f5f5f5; border-radius: 6px;';
+      const confidenceLabel = document.createElement('div');
+      confidenceLabel.textContent = 'Confidence';
+      confidenceLabel.style.cssText = 'font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase;';
+      const confidenceValue = document.createElement('div');
+      confidenceValue.textContent = `${confidence}%`;
+      confidenceValue.style.cssText = 'font-weight: 600; color: #333;';
+      confidenceDiv.appendChild(confidenceLabel);
+      confidenceDiv.appendChild(confidenceValue);
+      detailsGrid.appendChild(confidenceDiv);
+    }
+
+    detailsGrid.appendChild(biasTypeDiv);
+    content.appendChild(detailsGrid);
+
+    // Summary
+    if (summary) {
+      const summarySection = document.createElement('div');
+      summarySection.style.cssText = 'margin-bottom: 24px;';
+      const summaryLabel = document.createElement('div');
+      summaryLabel.textContent = 'Summary';
+      summaryLabel.style.cssText = 'font-size: 12px; font-weight: 600; color: #333; margin-bottom: 8px; text-transform: uppercase;';
+      const summaryText = document.createElement('div');
+      summaryText.textContent = summary;
+      summaryText.style.cssText = 'color: #666; line-height: 1.6;';
+      summarySection.appendChild(summaryLabel);
+      summarySection.appendChild(summaryText);
+      content.appendChild(summarySection);
+    }
+
+    // Issues
+    if (issues.length > 0) {
+      const issuesSection = document.createElement('div');
+      issuesSection.style.cssText = 'margin-bottom: 24px;';
+      const issuesLabel = document.createElement('div');
+      issuesLabel.textContent = `Issues Found (${issues.length})`;
+      issuesLabel.style.cssText = 'font-size: 12px; font-weight: 600; color: #F44336; margin-bottom: 12px; text-transform: uppercase;';
+      issuesSection.appendChild(issuesLabel);
+
+      issues.forEach((issue, idx) => {
+        const issueDiv = document.createElement('div');
+        issueDiv.style.cssText = `
+          padding: 12px;
+          margin-bottom: 8px;
+          background: #ffebee;
+          border-left: 4px solid #F44336;
+          border-radius: 4px;
+        `;
+        issueDiv.textContent = typeof issue === 'string' ? issue : JSON.stringify(issue);
+        issuesSection.appendChild(issueDiv);
+      });
+
+      content.appendChild(issuesSection);
+    }
+
+    // Recommendations
+    if (recommendations.length > 0) {
+      const recSection = document.createElement('div');
+      recSection.style.cssText = 'margin-bottom: 24px;';
+      const recLabel = document.createElement('div');
+      recLabel.textContent = `Recommendations (${recommendations.length})`;
+      recLabel.style.cssText = 'font-size: 12px; font-weight: 600; color: #4CAF50; margin-bottom: 12px; text-transform: uppercase;';
+      recSection.appendChild(recLabel);
+
+      recommendations.forEach((rec, idx) => {
+        const recDiv = document.createElement('div');
+        recDiv.style.cssText = `
+          padding: 12px;
+          margin-bottom: 8px;
+          background: #e8f5e9;
+          border-left: 4px solid #4CAF50;
+          border-radius: 4px;
+        `;
+        recDiv.textContent = typeof rec === 'string' ? rec : JSON.stringify(rec);
+        recSection.appendChild(recDiv);
+      });
+
+      content.appendChild(recSection);
+    }
+
+    // Additional bias types
+    if (biasTypes.length > 1) {
+      const typesSection = document.createElement('div');
+      typesSection.style.cssText = 'margin-bottom: 24px;';
+      const typesLabel = document.createElement('div');
+      typesLabel.textContent = 'All Bias Types Detected';
+      typesLabel.style.cssText = 'font-size: 12px; font-weight: 600; color: #333; margin-bottom: 8px; text-transform: uppercase;';
+      const typesList = document.createElement('div');
+      typesList.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px;';
+      biasTypes.forEach(type => {
+        const tag = document.createElement('span');
+        tag.textContent = type;
+        tag.style.cssText = `
+          padding: 4px 12px;
+          background: #e3f2fd;
+          color: #1976d2;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 500;
+        `;
+        typesList.appendChild(tag);
+      });
+      typesSection.appendChild(typesLabel);
+      typesSection.appendChild(typesList);
+      content.appendChild(typesSection);
+    }
+
+    // Close button footer
+    const footer = document.createElement('div');
+    footer.style.cssText = 'padding: 16px 24px; border-top: 1px solid #f0f0f0; text-align: right;';
+
+    const closeFooterBtn = document.createElement('button');
+    closeFooterBtn.textContent = 'Close';
+    closeFooterBtn.style.cssText = `
+      padding: 10px 24px;
+      background: #1c64d9;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background 0.2s;
+    `;
+    closeFooterBtn.onmouseover = () => closeFooterBtn.style.background = '#134390';
+    closeFooterBtn.onmouseout = () => closeFooterBtn.style.background = '#1c64d9';
+    closeFooterBtn.onclick = closeModal;
+
+    footer.appendChild(closeFooterBtn);
+    modal.appendChild(content);
+    modal.appendChild(footer);
+
+    // Append to DOM
+    document.body.appendChild(overlay);
+    document.body.appendChild(modal);
+
+    // Close on overlay click
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        closeModal();
+      }
+    };
+
+    // Close on Escape key
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
+
+    Logger.info('[CS] Analysis modal displayed');
   }
 
   /**
@@ -1647,25 +2083,48 @@
 
       // Create history list
       history.slice(0, 10).forEach((entry, index) => {
+        // Handle null/undefined scores gracefully with better validation
+        const score = entry.analysis?.score;
+        
+        // Validate score
+        let scorePercent = null;
+        if (score !== null && score !== undefined && typeof score === 'number') {
+          if (!Number.isNaN(score) && isFinite(score)) {
+            // Clamp to valid range
+            const clampedScore = Math.max(0, Math.min(1, score));
+            scorePercent = Math.round(clampedScore * 100);
+          }
+        }
+        
+        const scoreDisplay = scorePercent !== null ? `${scorePercent}%` : 'N/A';
+        const scoreColor = scorePercent !== null ? getScoreColor(scorePercent) : '#999';
+        
+        // Extract bias_type with fallbacks
+        const biasType = entry.analysis?.analysis?.bias_type 
+          || entry.analysis?.bias_type 
+          || entry.analysis?.type 
+          || 'Unknown';
+        
         const entryDiv = document.createElement('div');
         entryDiv.style.cssText = `
           padding: 12px;
           margin: 8px 0;
           background: #f5f5f5;
           border-radius: 8px;
-          border-left: 4px solid ${getScoreColor(entry.analysis.score * 100)};
+          border-left: 4px solid ${scoreColor};
         `;
-
+        
         const textDiv = document.createElement('div');
-        textDiv.textContent = entry.text;
+        textDiv.textContent = entry.text || '(No text)';
         textDiv.style.cssText = 'font-weight: 500; margin-bottom: 8px;';
-
+        
         const scoreDiv = document.createElement('div');
-        scoreDiv.textContent = `Score: ${Math.round(entry.analysis.score * 100)}% | Type: ${entry.analysis.analysis?.bias_type || 'Unknown'}`;
+        scoreDiv.textContent = `Score: ${scoreDisplay} | Type: ${biasType}`;
         scoreDiv.style.cssText = 'font-size: 12px; color: #666;';
-
+        
         const timeDiv = document.createElement('div');
-        timeDiv.textContent = new Date(entry.timestamp).toLocaleString();
+        const timestamp = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : 'Unknown time';
+        timeDiv.textContent = timestamp;
         timeDiv.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
 
         entryDiv.appendChild(textDiv);

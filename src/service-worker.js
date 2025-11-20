@@ -708,9 +708,118 @@ try {
             (typeof analysisResult.score === 'number' && analysisResult.score >= 0);
 
           if (hasValidScore) {
-            saveToHistory(text, analysisResult);
-            // Save as last analysis for copy feature
-            chrome.storage.local.set({ last_analysis: analysisResult });
+            // Wrap saveToHistory in try-catch to catch and log errors
+            try {
+              await saveToHistory(text, analysisResult);
+            } catch (error) {
+              Logger.error('[BG] Error saving to history:', {
+                error: error.message,
+                stack: error.stack,
+                textLength: text.length,
+                analysisSize: JSON.stringify(analysisResult).length,
+                analysisKeys: analysisResult ? Object.keys(analysisResult) : [],
+              });
+            }
+            // Save as last analysis for copy feature - store only essential data to avoid quota issues
+            try {
+              // Store minimal data to avoid quota exceeded errors
+              const minimalAnalysis = {
+                score: analysisResult.score,
+                timestamp: new Date().toISOString(),
+                summary: analysisResult.analysis?.popup_data?.summary || 
+                         analysisResult.analysis?.summary || 
+                         'Analysis complete',
+                success: analysisResult.success
+              };
+              
+              // Log size before storing
+              const minimalAnalysisSize = JSON.stringify(minimalAnalysis).length;
+              Logger.info('[BG] Storing last_analysis - size check:', {
+                minimalAnalysisSize,
+                minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                storageArea: 'local',
+                hasQuotaCheck: gateway && typeof gateway.checkStorageQuota === 'function',
+              });
+              
+              // Check quota before storing
+              if (gateway && typeof gateway.checkStorageQuota === 'function') {
+                try {
+                  const quotaInfo = await gateway.checkStorageQuota();
+                  Logger.info('[BG] Storage quota check result:', quotaInfo);
+                  if (quotaInfo.usagePercent > 90) {
+                    Logger.warn('[BG] Storage quota nearly exceeded, skipping last_analysis storage', {
+                      quotaInfo,
+                      minimalAnalysisSize,
+                      minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                    });
+                  } else {
+                    chrome.storage.local.set({ last_analysis: minimalAnalysis }, () => {
+                      if (chrome.runtime.lastError) {
+                        Logger.error('[BG] Failed to store last_analysis:', {
+                          error: chrome.runtime.lastError.message,
+                          minimalAnalysisSize,
+                          minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                          isQuotaError: chrome.runtime.lastError.message.includes('quota') || chrome.runtime.lastError.message.includes('QUOTA'),
+                        });
+                      } else {
+                        Logger.info('[BG] Successfully stored last_analysis:', {
+                          minimalAnalysisSize,
+                          minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                        });
+                      }
+                    });
+                  }
+                } catch (quotaCheckError) {
+                  Logger.warn('[BG] Error checking quota, attempting to store anyway:', {
+                    error: quotaCheckError.message,
+                    minimalAnalysisSize,
+                    minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                  });
+                  // Fall through to fallback storage
+                  chrome.storage.local.set({ last_analysis: minimalAnalysis }, () => {
+                    if (chrome.runtime.lastError) {
+                      Logger.error('[BG] Failed to store last_analysis (after quota check error):', {
+                        error: chrome.runtime.lastError.message,
+                        minimalAnalysisSize,
+                        minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                        isQuotaError: chrome.runtime.lastError.message.includes('quota') || chrome.runtime.lastError.message.includes('QUOTA'),
+                      });
+                    }
+                  });
+                }
+              } else {
+                // Fallback: try to store, handle errors gracefully
+                Logger.info('[BG] No quota check available, storing last_analysis directly');
+                chrome.storage.local.set({ last_analysis: minimalAnalysis }, () => {
+                  if (chrome.runtime.lastError) {
+                    const isQuotaError = chrome.runtime.lastError.message.includes('quota') || chrome.runtime.lastError.message.includes('QUOTA');
+                    if (isQuotaError) {
+                      Logger.warn('[BG] Storage quota exceeded, skipping last_analysis storage:', {
+                        error: chrome.runtime.lastError.message,
+                        minimalAnalysisSize,
+                        minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                      });
+                    } else {
+                      Logger.error('[BG] Failed to store last_analysis:', {
+                        error: chrome.runtime.lastError.message,
+                        minimalAnalysisSize,
+                        minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                      });
+                    }
+                  } else {
+                    Logger.info('[BG] Successfully stored last_analysis (fallback):', {
+                      minimalAnalysisSize,
+                      minimalAnalysisSizeKB: (minimalAnalysisSize / 1024).toFixed(2),
+                    });
+                  }
+                });
+              }
+            } catch (storageError) {
+              Logger.warn('[BG] Error storing last_analysis (non-critical):', {
+                error: storageError.message,
+                stack: storageError.stack,
+              });
+            }
           } else {
             Logger.warn(
               '[BG] Analysis result has invalid score, not saving to history:',
@@ -827,43 +936,256 @@ try {
   }
 
   /**
+   * Helper function to trim array to fit within quota
+   * Removes oldest entries until array size is below maxSizeBytes
+   * @param {Array} array - Array to trim
+   * @param {number} maxSizeBytes - Maximum size in bytes (default: 7168 = 7KB safety margin)
+   * @returns {Array} Trimmed array
+   */
+  function trimArrayForQuota(array, maxSizeBytes = 7168) {
+    if (!Array.isArray(array)) {
+      return array;
+    }
+
+    let currentSize = JSON.stringify(array).length;
+    const originalLength = array.length;
+
+    // Remove oldest entries (from end) until size is below quota
+    while (currentSize > maxSizeBytes && array.length > 0) {
+      array.pop(); // Remove oldest entry
+      currentSize = JSON.stringify(array).length;
+    }
+
+    if (originalLength !== array.length) {
+      Logger.warn('[BG] Trimmed history array to fit quota:', {
+        originalLength,
+        trimmedLength: array.length,
+        originalSizeKB: (JSON.stringify(Array.from({ length: originalLength }).fill({})).length / 1024).toFixed(2),
+        trimmedSizeKB: (currentSize / 1024).toFixed(2),
+        maxSizeKB: (maxSizeBytes / 1024).toFixed(2),
+      });
+    }
+
+    return array;
+  }
+
+  /**
    * TRACER BULLET: Save analysis to history
    * EPISTEMIC: Uses mutex protection to prevent race conditions
+   * STORAGE: Stores minimal data structure to prevent quota exceeded errors
    */
   async function saveToHistory(text, analysis) {
-    // EPISTEMIC: Use mutex-protected array append to prevent race conditions
-    if (typeof MutexHelper !== 'undefined') {
-      await MutexHelper.appendToArray(
-        'analysis_history',
-        {
-          text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-          fullText: text,
-          analysis: analysis,
-          timestamp: new Date().toISOString(),
+    try {
+      // Extract only essential fields for history display
+      // History display only needs: score, bias_type, text, timestamp (content.js:1686)
+      const biasType = analysis?.analysis?.bias_type || 
+                       analysis?.analysis?.popup_data?.bias_type || 
+                       analysis?.bias_type || 
+                       'Unknown';
+
+      // Prepare minimal history entry (only essential fields)
+      const historyEntry = {
+        text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+        fullText: text,
+        analysis: {
+          score: analysis?.score ?? null,
+          analysis: {
+            bias_type: biasType
+          }
         },
-        50,
-        'sync'
-      ); // Keep last 50 entries, use sync storage
-    } else {
-      // Fallback to direct storage (race condition risk)
-      chrome.storage.sync.get(['analysis_history'], (data) => {
-        const history = data.analysis_history || [];
-
-        // Add new entry
-        history.unshift({
-          text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-          fullText: text,
-          analysis: analysis,
-          timestamp: new Date().toISOString(),
-        });
-
-        // Keep only last 50 entries
-        if (history.length > 50) {
-          history.pop();
-        }
-
-        chrome.storage.sync.set({ analysis_history: history });
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Log data size before storing
+      const entrySize = JSON.stringify(historyEntry).length;
+      const originalAnalysisSize = analysis ? JSON.stringify(analysis).length : 0;
+      Logger.info('[BG] Saving to history - minimal data structure:', {
+        entrySize,
+        entrySizeKB: (entrySize / 1024).toFixed(2),
+        originalAnalysisSize,
+        originalAnalysisSizeKB: (originalAnalysisSize / 1024).toFixed(2),
+        sizeReduction: originalAnalysisSize > 0 ? ((1 - entrySize / originalAnalysisSize) * 100).toFixed(1) + '%' : 'N/A',
+        textLength: text.length,
+        storageArea: 'sync',
+        usingMutexHelper: typeof MutexHelper !== 'undefined',
       });
+      
+      // EPISTEMIC: Use mutex-protected array append to prevent race conditions
+      if (typeof MutexHelper !== 'undefined') {
+        try {
+          await MutexHelper.appendToArray(
+            'analysis_history',
+            historyEntry,
+            50,
+            'sync'
+          ); // Keep last 50 entries, use sync storage
+          Logger.info('[BG] Successfully saved to history via MutexHelper');
+        } catch (mutexError) {
+          // Check if it's a quota error
+          const isQuotaError = mutexError.message && (
+            mutexError.message.includes('quota') || 
+            mutexError.message.includes('QUOTA') ||
+            mutexError.message.includes('exceeded')
+          );
+
+          if (isQuotaError) {
+            Logger.warn('[BG] Quota error in MutexHelper, attempting to trim and retry:', {
+              error: mutexError.message,
+            });
+            
+            // Try to trim history and retry
+            try {
+              const history = await new Promise((resolve) => {
+                chrome.storage.sync.get(['analysis_history'], (data) => {
+                  resolve(data.analysis_history || []);
+                });
+              });
+
+              // Trim history to fit quota
+              const trimmedHistory = trimArrayForQuota([...history, historyEntry], 7168);
+              
+              // Store trimmed history
+              await new Promise((resolve, reject) => {
+                chrome.storage.sync.set({ analysis_history: trimmedHistory }, () => {
+                  if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                  } else {
+                    resolve();
+                  }
+                });
+              });
+
+              Logger.info('[BG] Successfully saved to history after quota trim');
+            } catch (retryError) {
+              // If retry fails, log warning but don't throw (non-critical operation)
+              Logger.warn('[BG] Failed to save history after quota trim (non-critical):', {
+                error: retryError.message,
+                entrySize,
+              });
+              // Don't throw - analysis should complete successfully even if history save fails
+            }
+          } else {
+            // Not a quota error, log and continue (don't throw)
+            Logger.error('[BG] Error in MutexHelper.appendToArray (non-critical):', {
+              error: mutexError.message,
+              stack: mutexError.stack,
+              entrySize,
+            });
+            // Don't throw - analysis should complete successfully even if history save fails
+          }
+        }
+      } else {
+        // Fallback to direct storage (race condition risk)
+        try {
+          chrome.storage.sync.get(['analysis_history'], (data) => {
+            if (chrome.runtime.lastError) {
+              Logger.error('[BG] Error reading analysis_history:', chrome.runtime.lastError.message);
+              return;
+            }
+            
+            const history = data.analysis_history || [];
+            const currentHistorySize = JSON.stringify(history).length;
+            
+            Logger.info('[BG] Fallback storage - current history size:', {
+              currentHistorySize,
+              currentHistorySizeKB: (currentHistorySize / 1024).toFixed(2),
+              currentEntries: history.length,
+            });
+
+            // Add new entry
+            history.unshift(historyEntry);
+
+            // Check quota before storing (8KB limit for sync storage)
+            const newHistorySize = JSON.stringify(history).length;
+            const SYNC_STORAGE_QUOTA = 8192; // 8KB limit
+            const SAFETY_MARGIN = 7168; // 7KB safety margin
+
+            if (newHistorySize > SAFETY_MARGIN) {
+              Logger.warn('[BG] History size approaching quota, trimming:', {
+                newHistorySize,
+                newHistorySizeKB: (newHistorySize / 1024).toFixed(2),
+                entriesBeforeTrim: history.length,
+              });
+              
+              // Trim to fit within safety margin
+              trimArrayForQuota(history, SAFETY_MARGIN);
+              
+              Logger.info('[BG] History trimmed:', {
+                entriesAfterTrim: history.length,
+                finalSizeKB: (JSON.stringify(history).length / 1024).toFixed(2),
+              });
+            }
+
+            const finalHistorySize = JSON.stringify(history).length;
+            Logger.info('[BG] Fallback storage - final history size:', {
+              finalHistorySize,
+              finalHistorySizeKB: (finalHistorySize / 1024).toFixed(2),
+              finalEntries: history.length,
+            });
+
+            chrome.storage.sync.set({ analysis_history: history }, () => {
+              if (chrome.runtime.lastError) {
+                const error = chrome.runtime.lastError;
+                const isQuotaError = error.message && (
+                  error.message.includes('quota') || 
+                  error.message.includes('QUOTA') ||
+                  error.message.includes('exceeded')
+                );
+
+                if (isQuotaError) {
+                  // Try to trim and retry once
+                  Logger.warn('[BG] Quota error detected, attempting trim and retry:', {
+                    error: error.message,
+                    finalHistorySize,
+                    finalHistorySizeKB: (finalHistorySize / 1024).toFixed(2),
+                  });
+
+                  // Trim more aggressively and retry
+                  const retryHistory = trimArrayForQuota([...history], 6144); // Trim to 6KB
+                  
+                  chrome.storage.sync.set({ analysis_history: retryHistory }, () => {
+                    if (chrome.runtime.lastError) {
+                      Logger.warn('[BG] Failed to save history after retry (non-critical):', {
+                        error: chrome.runtime.lastError.message,
+                        finalHistorySize,
+                      });
+                      // Don't throw - analysis should complete successfully
+                    } else {
+                      Logger.info('[BG] Successfully saved to history after quota retry');
+                    }
+                  });
+                } else {
+                  Logger.error('[BG] Error saving analysis_history (fallback):', {
+                    error: error.message,
+                    finalHistorySize,
+                    finalHistorySizeKB: (finalHistorySize / 1024).toFixed(2),
+                  });
+                  // Don't throw - analysis should complete successfully
+                }
+              } else {
+                Logger.info('[BG] Successfully saved to history via fallback');
+              }
+            });
+          });
+        } catch (fallbackError) {
+          // Log error but don't throw (non-critical operation)
+          Logger.warn('[BG] Error in fallback storage (non-critical):', {
+            error: fallbackError.message,
+            stack: fallbackError.stack,
+            entrySize,
+          });
+          // Don't throw - analysis should complete successfully even if history save fails
+        }
+      }
+    } catch (error) {
+      // Log error but don't throw (non-critical operation)
+      Logger.warn('[BG] Error in saveToHistory (non-critical):', {
+        error: error.message,
+        stack: error.stack,
+        textLength: text.length,
+        analysisKeys: analysis ? Object.keys(analysis) : [],
+      });
+      // Don't throw - analysis should complete successfully even if history save fails
     }
   }
 

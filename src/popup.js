@@ -325,6 +325,21 @@
         // Force check user session again after initialization
         Logger.info('[Popup] Clerk initialized, checking user session...');
         await auth.checkUserSession();
+        
+        // CRITICAL: Ensure token is retrieved and stored for service worker access
+        if (auth.isAuthenticated()) {
+          try {
+            const token = await auth.getToken();
+            if (token) {
+              Logger.info('[Popup] Token refreshed and stored for service worker');
+            } else {
+              Logger.warn('[Popup] No token available after authentication check');
+            }
+          } catch (tokenError) {
+            Logger.warn('[Popup] Error refreshing token (non-critical):', tokenError.message);
+          }
+        }
+        
         await updateAuthUI();
       } else {
         Logger.warn('[Popup] Authentication not configured');
@@ -670,6 +685,34 @@
     }
 
     if (isAuth) {
+      // CRITICAL: Refresh and store token when user is authenticated
+      // This ensures service worker can access the token
+      if (auth && auth.isAuthenticated()) {
+        try {
+          const token = await auth.getToken();
+          if (token) {
+            Logger.info('[Popup] Token refreshed in updateAuthUI for service worker access');
+          } else {
+            Logger.warn('[Popup] No token available in updateAuthUI - service worker may fail to authenticate');
+          }
+        } catch (tokenError) {
+          Logger.warn('[Popup] Error refreshing token in updateAuthUI (non-critical):', tokenError.message);
+        }
+      } else if (hasStoredUser && auth) {
+        // User is in storage but auth object might not be initialized - try to get token
+        try {
+          if (!auth.isInitialized) {
+            await auth.initialize();
+          }
+          const token = await auth.getToken();
+          if (token) {
+            Logger.info('[Popup] Token retrieved from auth object for stored user');
+          }
+        } catch (tokenError) {
+          Logger.warn('[Popup] Could not get token for stored user:', tokenError.message);
+        }
+      }
+      
       // Get user data - from auth object if available, otherwise from storage
       let user = null;
       let avatarUrl = null;
@@ -1574,29 +1617,232 @@
   }
 
   /**
+   * Update connection status indicators
+   */
+  function updateConnectionStatus(result) {
+    const connectionStatus = document.getElementById('connectionStatus');
+    const backendStatus = document.getElementById('backendConnectionStatus');
+    const authStatus = document.getElementById('authConnectionStatus');
+    
+    if (!connectionStatus) {
+      return;
+    }
+    
+    // Show connection status section
+    connectionStatus.style.display = 'block';
+    
+    // Determine backend connection status
+    if (result && result.success !== false && !result.error) {
+      if (backendStatus) {
+        backendStatus.textContent = '✅ Connected';
+        backendStatus.className = 'connection-value connected';
+      }
+    } else {
+      if (backendStatus) {
+        const errorMsg = result?.error || '';
+        if (errorMsg.includes('401') || errorMsg.includes('403') || errorMsg.includes('Unauthorized')) {
+          backendStatus.textContent = '⚠️ Auth Required';
+          backendStatus.className = 'connection-value auth-required';
+        } else if (errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('timeout')) {
+          backendStatus.textContent = '⚠️ Disconnected';
+          backendStatus.className = 'connection-value disconnected';
+        } else {
+          backendStatus.textContent = '⚠️ Error';
+          backendStatus.className = 'connection-value disconnected';
+        }
+      }
+    }
+    
+    // Determine auth status and verify token is stored
+    chrome.storage.local.get(['clerk_user', 'clerk_token'], (data) => {
+      if (authStatus) {
+        if (data.clerk_user && data.clerk_token) {
+          authStatus.textContent = '✅ Signed In';
+          authStatus.className = 'connection-value connected';
+          
+          // Verify token format
+          const tokenParts = data.clerk_token.split('.');
+          if (tokenParts.length !== 3) {
+            Logger.warn('[Popup] Token format invalid - refreshing token');
+            // Try to refresh token if format is invalid (async, don't await)
+            if (auth && auth.isAuthenticated()) {
+              auth.getToken().then((refreshedToken) => {
+                if (refreshedToken) {
+                  Logger.info('[Popup] Token refreshed successfully');
+                }
+              }).catch((e) => {
+                Logger.error('[Popup] Failed to refresh invalid token:', e);
+              });
+            }
+          }
+        } else if (data.clerk_user && !data.clerk_token) {
+          // User exists but token is missing - try to get it
+          Logger.warn('[Popup] User found but token missing - attempting to retrieve token');
+          authStatus.textContent = '⚠️ Token Missing';
+          authStatus.className = 'connection-value auth-required';
+          
+          // Try to get token - check if auth object needs to be synced first
+          const tryGetToken = async () => {
+            try {
+              Logger.info('[Popup] Starting token retrieval process...');
+              
+              // If auth doesn't exist, create and initialize it
+              if (!auth) {
+                Logger.info('[Popup] Auth object missing - initializing to retrieve token');
+                auth = new AiGuardianAuth();
+                await auth.initialize();
+              }
+              
+              // Ensure auth is initialized
+              if (!auth.isInitialized) {
+                Logger.info('[Popup] Auth not initialized - initializing now');
+                await auth.initialize();
+              }
+              
+              // Sync user session to ensure auth object has the user
+              Logger.info('[Popup] Checking user session to sync auth state...');
+              await auth.checkUserSession();
+              
+              // Now try to get the token - with retry logic if needed
+              // This handles cases where Clerk SDK session isn't ready immediately
+              Logger.info('[Popup] Attempting to retrieve token from Clerk...');
+              let token = await auth.getToken();
+              
+              // If token retrieval failed, try again with retries
+              if (!token && auth.clerk) {
+                Logger.warn('[Popup] Initial token retrieval failed, attempting retries...');
+                const maxRetries = 3;
+                const retryDelay = 300;
+                
+                for (let retry = 0; retry < maxRetries && !token; retry++) {
+                  Logger.info(`[Popup] Token retrieval retry ${retry + 1}/${maxRetries}...`);
+                  await new Promise((resolve) => setTimeout(resolve, retryDelay));
+                  
+                  // Try reloading Clerk SDK to refresh session state
+                  if (typeof auth.clerk.load === 'function' && !auth.clerk.loaded) {
+                    await auth.clerk.load();
+                  }
+                  
+                  // Try getting token again
+                  token = await auth.getToken();
+                  
+                  if (token) {
+                    Logger.info(`[Popup] ✅ Token retrieved successfully on retry ${retry + 1}`);
+                    break;
+                  }
+                }
+              }
+              
+              if (token) {
+                Logger.info('[Popup] ✅ Token retrieved and stored successfully');
+                // Update UI immediately
+                authStatus.textContent = '✅ Signed In';
+                authStatus.className = 'connection-value connected';
+                
+                // Also trigger a storage update check to refresh any other UI elements
+                chrome.storage.local.get(['clerk_token'], (updatedData) => {
+                  if (updatedData.clerk_token) {
+                    Logger.info('[Popup] Token confirmed in storage after retrieval');
+                  }
+                });
+              } else {
+                Logger.warn('[Popup] ⚠️ Token retrieval returned null - checking why...');
+                
+                // Check if Clerk is available
+                const hasClerk = auth.clerk && typeof window !== 'undefined' && window.Clerk;
+                Logger.warn('[Popup] Clerk availability:', {
+                  hasAuthClerk: !!auth.clerk,
+                  hasWindowClerk: typeof window !== 'undefined' && !!window.Clerk,
+                  authInitialized: auth.isInitialized,
+                  hasUser: !!auth.user,
+                  hasStoredUser: !!data.clerk_user
+                });
+                
+                // If Clerk isn't available, user might need to sign in again
+                if (!hasClerk) {
+                  Logger.warn('[Popup] Clerk SDK not available - user may need to sign in again');
+                  authStatus.textContent = '⚠️ Token Missing';
+                  authStatus.className = 'connection-value auth-required';
+                }
+              }
+            } catch (e) {
+              Logger.error('[Popup] ❌ Failed to retrieve missing token:', e);
+              Logger.error('[Popup] Error details:', {
+                message: e.message,
+                stack: e.stack,
+                name: e.name
+              });
+              // Keep showing "Token Missing" on error
+              authStatus.textContent = '⚠️ Token Missing';
+              authStatus.className = 'connection-value auth-required';
+            }
+          };
+          
+          // Call async function without blocking UI
+          tryGetToken();
+        } else {
+          authStatus.textContent = '🔒 Not Signed In';
+          authStatus.className = 'connection-value auth-required';
+        }
+      }
+    });
+  }
+
+  /**
    * Update analysis result display
    * All values come from backend - no fallbacks or mocks
    * CRITICAL: Check for errors before displaying results
    */
   function updateAnalysisResult(result) {
+    // Update connection status indicators
+    updateConnectionStatus(result);
+
     // SAFETY: Check for error responses FIRST - don't display 0% for errors
     if (!result || result.success === false || result.error) {
       const errorMessage = result?.error || result?.detail || 'Analysis failed';
       Logger.error('[Popup] Analysis result indicates error:', errorMessage);
 
+      // Determine specific error type for better UX
+      let specificMessage = errorMessage;
+      let statusBadge = 'disconnected';
+      
+      if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || 
+          errorMessage.includes('authenticated') || errorMessage.includes('sign in')) {
+        specificMessage = 'Score unavailable - Please sign in';
+        statusBadge = 'auth-required';
+      } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+        specificMessage = 'Score unavailable - Access denied';
+        statusBadge = 'auth-required';
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || 
+                 errorMessage.includes('connection') || errorMessage.includes('timeout')) {
+        specificMessage = 'Score unavailable - Backend connection required';
+        statusBadge = 'disconnected';
+      } else if (errorMessage.includes('404')) {
+        specificMessage = 'Score unavailable - Backend endpoint not found';
+        statusBadge = 'disconnected';
+      }
+
       // Display error in UI
       const biasScore = document.getElementById('biasScore');
       const biasType = document.getElementById('biasType');
       const confidence = document.getElementById('confidence');
+      const scoreStatusBadge = document.getElementById('scoreStatusBadge');
+      const analysisStatusLine = document.getElementById('analysisStatusLine');
 
       if (biasScore) {
-        biasScore.textContent = 'Error';
+        biasScore.textContent = 'N/A';
         biasScore.className = 'score-value error';
       }
 
+      if (scoreStatusBadge) {
+        scoreStatusBadge.textContent = statusBadge === 'auth-required' ? '🔒 Sign In Required' : 
+                                      statusBadge === 'disconnected' ? '⚠️ No Connection' : '❌ Error';
+        scoreStatusBadge.className = `score-status-badge ${statusBadge}`;
+        scoreStatusBadge.style.display = 'inline-block';
+      }
+
       if (biasType) {
-        biasType.textContent =
-          errorMessage.substring(0, 30) + (errorMessage.length > 30 ? '...' : '');
+        biasType.textContent = specificMessage;
         biasType.className = 'error-text';
       }
 
@@ -1604,11 +1850,16 @@
         confidence.textContent = '—';
       }
 
+      if (analysisStatusLine) {
+        analysisStatusLine.textContent = `Error: ${errorMessage.substring(0, 50)}${errorMessage.length > 50 ? '...' : ''}`;
+        analysisStatusLine.style.color = 'rgba(255, 87, 87, 0.9)';
+      }
+
       // Show error to user
       if (errorHandler) {
-        errorHandler.showErrorFromException(new Error(errorMessage));
+        errorHandler.showErrorFromException(new Error(specificMessage));
       } else {
-        showFallbackError(`Analysis failed: ${errorMessage}`);
+        showFallbackError(`Analysis failed: ${specificMessage}`);
       }
 
       return; // Don't process further
@@ -1616,20 +1867,34 @@
 
     // Validate that we have a valid result before displaying
     if (
-      result.score === undefined &&
+      (result.score === undefined || result.score === null) &&
       (!result.analysis || Object.keys(result.analysis).length === 0)
     ) {
       Logger.warn('[Popup] Analysis result missing score and analysis data:', result);
       const biasScore = document.getElementById('biasScore');
       const biasType = document.getElementById('biasType');
+      const scoreStatusBadge = document.getElementById('scoreStatusBadge');
+      const analysisStatusLine = document.getElementById('analysisStatusLine');
 
       if (biasScore) {
         biasScore.textContent = 'N/A';
         biasScore.className = 'score-value';
       }
 
+      if (scoreStatusBadge) {
+        scoreStatusBadge.textContent = '⚠️ Incomplete';
+        scoreStatusBadge.className = 'score-status-badge disconnected';
+        scoreStatusBadge.style.display = 'inline-block';
+      }
+
       if (biasType) {
-        biasType.textContent = 'No data';
+        biasType.textContent = 'Score unavailable - Analysis incomplete';
+        biasType.className = 'warning-text';
+      }
+
+      if (analysisStatusLine) {
+        analysisStatusLine.textContent = 'Backend returned no score data';
+        analysisStatusLine.style.color = 'rgba(255, 193, 7, 0.9)';
       }
 
       return;
@@ -1639,14 +1904,47 @@
     const biasType = document.getElementById('biasType');
     const confidence = document.getElementById('confidence');
 
-    // Only display score if it's a valid number (not 0 from error)
-    if (biasScore && result.score !== undefined && typeof result.score === 'number') {
-      // Check if score is 0 due to error (error responses might have score: 0)
-      if (result.score === 0 && (!result.analysis || Object.keys(result.analysis).length === 0)) {
+    // Handle score display: distinguish between null (missing), 0 (valid zero), and valid scores
+    const scoreStatusBadge = document.getElementById('scoreStatusBadge');
+    const analysisStatusLine = document.getElementById('analysisStatusLine');
+    
+    if (biasScore) {
+      // Case 1: Score is null or undefined (missing from backend)
+      if (result.score === null || result.score === undefined) {
+        Logger.warn('[Popup] Score is null/undefined (missing from backend response)', {
+          resultKeys: Object.keys(result || {}),
+          hasAnalysis: !!result.analysis,
+          analysisKeys: result.analysis ? Object.keys(result.analysis) : [],
+          serviceType: result.service_type,
+        });
+        
         biasScore.textContent = 'N/A';
         biasScore.className = 'score-value';
-      } else {
-        biasScore.textContent = result.score.toFixed(2);
+        
+        if (scoreStatusBadge) {
+          scoreStatusBadge.textContent = '⚠️ Missing';
+          scoreStatusBadge.className = 'score-status-badge disconnected';
+          scoreStatusBadge.style.display = 'inline-block';
+          // Add tooltip with more info
+          scoreStatusBadge.title = 'Score not available. Backend may not have returned bias_score field.';
+        }
+        
+        if (analysisStatusLine) {
+          // More specific message based on what we have
+          if (result.analysis && Object.keys(result.analysis).length > 0) {
+            analysisStatusLine.textContent = 'Score unavailable - Analysis completed but score field missing';
+          } else {
+            analysisStatusLine.textContent = 'Score unavailable - Analysis incomplete or failed';
+          }
+          analysisStatusLine.style.color = 'rgba(255, 193, 7, 0.9)';
+        }
+      }
+      // Case 2: Score is a valid number (including 0)
+      else if (typeof result.score === 'number' && !Number.isNaN(result.score)) {
+        // Score of 0 is valid if we have analysis data (backend explicitly returned 0)
+        // Score of 0 without analysis data might indicate an error, but we'll trust the backend
+        const scorePercent = Math.round(result.score * 100);
+        biasScore.textContent = `${result.score.toFixed(2)} (${scorePercent}%)`;
 
         // Update score color based on value
         biasScore.className = 'score-value';
@@ -1656,6 +1954,39 @@
           biasScore.classList.add('medium');
         } else {
           biasScore.classList.add('high');
+        }
+        
+        // Show success status badge
+        if (scoreStatusBadge) {
+          scoreStatusBadge.textContent = '✅ Connected';
+          scoreStatusBadge.className = 'score-status-badge connected';
+          scoreStatusBadge.style.display = 'inline-block';
+        }
+        
+        if (analysisStatusLine) {
+          const timestamp = new Date().toLocaleTimeString();
+          analysisStatusLine.textContent = `Last analysis: ${timestamp}`;
+          analysisStatusLine.style.color = 'rgba(249, 249, 249, 0.75)';
+        }
+      }
+      // Case 3: Score is invalid (not a number)
+      else {
+        Logger.warn('[Popup] Score is not a valid number:', {
+          score: result.score,
+          scoreType: typeof result.score,
+        });
+        biasScore.textContent = 'N/A';
+        biasScore.className = 'score-value';
+        
+        if (scoreStatusBadge) {
+          scoreStatusBadge.textContent = '⚠️ Invalid';
+          scoreStatusBadge.className = 'score-status-badge disconnected';
+          scoreStatusBadge.style.display = 'inline-block';
+        }
+        
+        if (analysisStatusLine) {
+          analysisStatusLine.textContent = 'Score unavailable - Invalid score format';
+          analysisStatusLine.style.color = 'rgba(255, 87, 87, 0.9)';
         }
       }
     }

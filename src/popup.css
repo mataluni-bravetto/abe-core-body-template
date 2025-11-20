@@ -169,8 +169,36 @@ body {
 .score-label {
   display: block;
   font-size: 12px;
-  color: #6b7280;
+  color: rgba(249, 249, 249, 0.8);
   margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.score-status-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-weight: 600;
+}
+
+.score-status-badge.connected {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.score-status-badge.disconnected {
+  background: rgba(255, 87, 87, 0.2);
+  color: #ff5757;
+  border: 1px solid rgba(255, 87, 87, 0.4);
+}
+
+.score-status-badge.auth-required {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.4);
 }
 
 .score-value {
@@ -803,4 +831,53 @@ body {
   flex: 1;
   padding: 6px 12px;
   font-size: 12px;
+}
+
+/* Connection Status Styles */
+.connection-status {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 8px;
+}
+
+.connection-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 11px;
+}
+
+.connection-label {
+  color: rgba(249, 249, 249, 0.7);
+  font-weight: 500;
+}
+
+.connection-value {
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.connection-value.connected {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.connection-value.disconnected {
+  color: #ff5757;
+  background: rgba(255, 87, 87, 0.1);
+}
+
+.connection-value.auth-required {
+  color: #ffc107;
+  background: rgba(255, 193, 7, 0.1);
+}
+
+.score-value.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
 }

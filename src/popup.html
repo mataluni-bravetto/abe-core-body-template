@@ -79,8 +79,9 @@
         <div class="analysis-title">🔍 Trust & Transparency</div>
         <div class="analysis-result" id="analysisResult">
           <div class="bias-score">
-            <span class="score-label">Confidence Score</span>
+            <span class="score-label">Bias Score</span>
             <span class="score-value low" id="biasScore">—</span>
+            <span class="score-status-badge" id="scoreStatusBadge" style="display: none;"></span>
           </div>
           <div class="bias-type" id="biasType">Select text and analyze to see results</div>
           <div class="confidence">Uncertainty: <span id="confidence">—</span></div>
@@ -91,6 +92,16 @@
           style="margin-top: 8px; font-size: 11px; color: rgba(249, 249, 249, 0.75)"
         >
           No analysis run yet.
+        </div>
+        <div class="connection-status" id="connectionStatus" style="display: none; margin-top: 8px;">
+          <div class="connection-item">
+            <span class="connection-label">Backend:</span>
+            <span class="connection-value" id="backendConnectionStatus">Checking...</span>
+          </div>
+          <div class="connection-item">
+            <span class="connection-label">Auth:</span>
+            <span class="connection-value" id="authConnectionStatus">Checking...</span>
+          </div>
         </div>
       </div>
 
