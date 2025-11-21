@@ -221,6 +221,14 @@ class AiGuardianGateway {
     this._initializing = false;
     this._initializationError = null; // SAFETY: Track initialization errors
 
+    // MV3 Best Practice: Cache authentication state to reduce storage calls
+    this._authStateCache = {
+      hasUser: null,
+      hasToken: null,
+      lastCheck: 0,
+      cacheTTL: 5000 // 5 second cache TTL
+    };
+
     // Simple unified gateway configuration
     this.config = {
       gatewayUrl: DEFAULT_CONFIG.GATEWAY_URL,
@@ -454,12 +462,15 @@ class AiGuardianGateway {
     payload = this.sanitizeRequestData(payload);
 
     // Get Clerk session token for authenticated requests (user-based auth only)
+    // MV3 Best Practice: Silent check - don't log warnings for expected states
     // This is retrieved once and used for both subscription check and API request
     let clerkToken = null;
     try {
-      clerkToken = await this.getClerkSessionToken();
+      // Use silent mode to avoid excessive warnings when user isn't signed in
+      clerkToken = await this.getClerkSessionToken(true);
     } catch (error) {
-      Logger.warn('[Gateway] Clerk token not available:', error.message);
+      // Only log actual errors, not expected states
+      Logger.error('[Gateway] Error retrieving Clerk token:', error.message);
     }
 
     // Check subscription status before making request (only for analyze endpoint)
@@ -1697,18 +1708,27 @@ class AiGuardianGateway {
 
   /**
    * Get Clerk session token (if available)
-   * This is the primary authentication method - Clerk handles all user authentication
-   *
+   * MV3 Best Practice: Silent checks, cached state, minimal logging
+   * 
    * ALWAYS tries to get fresh token from Clerk SDK first (if available)
    * Falls back to stored token only if Clerk SDK is not accessible
    * This ensures we use valid, non-expired tokens
    *
    * In service worker context, retrieves token from chrome.storage.local
    * In popup/options context, gets fresh token from Clerk SDK
+   * 
+   * MV3 Pattern: Only log warnings for actual errors, not expected states
    */
-  async getClerkSessionToken() {
+  async getClerkSessionToken(silent = false) {
     const context = typeof window !== 'undefined' ? 'window' : 'service_worker';
-    Logger.info(`[Gateway] Getting Clerk token (context: ${context})`);
+    const now = Date.now();
+    
+    // MV3 Best Practice: Use cached auth state to reduce storage calls
+    if (!silent && this._authStateCache.hasUser === false && 
+        (now - this._authStateCache.lastCheck) < this._authStateCache.cacheTTL) {
+      // User is known to not be authenticated, skip check
+      return null;
+    }
 
     try {
       // PRIORITY 1: Try to get fresh token from Clerk SDK (if in window context)
@@ -1716,18 +1736,24 @@ class AiGuardianGateway {
       if (typeof window !== 'undefined' && window.Clerk) {
         try {
           const clerk = window.Clerk;
-          Logger.info('[Gateway] Clerk SDK available, attempting to get fresh token');
+          if (!silent) {
+            Logger.info('[Gateway] Clerk SDK available, attempting to get fresh token');
+          }
 
           // Only call load() if it exists
           if (typeof clerk.load === 'function' && !clerk.loaded) {
-            Logger.info('[Gateway] Loading Clerk SDK...');
+            if (!silent) {
+              Logger.info('[Gateway] Loading Clerk SDK...');
+            }
             await clerk.load();
           }
 
           // Check if user is authenticated
           const user = clerk.user;
           if (user) {
-            Logger.info(`[Gateway] User found: ${user.id}`);
+            if (!silent) {
+              Logger.info(`[Gateway] User found: ${user.id}`);
+            }
             const session = await clerk.session;
             if (session) {
               // Get fresh token from Clerk session
@@ -1737,69 +1763,72 @@ class AiGuardianGateway {
                 // Validate token format (JWT tokens start with eyJ)
                 if (this.validateTokenFormat(token)) {
                   await this.storeClerkToken(token);
-                  Logger.info('[Gateway] Retrieved fresh Clerk token from SDK (valid format)');
+                  // Update cache
+                  this._authStateCache.hasUser = true;
+                  this._authStateCache.hasToken = true;
+                  this._authStateCache.lastCheck = now;
+                  if (!silent) {
+                    Logger.info('[Gateway] Retrieved fresh Clerk token from SDK');
+                  }
                   return token;
                 } else {
-                  Logger.warn(
-                    '[Gateway] Token from SDK has invalid format, falling back to stored token'
-                  );
+                  // Invalid format is an actual error, log it
+                  Logger.warn('[Gateway] Token from SDK has invalid format');
                 }
-              } else {
-                Logger.warn('[Gateway] No token available from Clerk session');
               }
-            } else {
-              Logger.warn('[Gateway] No Clerk session found');
             }
           } else {
-            Logger.warn('[Gateway] No Clerk user found');
+            // No user is expected state, not an error - update cache silently
+            this._authStateCache.hasUser = false;
+            this._authStateCache.hasToken = false;
+            this._authStateCache.lastCheck = now;
           }
         } catch (e) {
+          // SDK errors are actual errors, log them
           Logger.warn('[Gateway] Could not get fresh token from Clerk SDK:', e.message);
           // Fall through to stored token
         }
-      } else {
-        Logger.info('[Gateway] Clerk SDK not available (service worker context or not loaded)');
       }
 
       // PRIORITY 2: Fall back to stored token (for service worker context)
       // Service workers can't access Clerk SDK directly, so use stored token
-      Logger.info('[Gateway] Attempting to retrieve stored token from chrome.storage.local');
       const storedToken = await this.getStoredClerkToken();
       if (storedToken) {
         // Validate stored token format
         if (this.validateTokenFormat(storedToken)) {
-          Logger.info('[Gateway] Using stored Clerk token (service worker context)');
+          // Update cache
+          this._authStateCache.hasUser = true;
+          this._authStateCache.hasToken = true;
+          this._authStateCache.lastCheck = now;
+          if (!silent) {
+            Logger.info('[Gateway] Using stored Clerk token');
+          }
           return storedToken;
         } else {
+          // Invalid format is an actual error
           Logger.error('[Gateway] Stored token has invalid format, clearing it');
           await this.clearStoredClerkToken();
+          this._authStateCache.hasUser = false;
+          this._authStateCache.hasToken = false;
+          this._authStateCache.lastCheck = now;
           return null;
-        }
-      } else {
-        Logger.warn('[Gateway] No stored token found in chrome.storage.local');
-        
-        // Retry logic: Sometimes token storage hasn't completed yet
-        // Wait a short time and retry once (for timing issues)
-        Logger.info('[Gateway] Retrying token retrieval after short delay...');
-        await this.delay(100); // 100ms delay
-        
-        // Retry reading from storage directly (avoid recursion)
-        const retryData = await new Promise((resolve) => {
-          chrome.storage.local.get(['clerk_token'], (data) => {
-            resolve(data.clerk_token || null);
-          });
-        });
-        
-        if (retryData && this.validateTokenFormat(retryData)) {
-          Logger.info('[Gateway] Token found on retry');
-          return retryData;
         }
       }
 
-      Logger.warn('[Gateway] No Clerk token available - user must sign in');
+      // No token found - update cache silently (expected state when not signed in)
+      this._authStateCache.hasUser = false;
+      this._authStateCache.hasToken = false;
+      this._authStateCache.lastCheck = now;
+      
+      // MV3 Best Practice: Only log warnings for actual errors, not expected states
+      // User not signed in is expected, not an error - return null silently
       return null;
     } catch (error) {
+      // Actual errors should be logged
       Logger.error('[Gateway] Error getting Clerk token:', error.message);
+      this._authStateCache.hasUser = false;
+      this._authStateCache.hasToken = false;
+      this._authStateCache.lastCheck = now;
       return null;
     }
   }
@@ -1884,8 +1913,13 @@ class AiGuardianGateway {
   /**
    * Store Clerk token in chrome.storage.local
    * EPISTEMIC: Uses mutex protection to prevent race conditions
+   * MV3 Best Practice: Update auth cache when token is stored
    */
   async storeClerkToken(token) {
+    // Update cache
+    this._authStateCache.hasUser = true;
+    this._authStateCache.hasToken = true;
+    this._authStateCache.lastCheck = Date.now();
     // Use mutex if available, otherwise fallback to direct storage
     if (typeof MutexHelper !== 'undefined') {
       return await MutexHelper.updateStorage('clerk_token', () => token, 'local');
@@ -1898,11 +1932,27 @@ class AiGuardianGateway {
 
   /**
    * Clear stored Clerk token from chrome.storage.local
+   * MV3 Best Practice: Also invalidate auth cache
    */
   async clearStoredClerkToken() {
+    // Invalidate cache
+    this._authStateCache.hasUser = false;
+    this._authStateCache.hasToken = false;
+    this._authStateCache.lastCheck = 0;
+    
     return new Promise((resolve) => {
       chrome.storage.local.remove(['clerk_token'], resolve);
     });
+  }
+
+  /**
+   * Invalidate authentication state cache
+   * MV3 Best Practice: Call this when auth state changes (e.g., user signs in/out)
+   */
+  invalidateAuthCache() {
+    this._authStateCache.hasUser = null;
+    this._authStateCache.hasToken = null;
+    this._authStateCache.lastCheck = 0;
   }
 
   /**

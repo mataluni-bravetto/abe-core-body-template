@@ -104,6 +104,60 @@
             <span class="connection-value" id="authConnectionStatus">Checking...</span>
           </div>
         </div>
+        
+        <!-- Score Explanation Section -->
+        <div class="score-explanation" id="scoreExplanation" style="display: none; margin-top: 12px;">
+          <button class="explanation-toggle" id="explanationToggle" style="width: 100%; padding: 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: #f9f9f9; font-size: 11px; cursor: pointer; text-align: left;">
+            📚 How is this score calculated? (Click to learn more)
+          </button>
+          <div class="explanation-content" id="explanationContent" style="display: none; margin-top: 8px; padding: 12px; background: rgba(0, 0, 0, 0.3); border-radius: 8px; font-size: 11px; line-height: 1.6; color: rgba(249, 249, 249, 0.9);">
+            <div class="explanation-section">
+              <strong style="color: #86efac;">🎯 Purpose:</strong>
+              <p style="margin: 4px 0;">The bias score tells us how much unfairness or discrimination might be in the text. It's like a fairness meter!</p>
+            </div>
+            <div class="explanation-section" style="margin-top: 10px;">
+              <strong style="color: #86efac;">🔍 Method:</strong>
+              <p style="margin: 4px 0;">We look for patterns in the text that might show bias, like unfair words about race, gender, age, or other groups of people.</p>
+            </div>
+            <div class="explanation-section" style="margin-top: 10px;">
+              <strong style="color: #86efac;">📊 Scoring:</strong>
+              <ul style="margin: 4px 0; padding-left: 20px;">
+                <li><strong style="color: #86efac;">0-30%</strong> = Low bias (green) - Pretty fair!</li>
+                <li><strong style="color: #ffc107;">30-70%</strong> = Medium bias (yellow) - Some concerns</li>
+                <li><strong style="color: #ff5757;">70-100%</strong> = High bias (red) - Needs attention</li>
+              </ul>
+            </div>
+            <div class="explanation-section" style="margin-top: 10px;">
+              <strong style="color: #86efac;">🏷️ Categories:</strong>
+              <p style="margin: 4px 0;">We check for 5 types of bias:</p>
+              <ul style="margin: 4px 0; padding-left: 20px;">
+                <li><strong>Racial</strong> (30% weight) - Unfair treatment based on race</li>
+                <li><strong>Gender</strong> (25% weight) - Unfair treatment based on gender</li>
+                <li><strong>Age</strong> (20% weight) - Unfair treatment based on age</li>
+                <li><strong>Economic</strong> (15% weight) - Unfair treatment based on money</li>
+                <li><strong>Ability</strong> (10% weight) - Unfair treatment based on abilities</li>
+              </ul>
+            </div>
+            <div class="explanation-section" style="margin-top: 10px;">
+              <strong style="color: #86efac;">🧮 Calculation:</strong>
+              <p style="margin: 4px 0;">We find patterns in each category, give each one a score, multiply by its weight, then add them all up!</p>
+              <p style="margin: 4px 0; font-family: monospace; font-size: 10px; color: rgba(249, 249, 249, 0.7);">
+                Example: Racial (0.6) × 30% + Gender (0.4) × 25% = 0.18 + 0.10 = 0.28 (28%)
+              </p>
+            </div>
+            <div class="explanation-section" style="margin-top: 10px;">
+              <strong style="color: #86efac;">⚙️ Procedure:</strong>
+              <ol style="margin: 4px 0; padding-left: 20px;">
+                <li>Read the text you selected</li>
+                <li>Look for bias patterns (like unfair words)</li>
+                <li>Count how many patterns we find</li>
+                <li>Calculate scores for each category</li>
+                <li>Multiply by weights and add together</li>
+                <li>Show you the final score!</li>
+              </ol>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- AiGuardian Service Status -->
@@ -114,6 +168,32 @@
             <span class="guard-name">Unified AI Analysis</span>
             <div class="guard-status" id="serviceStatus"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- Transcendent Status -->
+      <div class="transcendent-section" id="transcendentSection" style="display: none">
+        <div class="transcendent-header">
+          <span class="transcendent-title">✨ Transcendent Mode</span>
+          <div class="transcendent-status-badge" id="transcendentStatusBadge"></div>
+        </div>
+        <div class="transcendent-details" id="transcendentDetails">
+          <div class="transcendence-level" id="transcendenceLevel">—</div>
+          <div class="transcendence-breakdown" id="transcendenceBreakdown" style="display: none;">
+            <div class="breakdown-item">
+              <span class="breakdown-label">Logic:</span>
+              <span class="breakdown-value" id="logicScore">—</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Physics:</span>
+              <span class="breakdown-value" id="physicsScore">—</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Intuition:</span>
+              <span class="breakdown-value" id="intuitionScore">—</span>
+            </div>
+          </div>
+          <div class="transcendence-guidance" id="transcendenceGuidance" style="display: none;"></div>
         </div>
       </div>
 

@@ -161,6 +161,12 @@ class AiGuardianOnboarding {
             3. Sign in for advanced features
           </div>
         </div>
+        <div style="background: rgba(255, 215, 0, 0.2); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(255, 215, 0, 0.4);">
+          <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #ffd700;">✨ Try Jimmy's Test Page:</div>
+          <button id="openOnboardingPage" style="width: 100%; padding: 8px; background: rgba(255, 215, 0, 0.3); border: 1px solid rgba(255, 215, 0, 0.5); border-radius: 6px; color: #ffd700; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+            🛡️ Open BiasGuard Calibration
+          </button>
+        </div>
       `;
 
       // Action buttons
@@ -218,6 +224,19 @@ class AiGuardianOnboarding {
       tooltip.appendChild(instructions);
       tooltip.appendChild(buttons);
       tooltip.appendChild(dontShowDiv);
+
+      // Add click handler for onboarding page button
+      setTimeout(() => {
+        const onboardingBtn = document.getElementById('openOnboardingPage');
+        if (onboardingBtn) {
+          onboardingBtn.onclick = () => {
+            chrome.tabs.create({
+              url: chrome.runtime.getURL('../onboarding-app/index.html')
+            });
+            this.completeOnboarding();
+          };
+        }
+      }, 100);
 
       overlay.appendChild(tooltip);
       document.body.appendChild(overlay);

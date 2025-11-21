@@ -19,6 +19,15 @@ try {
   importScripts('circuit-breaker.js');
   importScripts('subscription-service.js');
   importScripts('gateway.js');
+  // Load onboard transcendent modules
+  try {
+    importScripts('onboard/bias-detection.js');
+    importScripts('onboard/transcendence.js');
+    importScripts('onboard/access-control.js');
+    Logger.info('[BG] Onboard transcendent modules loaded');
+  } catch (e) {
+    Logger.warn('[BG] Onboard modules not available:', e);
+  }
   // Load epistemic calibration system
   try {
     importScripts('../tests/BIASGUARD_EPISTEMIC_CALIBRATION.js');
@@ -785,12 +794,94 @@ try {
 
   /**
    * TRACER BULLET: Text analysis through AiGuardian Gateway
+   * Supports both backend and onboard transcendent modes
    */
   async function handleTextAnalysis(text, sendResponse) {
     try {
       Logger.info('[BG] Text analysis request received:', text?.substring(0, 50) + '...');
 
-      // Ensure gateway is initialized
+      // Check for transcendent access and onboard mode
+      let useOnboard = false;
+      let accessControl = null;
+      
+      if (typeof TranscendentAccessControl !== 'undefined') {
+        accessControl = new TranscendentAccessControl();
+        const accessCheck = await accessControl.checkTranscendentAccess();
+        
+        if (accessCheck.hasAccess && accessCheck.transcendent) {
+          useOnboard = true;
+          Logger.info('[BG] ✨ Transcendent mode enabled - using onboard detection');
+        } else {
+          Logger.info('[BG] Backend mode - access check:', {
+            hasAccess: accessCheck.hasAccess,
+            reason: accessCheck.reason,
+            message: accessCheck.message
+          });
+        }
+      }
+
+      // Use onboard detection if available and user has access
+      if (useOnboard && typeof OnboardBiasDetection !== 'undefined') {
+        try {
+          const onboardDetector = new OnboardBiasDetection();
+          const onboardResult = onboardDetector.detectBias(text);
+          
+          // Calculate transcendence if available
+          let transcendenceData = null;
+          if (typeof TranscendenceCalculator !== 'undefined') {
+            const transcendenceCalc = new TranscendenceCalculator();
+            transcendenceData = transcendenceCalc.calculateTranscendence(onboardResult);
+          }
+          
+          // Format result to match backend format
+          const analysisResult = {
+            success: true,
+            score: onboardResult.bias_score,
+            analysis: {
+              bias_types: onboardResult.bias_types,
+              bias_details: onboardResult.bias_details,
+              mitigation_suggestions: onboardResult.mitigation_suggestions,
+              fairness_score: onboardResult.fairness_score,
+              summary: onboardResult.bias_types.length > 0 
+                ? `Detected ${onboardResult.bias_types.join(', ')} bias`
+                : 'No significant bias detected'
+            },
+            confidence: onboardResult.confidence,
+            processing_time: onboardResult.processing_time,
+            source: 'onboard',
+            transcendent: true,
+            transcendence: transcendenceData
+          };
+          
+          Logger.info('[BG] ✨ ONBOARD RESULT (Transcendent):', {
+            bias_score: analysisResult.score,
+            bias_types: analysisResult.analysis.bias_types,
+            transcendence_level: transcendenceData?.level,
+            processing_time: analysisResult.processing_time
+          });
+          
+          // Save to history
+          await saveToHistory(text, analysisResult);
+          chrome.storage.local.set({
+            last_analysis: {
+              score: analysisResult.score,
+              timestamp: new Date().toISOString(),
+              summary: analysisResult.analysis.summary,
+              success: true,
+              transcendent: true,
+              transcendence_level: transcendenceData?.level
+            }
+          });
+          
+          sendResponse(analysisResult);
+          return;
+        } catch (onboardError) {
+          Logger.warn('[BG] Onboard detection failed, falling back to backend:', onboardError);
+          // Fall through to backend
+        }
+      }
+
+      // Ensure gateway is initialized for backend mode
       if (!gateway) {
         gateway = initializeGateway();
       }
@@ -799,7 +890,7 @@ try {
         throw new Error('Gateway not available - extension may not be properly initialized');
       }
 
-      // TRACER BULLET: Use AI Guardians Gateway for analysis
+      // TRACER BULLET: Use AI Guardians Gateway for analysis (backend mode)
       try {
         const analysisResult = await gateway.analyzeText(text);
         Logger.info('[BG] ✅ BACKEND RESULT RECEIVED IN SERVICE WORKER', {

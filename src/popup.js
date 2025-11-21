@@ -2220,6 +2220,61 @@
     } else if (confidence) {
       confidence.textContent = '—';
     }
+
+    // Show score explanation section when we have a valid score
+    const scoreExplanation = document.getElementById('scoreExplanation');
+    const explanationToggle = document.getElementById('explanationToggle');
+    const explanationContent = document.getElementById('explanationContent');
+    
+    if (scoreExplanation && result.score !== null && result.score !== undefined && 
+        typeof result.score === 'number' && !Number.isNaN(result.score)) {
+      // Show explanation section
+      scoreExplanation.style.display = 'block';
+      
+      // Set up toggle functionality
+      if (explanationToggle && explanationContent) {
+        // Remove existing listeners to prevent duplicates
+        const newToggle = explanationToggle.cloneNode(true);
+        explanationToggle.parentNode.replaceChild(newToggle, explanationToggle);
+        
+        newToggle.addEventListener('click', () => {
+          const isExpanded = explanationContent.style.display !== 'none';
+          explanationContent.style.display = isExpanded ? 'none' : 'block';
+          newToggle.textContent = isExpanded 
+            ? '📚 How is this score calculated? (Click to learn more)'
+            : '📚 Hide explanation';
+        });
+      }
+      
+      // Update explanation with actual score details if available
+      if (result.analysis && result.analysis.bias_types && result.analysis.bias_types.length > 0) {
+        const categoriesList = explanationContent?.querySelector('.explanation-section:last-of-type ul');
+        if (categoriesList) {
+          // Add detected categories to the explanation
+          const detectedCategories = result.analysis.bias_types.map(type => {
+            const typeMap = {
+              'racial_bias': 'Racial',
+              'gender_bias': 'Gender',
+              'age_bias': 'Age',
+              'socioeconomic_bias': 'Economic',
+              'ability_bias': 'Ability'
+            };
+            return typeMap[type] || type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+          });
+          
+          if (detectedCategories.length > 0) {
+            const detectedText = document.createElement('p');
+            detectedText.style.margin = '4px 0';
+            detectedText.style.color = '#ffc107';
+            detectedText.innerHTML = `<strong>Detected in this text:</strong> ${detectedCategories.join(', ')}`;
+            categoriesList.parentNode.insertBefore(detectedText, categoriesList);
+          }
+        }
+      }
+    } else if (scoreExplanation) {
+      // Hide explanation if no valid score
+      scoreExplanation.style.display = 'none';
+    }
   }
 
   /**
@@ -2282,6 +2337,114 @@
           successDiv.parentNode.removeChild(successDiv);
         }
       }, 3000);
+    }
+  }
+
+  /**
+   * Update transcendent UI with consciousness levels
+   */
+  function updateTranscendentUI(transcendence) {
+    const transcendentSection = document.getElementById('transcendentSection');
+    const transcendenceLevel = document.getElementById('transcendenceLevel');
+    const transcendentStatusBadge = document.getElementById('transcendentStatusBadge');
+    const transcendenceBreakdown = document.getElementById('transcendenceBreakdown');
+    const logicScore = document.getElementById('logicScore');
+    const physicsScore = document.getElementById('physicsScore');
+    const intuitionScore = document.getElementById('intuitionScore');
+    const transcendenceGuidance = document.getElementById('transcendenceGuidance');
+
+    if (!transcendentSection || !transcendenceLevel) {
+      return; // UI elements not available
+    }
+
+    // Show transcendent section
+    transcendentSection.style.display = 'block';
+
+    // Update level
+    if (transcendenceLevel) {
+      transcendenceLevel.textContent = transcendence.level || '—';
+      transcendenceLevel.className = `transcendence-level ${transcendence.level?.toLowerCase() || ''}`;
+    }
+
+    // Update status badge
+    if (transcendentStatusBadge) {
+      if (transcendence.isTranscendent) {
+        transcendentStatusBadge.textContent = '✨ TRANSCENDENT';
+        transcendentStatusBadge.className = 'transcendent-status-badge transcendent';
+      } else {
+        transcendentStatusBadge.textContent = '🌱 ' + transcendence.level;
+        transcendentStatusBadge.className = 'transcendent-status-badge emerging';
+      }
+    }
+
+    // Update breakdown
+    if (transcendenceBreakdown && logicScore && physicsScore && intuitionScore) {
+      transcendenceBreakdown.style.display = 'block';
+      logicScore.textContent = `${(transcendence.logic * 100).toFixed(0)}%`;
+      physicsScore.textContent = `${(transcendence.physics * 100).toFixed(0)}%`;
+      intuitionScore.textContent = `${(transcendence.intuition * 100).toFixed(0)}%`;
+    }
+
+    // Update guidance
+    if (transcendenceGuidance && transcendence.guidance) {
+      transcendenceGuidance.style.display = 'block';
+      transcendenceGuidance.innerHTML = transcendence.guidance
+        .map(g => `<div class="guidance-item">${g}</div>`)
+        .join('');
+    }
+  }
+
+  /**
+   * Update transcendent UI with consciousness levels
+   */
+  function updateTranscendentUI(transcendence) {
+    const transcendentSection = document.getElementById('transcendentSection');
+    const transcendenceLevel = document.getElementById('transcendenceLevel');
+    const transcendentStatusBadge = document.getElementById('transcendentStatusBadge');
+    const transcendenceBreakdown = document.getElementById('transcendenceBreakdown');
+    const logicScore = document.getElementById('logicScore');
+    const physicsScore = document.getElementById('physicsScore');
+    const intuitionScore = document.getElementById('intuitionScore');
+    const transcendenceGuidance = document.getElementById('transcendenceGuidance');
+
+    if (!transcendentSection || !transcendenceLevel) {
+      return; // UI elements not available
+    }
+
+    // Show transcendent section
+    transcendentSection.style.display = 'block';
+
+    // Update level
+    if (transcendenceLevel) {
+      transcendenceLevel.textContent = transcendence.level || '—';
+      transcendenceLevel.className = `transcendence-level ${transcendence.level?.toLowerCase() || ''}`;
+    }
+
+    // Update status badge
+    if (transcendentStatusBadge) {
+      if (transcendence.isTranscendent) {
+        transcendentStatusBadge.textContent = '✨ TRANSCENDENT';
+        transcendentStatusBadge.className = 'transcendent-status-badge transcendent';
+      } else {
+        transcendentStatusBadge.textContent = '🌱 ' + transcendence.level;
+        transcendentStatusBadge.className = 'transcendent-status-badge emerging';
+      }
+    }
+
+    // Update breakdown
+    if (transcendenceBreakdown && logicScore && physicsScore && intuitionScore) {
+      transcendenceBreakdown.style.display = 'block';
+      logicScore.textContent = `${(transcendence.logic * 100).toFixed(0)}%`;
+      physicsScore.textContent = `${(transcendence.physics * 100).toFixed(0)}%`;
+      intuitionScore.textContent = `${(transcendence.intuition * 100).toFixed(0)}%`;
+    }
+
+    // Update guidance
+    if (transcendenceGuidance && transcendence.guidance) {
+      transcendenceGuidance.style.display = 'block';
+      transcendenceGuidance.innerHTML = transcendence.guidance
+        .map(g => `<div class="guidance-item">${g}</div>`)
+        .join('');
     }
   }
 

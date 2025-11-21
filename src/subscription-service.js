@@ -68,9 +68,10 @@ class SubscriptionService {
       Logger.info('[Subscription] Fetching subscription status:', url);
 
       // Get Clerk session token for user authentication (NO API keys)
-      const clerkToken = await this.gateway.getClerkSessionToken();
+      // MV3 Best Practice: Silent check - don't log warnings for expected states
+      const clerkToken = await this.gateway.getClerkSessionToken(true);
       if (!clerkToken) {
-        Logger.warn('[Subscription] No Clerk session token - user must authenticate');
+        // User not authenticated is expected state, not an error
         // Return default subscription if not authenticated
         return this.getDefaultSubscription();
       }
@@ -160,9 +161,10 @@ class SubscriptionService {
       Logger.info('[Subscription] Fetching usage statistics:', url);
 
       // Get Clerk session token for user authentication (NO API keys)
-      const clerkToken = await this.gateway.getClerkSessionToken();
+      // MV3 Best Practice: Silent check for expected states
+      const clerkToken = await this.gateway.getClerkSessionToken(true);
       if (!clerkToken) {
-        Logger.warn('[Subscription] No Clerk session token - user must authenticate');
+        // User not authenticated is expected state, not an error
         // Return default usage if not authenticated (consistent with getDefaultUsage)
         return this.getDefaultUsage();
       }

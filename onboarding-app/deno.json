@@ -1,0 +1,21 @@
+{
+  "tasks": {
+    "start": "deno run -A --watch=static/,routes/ dev.ts",
+    "build": "deno run -A dev.ts build",
+    "preview": "deno run -A main.ts"
+  },
+  "imports": {
+    "fresh": "https://deno.land/x/fresh@1.6.8/src/mod.ts",
+    "preact": "https://esm.sh/preact@10.19.3",
+    "preact/hooks": "https://esm.sh/preact@10.19.3/hooks",
+    "preact-render-to-string": "https://esm.sh/preact-render-to-string@6.2.1?deps=preact@10.19.3",
+    "@twind": "https://esm.sh/@twind/core@1.1.3",
+    "twind": "https://esm.sh/@twind/core@1.1.3",
+    "twind/sheets": "https://esm.sh/@twind/sheets@1.0.1"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
+  }
+}
+

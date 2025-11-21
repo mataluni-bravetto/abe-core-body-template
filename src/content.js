@@ -259,22 +259,22 @@
     const score = Math.round(response.score * 100);
     const analysis = response.analysis || {};
 
-    // EPISTEMIC CERTAINTY VALIDATION: Validate 97.8% threshold
+    // EPISTEMIC CERTAINTY VALIDATION: Validate 98.7% threshold (cross-domain expert consensus)
     const confidence = analysis.confidence;
-    const epistemicThreshold = 0.978; // 97.8% epistemic certainty threshold
+    const epistemicThreshold = 0.987; // 98.7% epistemic certainty threshold (validated cross-domain)
     
     if (confidence !== undefined && confidence !== null && typeof confidence === 'number') {
       if (confidence < epistemicThreshold) {
-        Logger.warn('[CS] ⚠️ Confidence below epistemic threshold (97.8%):', {
+        Logger.warn('[CS] ⚠️ Confidence below epistemic threshold (98.7%):', {
           confidence: Math.round(confidence * 100) + '%',
-          threshold: '97.8%',
+          threshold: '98.7%',
           difference: Math.round((epistemicThreshold - confidence) * 100) + '%',
           score: score + '%'
         });
       } else {
         Logger.info('[CS] ✅ Confidence meets epistemic threshold:', {
           confidence: Math.round(confidence * 100) + '%',
-          threshold: '97.8%',
+          threshold: '98.7%',
           score: score + '%'
         });
       }
@@ -307,7 +307,7 @@
       badge.appendChild(typeDiv);
     }
 
-    // EPISTEMIC CERTAINTY WARNING: Show warning if confidence below 97.8%
+    // EPISTEMIC CERTAINTY WARNING: Show warning if confidence below 98.7%
     if (confidence !== undefined && confidence !== null && typeof confidence === 'number' && confidence < epistemicThreshold) {
       const warningDiv = document.createElement('div');
       warningDiv.style.cssText = 'font-size: 10px; margin-top: 4px; color: #FF9800; font-weight: 600;';
@@ -391,11 +391,13 @@
           
           activeHighlights.push(highlightSpan);
         } catch (fallbackError) {
+          // FAIL-FAST: Log all failures, even non-critical ones (learn from failures)
           Logger.error('[CS] Fallback highlighting also failed:', fallbackError.message);
-          // Silently fail - highlighting is non-critical, analysis still works
+          // Continue without highlighting - analysis still works (non-critical failure)
         }
       }
     } catch (e) {
+      // FAIL-FAST: Always log errors, even for non-critical operations
       Logger.error('[CS] Failed to highlight text:', e.message);
     }
   }

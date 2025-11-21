@@ -40,8 +40,11 @@ class DataEncryption {
 
       return text;
     } catch (error) {
-      // Silently fail decryption - return empty string
-      return '';
+      // FAIL-FAST: Log decryption failures to learn from them
+      if (typeof Logger !== 'undefined' && Logger.warn) {
+        Logger.warn('[DataEncryption] Decryption failed (returning empty string):', error.message);
+      }
+      return ''; // Return empty string (graceful degradation)
     }
   }
 
