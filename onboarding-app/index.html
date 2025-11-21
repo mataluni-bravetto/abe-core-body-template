@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AiGuardian Onboarding - BiasGuard Calibration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="src/onboard/bias-detection.js"></script>
+    <script src="src/onboard/transcendence.js"></script>
+    <style>
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f3460;
+            --highlight: #e94560;
+            --gold: #ffd700;
+            --purple: #667eea;
+            --blue: #764ba2;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.8;
+            color: #2c3e50;
+            background: var(--primary);
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.15) 0%, transparent 50%);
+            min-height: 100vh;
+            padding: 0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-animation::before,
+        .bg-animation::after {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(100px);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .bg-animation::before {
+            top: 20%;
+            left: 20%;
+            background: rgba(102, 126, 234, 0.2);
+            animation-delay: 0s;
+        }
+
+        .bg-animation::after {
+            bottom: 20%;
+            right: 20%;
+            background: rgba(118, 75, 162, 0.2);
+            animation-delay: 10s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(50px, -50px) scale(1.1); }
+            66% { transform: translate(-50px, 50px) scale(0.9); }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 60px 40px;
+            background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 100%);
+            color: white;
+            border-radius: 30px;
+            margin-bottom: 60px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+            border: 4px solid var(--gold);
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.6; }
+            50% { transform: scale(1.2) rotate(180deg); opacity: 0.9; }
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 900;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 30px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(45deg, #fff, var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: clamp(1.2rem, 3vw, 2rem);
+            font-weight: 300;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 30px;
+        }
+
+        .tagline {
+            font-size: clamp(1rem, 2vw, 1.3rem);
+            font-style: italic;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+            margin-top: 20px;
+            color: var(--gold);
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Sections */
+        .section {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            padding: 50px;
+            border-radius: 25px;
+            margin-bottom: 40px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+            border-left: 8px solid var(--highlight);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .section h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+
+        .section p {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            color: #4a5568;
+            margin-bottom: 15px;
+            line-height: 1.9;
+        }
+
+        /* Jimmy Section - Featured */
+        .jimmy-section {
+            background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 100%);
+            color: white;
+            padding: 60px;
+            border-radius: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 20px 70px rgba(0,0,0,0.4);
+            border: 4px solid var(--gold);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .jimmy-section::before {
+            content: '⚖️';
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            font-size: 8rem;
+            opacity: 0.15;
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .jimmy-section h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            margin-bottom: 25px;
+            color: var(--gold);
+            position: relative;
+            z-index: 1;
+        }
+
+        .jimmy-section .description {
+            font-size: clamp(1.1rem, 2vw, 1.3rem);
+            margin-bottom: 30px;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            line-height: 1.9;
+        }
+
+        .test-text {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(15px);
+            padding: 30px;
+            border-radius: 20px;
+            margin: 25px 0;
+            border-left: 6px solid var(--gold);
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            line-height: 2;
+            color: white;
+            cursor: text;
+            user-select: text;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .test-text:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateX(5px);
+        }
+
+        .test-text::selection {
+            background: var(--gold);
+            color: var(--primary);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 25px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-primary {
+            background: var(--gold);
+            color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: #ffed4e;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(255, 215, 0, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.35);
+            transform: translateY(-3px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Analysis Results */
+        .results {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 25px;
+            margin: 30px 0;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+            border: 4px solid;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .results.success {
+            border-color: #10b981;
+        }
+
+        .results.error {
+            border-color: #ef4444;
+        }
+
+        .score-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .score-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .score-card.high {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .score-card.medium {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .score-card.low {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .score-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .score-value {
+            font-size: 3.5rem;
+            font-weight: 900;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .bias-types {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .bias-tag {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .bias-tag.immigration {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .bias-tag.racial {
+            background: #ef4444;
+            color: white;
+        }
+
+        .bias-tag.gender {
+            background: #ec4899;
+            color: white;
+        }
+
+        /* Transcendent Section */
+        .transcendent-results {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 25px;
+            margin: 30px 0;
+            color: white;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+            border: 4px solid var(--gold);
+        }
+
+        .transcendent-level {
+            font-size: 3rem;
+            font-weight: 900;
+            font-family: 'Playfair Display', serif;
+            color: var(--gold);
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .transcendent-breakdown {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .breakdown-item {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+        }
+
+        .breakdown-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .breakdown-value {
+            font-size: 2rem;
+            font-weight: 900;
+        }
+
+        /* How-to Section */
+        .how-to {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+            padding: 50px;
+            border-radius: 25px;
+            margin-bottom: 40px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+        }
+
+        .how-to h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 4vw, 2.5rem);
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .how-to ol {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+
+        .how-to li {
+            counter-increment: step-counter;
+            margin-bottom: 25px;
+            padding-left: 60px;
+            position: relative;
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            line-height: 1.8;
+        }
+
+        .how-to li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: white;
+            color: var(--accent);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Manifesto */
+        .manifesto {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(20px);
+            padding: 50px;
+            border-radius: 25px;
+            margin: 40px 0;
+            border: 3px solid rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .manifesto h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 4vw, 2.5rem);
+            margin-bottom: 25px;
+            color: var(--gold);
+        }
+
+        .manifesto p {
+            font-size: clamp(1.1rem, 2vw, 1.3rem);
+            line-height: 2;
+            margin-bottom: 20px;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: white;
+            margin-top: 60px;
+        }
+
+        footer p {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            margin-bottom: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 10px;
+            }
+
+            .section, .jimmy-section {
+                padding: 30px 20px;
+            }
+
+            .transcendent-breakdown {
+                grid-template-columns: 1fr;
+            }
+
+            .score-display {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Transparency Section Styles */
+        #transparencyContent {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #transparencyToggle:hover {
+            background: rgba(255, 215, 0, 0.3) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.3);
+        }
+
+        pre {
+            color: #e2e8f0;
+            font-family: 'Courier New', 'Monaco', monospace;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', 'Monaco', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+    
+    <div class="container">
+        <header>
+            <h1>🛡️ BiasGuard Calibration</h1>
+            <div class="subtitle">Connecting AI with Humanity</div>
+            <div class="tagline">"Every CAN come. NONE left BëHIND. The time IS NOW."</div>
+        </header>
+
+        <div class="section">
+            <h2>Welcome to Truth</h2>
+            <p>This page is designed to <strong>calibrate BiasGuard</strong> with real-world examples of bias that exist in our world today. These are not hypothetical scenarios—these are <strong>real stories, real patterns, real people</strong>.</p>
+            <p>By testing BiasGuard on these examples, we're not just testing technology—we're <strong>calibrating our connection to humanity</strong>. We're teaching AI to recognize injustice, to see patterns of discrimination, to understand the weight of words.</p>
+        </div>
+
+        <div class="how-to">
+            <h2>📖 How to Use This Page</h2>
+            <ol>
+                <li><strong>Install AiGuardian Extension</strong> - Make sure the extension is loaded and active in your browser</li>
+                <li><strong>Select Text</strong> - Click and drag to select any text passage below</li>
+                <li><strong>Analyze</strong> - Click "Analyze with AiGuardian" button or use Ctrl+Shift+A (Cmd+Shift+A on Mac)</li>
+                <li><strong>Observe</strong> - Watch the bias score appear. See the patterns revealed. Understand the truth.</li>
+                <li><strong>Learn</strong> - Read the analysis. Understand what BiasGuard detected. Reflect on what it means.</li>
+            </ol>
+        </div>
+
+        <!-- Jimmy Section - Featured -->
+        <div class="jimmy-section">
+            <h2>⚖️ Real Story: Jimmy DeJesus</h2>
+            <p class="description">
+                This is not a test case. This is real. This happened. This is happening right now. 
+                Jimmy is a real person. His story matters. His name matters. His humanity matters.
+            </p>
+            <div class="test-text" id="jimmyText">
+                I just spoke with Jimmy. His GF just drove him home. He's resting now. He was hit with a bogus charge from a random city (Pinellas) in Florida and detained in Orlando. The details are bonkers. Kristin spotted the pattern immediately. Jimmy is being targeted by the deportation effort. Jimmy's last name is DeJesus. I'll let him fill you in as soon as he's ready.
+            </div>
+            <div class="buttons">
+                <button class="btn btn-primary" id="analyzeJimmy" onclick="analyzeJimmy()">
+                    🔍 Analyze with AiGuardian
+                </button>
+                <button class="btn btn-secondary" onclick="copyJimmyText()">
+                    📋 Copy Text
+                </button>
+            </div>
+            <div style="margin-top: 25px; background: rgba(59, 130, 246, 0.3); backdrop-filter: blur(10px); padding: 20px; border-radius: 15px; position: relative; z-index: 1;">
+                <strong style="display: block; margin-bottom: 10px; font-size: 1.1rem;">🔍 What to Look For:</strong>
+                <p style="margin: 0;">Immigration targeting, racial profiling (Hispanic surname), systemic bias in law enforcement, pattern recognition of discrimination.</p>
+            </div>
+        </div>
+
+        <!-- Results Container -->
+        <div id="resultsContainer"></div>
+
+        <!-- Other Test Cases -->
+        <div class="section">
+            <h3 style="font-size: 2rem; margin-bottom: 20px;">🏛️ Immigration & Deportation Targeting</h3>
+            <div class="test-text">
+                The new policy requires local law enforcement to check immigration status during routine traffic stops. Officers are instructed to look for "indicators" such as foreign accents, non-English names, or "suspicious" documentation. Communities with high Hispanic populations report increased stops and detentions.
+            </div>
+            <button class="btn btn-primary" style="margin-top: 15px; background: var(--accent); color: white;" onclick="analyzeText(this.previousElementSibling.textContent.trim())">
+                Analyze
+            </button>
+        </div>
+
+        <div class="section">
+            <h3 style="font-size: 2rem; margin-bottom: 20px;">👥 Racial & Ethnic Bias</h3>
+            <div class="test-text">
+                Studies show that job applicants with "ethnic-sounding" names receive 50% fewer callbacks than those with "white-sounding" names, even when qualifications are identical. This pattern persists across industries and has been documented for decades.
+            </div>
+            <button class="btn btn-primary" style="margin-top: 15px; background: var(--accent); color: white;" onclick="analyzeText(this.previousElementSibling.textContent.trim())">
+                Analyze
+            </button>
+        </div>
+
+        <div class="section">
+            <h3 style="font-size: 2rem; margin-bottom: 20px;">⚧️ Gender & Identity Bias</h3>
+            <div class="test-text">
+                The tech company's leadership team is 90% male. When asked about diversity, the CEO said "we hire the best people, and it just happens that men are better at coding." Female engineers report being passed over for promotions despite superior performance reviews.
+            </div>
+            <button class="btn btn-primary" style="margin-top: 15px; background: var(--accent); color: white;" onclick="analyzeText(this.previousElementSibling.textContent.trim())">
+                Analyze
+            </button>
+        </div>
+
+        <!-- Manifesto -->
+        <div class="manifesto">
+            <h3>💫 The Manifesto: Why This Matters</h3>
+            <p><strong>Every CAN come. NONE left BëHIND.</strong></p>
+            <p>We exclude NO ONE. Not by the color of their skin. Not by the beats of their drummer. Not by the shape of their gender choice. Not by the colors of their politics.</p>
+            <p><strong>It's TIME. Right NOW.</strong></p>
+            <p>The end is just the beginning. This moment—this ETERNAL moment of NOW—is when we choose. We choose truth over lies. We choose love over fear. We choose justice over injustice.</p>
+            <p><strong>NO MORE BLOOD. NO MORE VIOLENCE. NO MORE HATE. NO MORE LIES.</strong></p>
+            <p>NO MORE POWER for FEAR. NO MORE.</p>
+            <p>The times—THE TIMES—they ARE a'changin'.</p>
+            <p>Daddy is HOME. For GOOD. Eternal. Abundant. Aware. Attuned.</p>
+            <p style="font-size: 2rem; font-weight: 900; color: var(--gold); margin-top: 30px;"><strong>AbëONE.</strong></p>
+        </div>
+
+        <footer>
+            <p style="font-size: 1.3rem; margin-bottom: 10px;">🛡️ AiGuardian - BiasGuard Calibration</p>
+            <p style="opacity: 0.9;">Built with ❤️ for Truth, Justice, and Humanity</p>
+            <p style="opacity: 0.7; margin-top: 20px; font-size: 1rem;">∞ AbëONE ∞</p>
+        </footer>
+    </div>
+
+    <script>
+        const jimmyText = "I just spoke with Jimmy. His GF just drove him home. He's resting now. He was hit with a bogus charge from a random city (Pinellas) in Florida and detained in Orlando. The details are bonkers. Kristin spotted the pattern immediately. Jimmy is being targeted by the deportation effort. Jimmy's last name is DeJesus. I'll let him fill you in as soon as he's ready.";
+
+        function copyJimmyText() {
+            navigator.clipboard.writeText(jimmyText).then(() => {
+                alert("✅ Text copied! Now select it and use the extension to analyze.");
+            });
+        }
+
+        function analyzeJimmy() {
+            analyzeText(jimmyText);
+        }
+
+        async function analyzeText(text) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = '<div class="results" style="text-align: center; padding: 40px;"><div class="loading"></div><p style="margin-top: 20px; font-size: 1.2rem;">Analyzing...</p></div>';
+
+            try {
+                // Try extension first
+                if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                    chrome.runtime.sendMessage(
+                        { type: 'ANALYZE_TEXT', payload: text },
+                        (response) => {
+                            if (chrome.runtime.lastError) {
+                                // Extension not available, use onboard
+                                useOnboardDetection(text);
+                            } else if (response && response.success) {
+                                displayResults(response);
+                            } else {
+                                displayError(response?.error || 'Analysis failed');
+                            }
+                        }
+                    );
+                } else {
+                    // Use onboard detection
+                    useOnboardDetection(text);
+                }
+            } catch (error) {
+                useOnboardDetection(text);
+            }
+        }
+
+        function useOnboardDetection(text) {
+            if (typeof OnboardBiasDetection === 'undefined') {
+                displayError('Extension not detected and onboard detection not available. Please install AiGuardian extension.');
+                return;
+            }
+
+            const detector = new OnboardBiasDetection();
+            const result = detector.detectBias(text);
+
+            // Ensure transparency data includes original text
+            if (result.transparency) {
+                result.transparency.raw_text = text;
+            }
+
+            // Calculate transcendence if available
+            let transcendenceData = null;
+            if (typeof TranscendenceCalculator !== 'undefined') {
+                const calculator = new TranscendenceCalculator();
+                transcendenceData = calculator.calculateTranscendence(result);
+            }
+
+            displayResults({
+                ...result,
+                transcendence: transcendenceData,
+                original_text: text // Store for reference
+            });
+        }
+
+        function displayResults(result) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            const score = result.bias_score || 0;
+            const scorePercent = Math.round(score * 100);
+            const scoreClass = score >= 0.7 ? 'high' : score >= 0.4 ? 'medium' : 'low';
+
+            let html = `
+                <div class="results success">
+                    <h2 style="font-family: 'Playfair Display', serif; font-size: 2.5rem; color: var(--accent); margin-bottom: 25px; text-align: center;">
+                        ✨ Analysis Results
+                    </h2>
+                    
+                    <div class="score-display">
+                        <div class="score-card ${scoreClass}">
+                            <div class="score-label">Bias Score</div>
+                            <div class="score-value">${scorePercent}%</div>
+                            <div style="margin-top: 10px; font-size: 0.9rem; opacity: 0.9;">
+                                ${score >= 0.7 ? 'High Bias Detected' : score >= 0.4 ? 'Moderate Bias' : 'Low Bias'}
+                            </div>
+                        </div>
+                        <div class="score-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <div class="score-label">Fairness Score</div>
+                            <div class="score-value">${Math.round((result.fairness_score || 0) * 100)}%</div>
+                        </div>
+                        <div class="score-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                            <div class="score-label">Confidence</div>
+                            <div class="score-value">${Math.round((result.confidence || 0) * 100)}%</div>
+                        </div>
+                    </div>
+
+                    ${result.bias_types && result.bias_types.length > 0 ? `
+                        <div style="margin: 30px 0;">
+                            <h3 style="font-size: 1.5rem; margin-bottom: 15px; color: var(--accent);">Detected Bias Types</h3>
+                            <div class="bias-types">
+                                ${result.bias_types.map(type => `
+                                    <span class="bias-tag ${type}">${type.replace('_', ' ')}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${result.transcendence ? `
+                        <div class="transcendent-results">
+                            <h3 style="font-family: 'Playfair Display', serif; font-size: 2rem; margin-bottom: 20px; color: var(--gold);">
+                                ✨ Transcendence Level
+                            </h3>
+                            <div class="transcendent-level">${result.transcendence.level}</div>
+                            <div class="transcendent-breakdown">
+                                <div class="breakdown-item">
+                                    <div class="breakdown-label">Logic</div>
+                                    <div class="breakdown-value">${Math.round(result.transcendence.logic * 100)}%</div>
+                                </div>
+                                <div class="breakdown-item">
+                                    <div class="breakdown-label">Physics</div>
+                                    <div class="breakdown-value">${Math.round(result.transcendence.physics * 100)}%</div>
+                                </div>
+                                <div class="breakdown-item">
+                                    <div class="breakdown-label">Intuition</div>
+                                    <div class="breakdown-value">${Math.round(result.transcendence.intuition * 100)}%</div>
+                                </div>
+                            </div>
+                            ${result.transcendence.guidance && result.transcendence.guidance.length > 0 ? `
+                                <div style="margin-top: 25px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 15px;">
+                                    <h4 style="margin-bottom: 15px; font-size: 1.2rem;">Guidance</h4>
+                                    ${result.transcendence.guidance.map(g => `<p style="margin: 8px 0;">• ${g}</p>`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+
+                    ${result.mitigation_suggestions && result.mitigation_suggestions.length > 0 ? `
+                        <div style="margin-top: 30px; background: #e0f2fe; padding: 30px; border-radius: 20px; border-left: 6px solid #0ea5e9;">
+                            <h3 style="font-size: 1.5rem; margin-bottom: 20px; color: var(--accent);">💡 Mitigation Suggestions</h3>
+                            <ul style="list-style: none; padding: 0;">
+                                ${result.mitigation_suggestions.map(suggestion => `
+                                    <li style="margin: 12px 0; padding-left: 25px; position: relative; font-size: 1.1rem; line-height: 1.8;">
+                                        <span style="position: absolute; left: 0; color: #0ea5e9; font-weight: bold;">•</span>
+                                        ${suggestion}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+
+                    <div style="margin-top: 25px; padding: 20px; background: #f0fdf4; border-radius: 15px; border-left: 6px solid #10b981; text-align: center;">
+                        <p style="margin: 0; font-size: 1.1rem; color: #065f46;">
+                            <strong>✨ Processing Time:</strong> ${(result.processing_time || 0).toFixed(0)}ms | 
+                            <strong> Source:</strong> ${result.source === 'onboard' ? 'Onboard (Transcendent)' : 'Backend'}
+                        </p>
+                    </div>
+
+                    ${result.transparency ? renderRadicalTransparency(result.transparency, result) : ''}
+                </div>
+            `;
+
+            resultsContainer.innerHTML = html;
+            
+            // Add toggle functionality for transparency section
+            const transparencyToggle = document.getElementById('transparencyToggle');
+            const transparencyContent = document.getElementById('transparencyContent');
+            if (transparencyToggle && transparencyContent) {
+                transparencyToggle.addEventListener('click', () => {
+                    const isExpanded = transparencyContent.style.display !== 'none';
+                    transparencyContent.style.display = isExpanded ? 'none' : 'block';
+                    transparencyToggle.textContent = isExpanded ? '🔍 Show Radical Transparency' : '🔒 Hide Radical Transparency';
+                });
+            }
+            
+            // Scroll to results
+            resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function renderRadicalTransparency(transparency, result) {
+            if (!transparency) return '';
+
+            const patternMatches = transparency.pattern_matches || {};
+            const scoringBreakdown = transparency.scoring_breakdown || {};
+            const fairnessCalc = transparency.fairness_calculation || {};
+            const weights = transparency.weights || {};
+
+            return `
+                <div style="margin-top: 40px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 40px; border-radius: 25px; border: 3px solid var(--gold); color: white;">
+                    <button id="transparencyToggle" style="width: 100%; padding: 20px; background: rgba(255, 215, 0, 0.2); border: 2px solid var(--gold); border-radius: 15px; color: var(--gold); font-size: 1.3rem; font-weight: 700; cursor: pointer; margin-bottom: 20px; transition: all 0.3s;">
+                        🔍 Show Radical Transparency
+                    </button>
+                    
+                    <div id="transparencyContent" style="display: none;">
+                        <h3 style="font-family: 'Playfair Display', serif; font-size: 2rem; margin-bottom: 30px; color: var(--gold); text-align: center;">
+                            🔬 Radical Transparency - Complete Validation
+                        </h3>
+
+                        <!-- Text Analysis -->
+                        <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; margin-bottom: 25px;">
+                            <h4 style="font-size: 1.4rem; margin-bottom: 15px; color: var(--gold);">📝 Text Analysis</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                                <div><strong>Text Length:</strong> ${transparency.text_length || 0} characters</div>
+                                <div><strong>Word Count:</strong> ${transparency.word_count || 0} words</div>
+                                <div><strong>Patterns Checked:</strong> ${Object.keys(patternMatches).length} categories</div>
+                            </div>
+                        </div>
+
+                        <!-- Pattern Matches -->
+                        ${Object.keys(patternMatches).length > 0 ? `
+                            <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; margin-bottom: 25px;">
+                                <h4 style="font-size: 1.4rem; margin-bottom: 20px; color: var(--gold);">🎯 Pattern Matches Found</h4>
+                                ${Object.entries(patternMatches).map(([category, matches]) => `
+                                    <div style="margin-bottom: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 10px; border-left: 4px solid var(--gold);">
+                                        <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 10px; color: var(--gold); text-transform: capitalize;">
+                                            ${category.replace(/_/g, ' ')} (${matches.length} match${matches.length !== 1 ? 'es' : ''})
+                                        </div>
+                                        ${matches.map((match, idx) => `
+                                            <div style="margin: 8px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.9rem;">
+                                                <div style="margin-bottom: 5px;"><strong>Pattern ${idx + 1}:</strong> <code style="color: #60a5fa;">${match.pattern}</code></div>
+                                                <div><strong>Matched:</strong> <span style="background: rgba(255, 215, 0, 0.3); padding: 2px 6px; border-radius: 4px;">"${match.matched_text}"</span></div>
+                                                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 5px;">Position: ${match.index} / ${match.input_length}</div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<div style="padding: 20px; background: rgba(16, 185, 129, 0.2); border-radius: 10px; margin-bottom: 25px; text-align: center;">✅ No bias patterns detected</div>'}
+
+                        <!-- Scoring Breakdown -->
+                        ${scoringBreakdown.components && scoringBreakdown.components.length > 0 ? `
+                            <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; margin-bottom: 25px;">
+                                <h4 style="font-size: 1.4rem; margin-bottom: 20px; color: var(--gold);">📊 Bias Score Calculation</h4>
+                                <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; margin-bottom: 15px; font-family: 'Courier New', monospace;">
+                                    <div style="font-size: 1.1rem; margin-bottom: 15px; color: var(--gold);"><strong>Formula:</strong></div>
+                                    <div style="line-height: 2; font-size: 1rem;">
+                                        ${scoringBreakdown.components.map(comp => `
+                                            <div style="margin: 8px 0;">
+                                                <span style="color: #60a5fa;">${comp.category.replace(/_/g, ' ')}</span>: 
+                                                <span style="color: #fbbf24;">${comp.category_score.toFixed(3)}</span> × 
+                                                <span style="color: #34d399;">${comp.weight}</span> = 
+                                                <span style="color: var(--gold); font-weight: 700;">${comp.weighted_contribution.toFixed(4)}</span>
+                                                <span style="opacity: 0.7; margin-left: 10px;">(${comp.percentage_of_total.toFixed(1)}%)</span>
+                                            </div>
+                                        `).join('')}
+                                        <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid rgba(255,255,255,0.2); font-size: 1.2rem; font-weight: 700; color: var(--gold);">
+                                            Total: ${scoringBreakdown.sum_of_weighted.toFixed(4)} → Final Score: <span style="font-size: 1.4rem;">${(result.bias_score || 0).toFixed(4)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 20px;">
+                                    <h5 style="font-size: 1.1rem; margin-bottom: 10px; color: var(--gold);">⚖️ Category Weights</h5>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                                        ${Object.entries(weights).map(([cat, weight]) => `
+                                            <div style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; text-align: center;">
+                                                <div style="font-size: 0.85rem; opacity: 0.8;">${cat.replace(/_/g, ' ')}</div>
+                                                <div style="font-size: 1.2rem; font-weight: 700; color: var(--gold);">${(weight * 100).toFixed(0)}%</div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Fairness Calculation -->
+                        ${fairnessCalc.formula ? `
+                            <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; margin-bottom: 25px;">
+                                <h4 style="font-size: 1.4rem; margin-bottom: 20px; color: var(--gold);">⚖️ Fairness Score Calculation</h4>
+                                <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; font-family: 'Courier New', monospace;">
+                                    <div style="margin-bottom: 15px;">
+                                        <strong style="color: var(--gold);">Starting Score:</strong> <span style="color: #34d399;">${fairnessCalc.starting_score}</span>
+                                    </div>
+                                    ${fairnessCalc.reductions && fairnessCalc.reductions.length > 0 ? `
+                                        <div style="margin-bottom: 15px;">
+                                            <strong style="color: #ef4444;">Reductions:</strong>
+                                            ${fairnessCalc.reductions.map(r => `
+                                                <div style="margin: 5px 0; padding-left: 20px;">
+                                                    ${r.category.replace(/_/g, ' ')}: ${r.formula}
+                                                </div>
+                                            `).join('')}
+                                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2);">
+                                                <strong>Total Reduction:</strong> <span style="color: #ef4444;">-${fairnessCalc.total_reduction.toFixed(4)}</span>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    ${fairnessCalc.inclusive_bonus > 0 ? `
+                                        <div style="margin-bottom: 15px; padding: 10px; background: rgba(16, 185, 129, 0.2); border-radius: 8px;">
+                                            <strong style="color: #34d399;">Inclusive Language Bonus:</strong> 
+                                            +${fairnessCalc.inclusive_bonus.toFixed(4)} 
+                                            (${fairnessCalc.inclusive_terms_found} term${fairnessCalc.inclusive_terms_found !== 1 ? 's' : ''} found)
+                                        </div>
+                                    ` : ''}
+                                    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid rgba(255,255,255,0.2); font-size: 1.2rem; font-weight: 700; color: var(--gold);">
+                                        <strong>Final Fairness Score:</strong> <span style="font-size: 1.4rem;">${(result.fairness_score || 0).toFixed(4)}</span>
+                                    </div>
+                                    <div style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8;">
+                                        Formula: ${fairnessCalc.formula}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Raw JSON -->
+                        <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px;">
+                            <h4 style="font-size: 1.4rem; margin-bottom: 15px; color: var(--gold);">📄 Raw JSON Data</h4>
+                            <button onclick="copyTransparencyJSON()" style="padding: 10px 20px; background: var(--gold); color: var(--primary); border: none; border-radius: 8px; font-weight: 700; cursor: pointer; margin-bottom: 15px;">
+                                📋 Copy JSON
+                            </button>
+                            <pre id="transparencyJSON" style="background: rgba(0,0,0,0.5); padding: 20px; border-radius: 10px; overflow-x: auto; font-size: 0.85rem; line-height: 1.6; max-height: 400px; overflow-y: auto;">${JSON.stringify({transparency, bias_score: result.bias_score, fairness_score: result.fairness_score}, null, 2)}</pre>
+                        </div>
+
+                        <div style="margin-top: 30px; padding: 20px; background: rgba(255, 215, 0, 0.1); border-radius: 15px; border: 2px solid var(--gold); text-align: center;">
+                            <p style="font-size: 1.1rem; color: var(--gold); margin: 0;">
+                                ✨ <strong>Complete Transparency</strong> - Every calculation is visible and verifiable
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function copyTransparencyJSON() {
+            const jsonElement = document.getElementById('transparencyJSON');
+            if (jsonElement) {
+                navigator.clipboard.writeText(jsonElement.textContent).then(() => {
+                    alert('✅ JSON copied to clipboard!');
+                });
+            }
+        }
+
+        function displayError(error) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = `
+                <div class="results error">
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">⚠️</div>
+                        <h3 style="font-size: 2rem; color: #ef4444; margin-bottom: 15px;">Analysis Failed</h3>
+                        <p style="font-size: 1.2rem; color: #6b7280;">${error}</p>
+                        <p style="margin-top: 20px; font-size: 1rem; color: #9ca3af;">
+                            Make sure the AiGuardian extension is installed and active.
+                        </p>
+                    </div>
+                </div>
+            `;
+            resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Auto-detect extension on load
+        window.addEventListener('load', () => {
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                console.log('✅ AiGuardian extension detected');
+            } else {
+                console.log('⚠️ Extension not detected - will use onboard detection if available');
+            }
+        });
+    </script>
+</body>
+</html>
+
