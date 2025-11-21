@@ -685,19 +685,47 @@ class AiGuardianGateway {
 
             // Try to parse JSON error response first
             let errorData = null;
+            let errorText = null;
             const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              try {
-                errorData = await response.json();
-              } catch (e) {
-                // If JSON parsing fails, fall back to text
-                const errorText = await response.text();
-                throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+            
+            try {
+              if (contentType && contentType.includes('application/json')) {
+                try {
+                  errorData = await response.json();
+                } catch (e) {
+                  // If JSON parsing fails, fall back to text
+                  errorText = await response.text();
+                }
+              } else {
+                errorText = await response.text();
               }
-            } else {
-              const errorText = await response.text();
-              throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+            } catch (readError) {
+              // If reading response body fails, log that too
+              this.logger.warn('[Gateway] Failed to read error response body:', {
+                requestId,
+                endpoint: mappedEndpoint,
+                readError: readError.message,
+                status: response.status,
+                statusText: response.statusText,
+              });
             }
+
+            // Log full backend error details for debugging
+            this.logger.error('[Gateway] Backend error response details:', {
+              requestId,
+              endpoint: mappedEndpoint,
+              url,
+              status: response.status,
+              statusText: response.statusText,
+              errorData: errorData, // Full error object from backend
+              errorText: errorText, // Raw text if JSON parsing failed
+              errorKeys: errorData ? Object.keys(errorData) : [],
+              errorDetail: errorData?.detail,
+              errorMessage: errorData?.error || errorData?.message,
+              errorType: errorData?.type,
+              // Log full error response as JSON string for complete visibility
+              fullErrorResponse: errorData ? JSON.stringify(errorData, null, 2) : errorText,
+            });
 
             // Create error response object that will be properly handled
             const errorResponse = {
@@ -706,8 +734,12 @@ class AiGuardianGateway {
                 errorData?.detail ||
                 errorData?.error ||
                 errorData?.message ||
+                errorText ||
                 `HTTP ${response.status}: ${response.statusText}`,
               status: response.status,
+              statusText: response.statusText,
+              errorData: errorData, // Include full error data
+              errorText: errorText, // Include raw text
               ...errorData,
             };
 
@@ -717,8 +749,14 @@ class AiGuardianGateway {
               return errorResponse;
             }
 
-            // For other endpoints, throw error
-            throw new Error(errorResponse.error);
+            // For other endpoints, create Error with full context attached
+            const error = new Error(errorResponse.error);
+            error.status = response.status;
+            error.statusText = response.statusText;
+            error.errorData = errorData;
+            error.errorText = errorText;
+            error.errorResponse = errorResponse;
+            throw error;
           }
 
           const result = await response.json();
@@ -780,6 +818,14 @@ class AiGuardianGateway {
               error: err.message,
               responseTime,
               errorType: err.name,
+              // Include full error details if available
+              status: err.status,
+              statusText: err.statusText,
+              errorData: err.errorData,
+              errorText: err.errorText,
+              errorResponse: err.errorResponse,
+              // Log full error object for debugging
+              fullError: err.errorResponse ? JSON.stringify(err.errorResponse, null, 2) : undefined,
             });
           }
 

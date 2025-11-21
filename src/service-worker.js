@@ -810,6 +810,28 @@ try {
           fullResult: analysisResult,
         });
 
+        // Log full error details if backend returned an error
+        if (analysisResult && analysisResult.success === false) {
+          Logger.error('[BG] FULL BACKEND ERROR RESPONSE RECEIVED:', {
+            success: analysisResult.success,
+            error: analysisResult.error,
+            status: analysisResult.status,
+            statusText: analysisResult.statusText,
+            hasScore: analysisResult.score !== undefined,
+            hasAnalysis: !!analysisResult.analysis,
+            // Log the FULL error response object to see backend details
+            fullErrorResponse: analysisResult,
+            // Extract any nested error details
+            errorDetail: analysisResult.detail,
+            errorMessage: analysisResult.message,
+            errorType: analysisResult.type,
+            // Log all keys to see what backend is sending
+            errorKeys: Object.keys(analysisResult),
+            // Log as formatted JSON for complete visibility
+            fullErrorResponseJSON: JSON.stringify(analysisResult, null, 2),
+          });
+        }
+
         // Only save successful analyses to history
         // Check if result is successful and has valid data (not an error response)
         if (
@@ -967,21 +989,42 @@ try {
             );
           }
         } else {
-          Logger.warn('[BG] Analysis result indicates failure or error, not saving to history:', {
+          // Enhanced error logging for failed analysis results
+          Logger.error('[BG] Analysis result indicates failure or error, not saving to history:', {
             success: analysisResult?.success,
             error: analysisResult?.error,
+            status: analysisResult?.status,
+            statusText: analysisResult?.statusText,
             hasScore: analysisResult?.score !== undefined,
             hasAnalysis: !!analysisResult?.analysis,
+            // Log full error response object
+            fullErrorResponse: analysisResult,
+            // Extract nested error details
+            errorDetail: analysisResult?.detail,
+            errorMessage: analysisResult?.message,
+            errorType: analysisResult?.type,
+            // Log all keys to see what backend is sending
+            errorKeys: analysisResult ? Object.keys(analysisResult) : [],
+            // Log as formatted JSON for complete visibility
+            fullErrorResponseJSON: analysisResult ? JSON.stringify(analysisResult, null, 2) : null,
           });
         }
 
         sendResponse(analysisResult);
       } catch (error) {
+        // Enhanced error logging with full backend error details
         Logger.error('[BG] Gateway analysis failed:', {
           message: error.message,
-          status: error.status,
-          statusText: error.statusText,
-          responseText: error.responseText,
+          status: error.status || error.errorResponse?.status,
+          statusText: error.statusText || error.errorResponse?.statusText,
+          errorData: error.errorData || error.errorResponse?.errorData,
+          errorText: error.errorText || error.errorResponse?.errorText,
+          // Log full error response if available
+          fullErrorResponse: error.errorResponse ? JSON.stringify(error.errorResponse, null, 2) : undefined,
+          // Include error stack for debugging
+          stack: error.stack,
+          // Include all error properties for complete visibility
+          errorKeys: Object.keys(error),
         });
 
         // Provide user-friendly error messages based on error type
