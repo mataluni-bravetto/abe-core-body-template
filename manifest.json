@@ -82,7 +82,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/clerk-callback.html", "src/vendor/clerk.js", "src/clerk-bridge.js", "onboarding-app/index.html"],
+      "resources": ["src/vendor/clerk.js", "src/clerk-bridge.js", "onboarding-app/index.html"],
       "matches": ["<all_urls>"]
     }
   ]

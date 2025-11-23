@@ -111,21 +111,12 @@
         }
       });
 
-      // Check for issues and show diagnostic panel if needed
-      setTimeout(async () => {
-        try {
-          await checkForIssues();
-        } catch (err) {
-          Logger.error('Issue check failed (non-critical)', err);
-        }
-      }, 1000);
     } catch (err) {
       Logger.error('Popup initialization error', err);
       // Even if initialization fails, try to show error
       try {
         Logger.error('Popup init error', err);
         showFallbackError('Extension failed to load properly. Please refresh and try again.');
-        setTimeout(() => showDiagnosticPanel(), 500);
       } catch (fallbackErr) {
         // Last resort - just log to console
         Logger.error('Even fallback error display failed', fallbackErr);
@@ -328,141 +319,36 @@
    */
   async function initializeAuth() {
     try {
-      // FIRST: Check storage directly for any existing auth (bypasses Clerk initialization)
-      Logger.info('[Popup] Checking storage for existing auth before initializing...');
-      const storageCheck = await new Promise((resolve) => {
-        chrome.storage.local.get(['clerk_user', 'clerk_token'], (data) => {
-          if (chrome.runtime.lastError) {
-            Logger.error('[Popup] Storage read error:', chrome.runtime.lastError);
-            resolve(null);
-          } else {
-            Logger.info('[Popup] Storage check result:', {
-              hasUser: !!data.clerk_user,
-              hasToken: !!data.clerk_token,
-              userId: data.clerk_user?.id,
-              email: data.clerk_user?.email,
-            });
-            resolve(data.clerk_user || null);
-          }
-        });
-      });
-
-      // Check for OAuth errors in storage
-      await checkAndDisplayOAuthErrors();
-
-      if (storageCheck) {
-        Logger.info('[Popup] ✅ Found stored user:', storageCheck.id);
-        // Clear OAuth error if user is authenticated
-        await clearOAuthError();
-        // Update UI immediately if we have stored user
-        await updateAuthUI();
-      } else {
-        Logger.info('[Popup] No stored user found in initial check');
-      }
-
+      Logger.info('[Popup] Initializing auth...');
+      
       auth = new AiGuardianAuth();
-      const initialized = await auth.initialize();
+      await auth.initialize();
+      await updateAuthUI();
 
-      if (initialized) {
-        // Force check user session again after initialization
-        Logger.info('[Popup] Clerk initialized, checking user session...');
-        await auth.checkUserSession();
-        
-        // CRITICAL: Ensure token is retrieved and stored for service worker access
-        if (auth.isAuthenticated()) {
-          try {
-            const token = await auth.getToken();
-            if (token) {
-              Logger.info('[Popup] Token refreshed and stored for service worker');
-            } else {
-              Logger.warn('[Popup] No token available after authentication check');
-            }
-          } catch (tokenError) {
-            Logger.warn('[Popup] Error refreshing token (non-critical):', tokenError.message);
-          }
-        }
-        
-        await updateAuthUI();
-      } else {
-        Logger.warn('[Popup] Authentication not configured');
-        if (errorHandler) {
-          errorHandler.showError('AUTH_NOT_CONFIGURED');
-        } else {
-          showFallbackError('Authentication not configured. Please check settings.');
-        }
-        // Show diagnostic panel if auth fails
-        showDiagnosticPanel();
-      }
-
-      // Even if Clerk init failed, check storage directly as fallback
-      if (!initialized || !auth.isAuthenticated()) {
-        Logger.info(
-          '[Popup] Clerk not initialized or not authenticated, checking storage directly...'
-        );
-        const directStorageCheck = await new Promise((resolve) => {
-          chrome.storage.local.get(['clerk_user'], (data) => {
-            resolve(data.clerk_user || null);
-          });
-        });
-
-        if (directStorageCheck) {
-          Logger.info(
-            '[Popup] Found user in storage but Clerk not initialized - user may have signed in'
-          );
-          // Try to initialize auth again with stored user
-          if (!auth || !auth.isInitialized) {
-            Logger.info('[Popup] Re-initializing auth to use stored user...');
+      // Auto-trigger auth detection on all tabs if not authenticated
+      if (!auth.isAuthenticated()) {
+        Logger.info('[Popup] No auth found - auto-triggering auth detection on all tabs');
+        try {
+          const tabs = await chrome.tabs.query({});
+          for (const tab of tabs) {
             try {
-              auth = new AiGuardianAuth();
-              await auth.initialize();
+              await chrome.tabs.sendMessage(tab.id, { type: 'FORCE_CHECK_AUTH' });
+            } catch (e) {
+              // Tab might not have content script (expected for chrome:// pages)
+            }
+          }
+          
+          // Wait a moment for content scripts to respond, then check storage again
+          setTimeout(async () => {
+            try {
               await auth.checkUserSession();
               await updateAuthUI();
-            } catch (reinitErr) {
-              Logger.error('[Popup] Failed to re-initialize auth:', reinitErr);
+            } catch (err) {
+              Logger.error('[Popup] Failed to update auth UI after auto-trigger:', err);
             }
-          } else {
-            // Force check session
-            await auth.checkUserSession();
-            await updateAuthUI();
-          }
-        } else {
-          // No auth found - automatically trigger auth detection on all tabs
-          Logger.info('[Popup] No auth found - auto-triggering auth detection on all tabs');
-          try {
-            const tabs = await chrome.tabs.query({});
-            let checkedTabs = 0;
-            
-            for (const tab of tabs) {
-              try {
-                await chrome.tabs.sendMessage(tab.id, { type: 'FORCE_CHECK_AUTH' });
-                checkedTabs++;
-              } catch (e) {
-                // Tab might not have content script (expected for chrome:// pages)
-              }
-            }
-            
-            Logger.info(`[Popup] Auto-triggered auth detection on ${checkedTabs} tabs`);
-            
-            // Wait a moment for content scripts to respond, then check storage again
-            setTimeout(async () => {
-              try {
-                const recheck = await new Promise((resolve) => {
-                  chrome.storage.local.get(['clerk_user', 'clerk_token'], (data) => {
-                    resolve(data);
-                  });
-                });
-                
-                if (recheck.clerk_user) {
-                  Logger.info('[Popup] ✅ Auth detected after auto-trigger!');
-                  await updateAuthUI();
-                }
-              } catch (err) {
-                Logger.error('[Popup] Failed to update auth UI after auto-trigger:', err);
-              }
-            }, 2000);
-          } catch (autoTriggerErr) {
-            Logger.warn('[Popup] Auto-trigger auth detection failed (non-critical):', autoTriggerErr);
-          }
+          }, 2000);
+        } catch (autoTriggerErr) {
+          Logger.warn('[Popup] Auto-trigger auth detection failed (non-critical):', autoTriggerErr);
         }
       }
 
@@ -471,75 +357,26 @@
         chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
           Logger.info('[Popup] Message received:', request.type);
 
-          if (request.type === 'AUTH_CALLBACK_SUCCESS' || request.type === 'CLERK_AUTH_DETECTED') {
-            Logger.info('[Popup] 🔔 Auth callback success detected! Reloading auth state...', {
-              messageType: request.type,
+          if (request.type === 'CLERK_AUTH_DETECTED') {
+            Logger.info('[Popup] 🔔 Auth detected from landing page! Reloading auth state...', {
               hasUserInMessage: !!request.user,
               userId: request.user?.id,
             });
 
-            // Wait a moment for storage to be written (callback page writes first, then sends message)
+            // Wait a moment for storage to be written
             await new Promise((resolve) => setTimeout(resolve, 500));
 
-            // Immediately check storage first (fastest)
-            chrome.storage.local.get(['clerk_user', 'clerk_token'], async (data) => {
-              if (chrome.runtime.lastError) {
-                Logger.error(
-                  '[Popup] Storage read error in callback handler:',
-                  chrome.runtime.lastError
-                );
-              } else {
-                Logger.info('[Popup] Storage check in callback handler:', {
-                  hasUser: !!data.clerk_user,
-                  hasToken: !!data.clerk_token,
-                  userId: data.clerk_user?.id,
-                  email: data.clerk_user?.email,
-                });
-              }
+            // Check storage and update UI
+            if (auth) {
+              await auth.checkUserSession();
+              await updateAuthUI();
+            }
 
-              if (data.clerk_user) {
-                Logger.info('[Popup] ✅ User found in storage:', data.clerk_user.id);
-                // Update UI immediately from storage
-                await updateAuthUI();
-
-                // Then sync with Clerk if auth object exists
-                if (auth) {
-                  try {
-                    await auth.checkUserSession();
-                    await updateAuthUI();
-                  } catch (e) {
-                    Logger.warn(
-                      '[Popup] Error syncing with Clerk, but UI updated from storage:',
-                      e
-                    );
-                  }
-                }
-
-                // Stop periodic checking if we're now authenticated
-                if (authCheckInterval) {
-                  clearInterval(authCheckInterval);
-                  authCheckInterval = null;
-                }
-
-                // Clear OAuth error if authentication succeeded
-                await clearOAuthError();
-              } else {
-                // No storage yet, try to reload auth state
-                Logger.warn('[Popup] ⚠️ No storage found after callback - checking auth state...');
-                if (auth) {
-                  auth.checkUserSession().then(async () => {
-                    // Clear OAuth error if authentication succeeded
-                    await clearOAuthError();
-                    updateAuthUI();
-                    // Stop periodic checking if we're now authenticated
-                    if (authCheckInterval) {
-                      clearInterval(authCheckInterval);
-                      authCheckInterval = null;
-                    }
-                  });
-                }
-              }
-            });
+            // Stop periodic checking if we're now authenticated
+            if (authCheckInterval) {
+              clearInterval(authCheckInterval);
+              authCheckInterval = null;
+            }
 
             // Return true to indicate we'll respond asynchronously
             return true;
@@ -580,8 +417,6 @@
       } else {
         showFallbackError('Authentication initialization failed.');
       }
-      // Show diagnostic panel on error
-      showDiagnosticPanel();
     }
 
     // Set up periodic auth check AFTER auth is initialized
@@ -831,11 +666,6 @@
       userProfile.style.display = 'none';
       authButtons.style.display = 'flex';
       
-      // Show refresh auth button when not authenticated
-      const refreshAuthBtn = document.getElementById('refreshAuthBtn');
-      if (refreshAuthBtn) {
-        refreshAuthBtn.style.display = 'inline-block';
-      }
 
       // Show main content (contains status section and guard services - should be visible to all)
       // Only hide analysis section when not authenticated
@@ -847,13 +677,6 @@
       }
     }
     
-    // Hide refresh auth button when authenticated
-    if (isAuth) {
-      const refreshAuthBtn = document.getElementById('refreshAuthBtn');
-      if (refreshAuthBtn) {
-        refreshAuthBtn.style.display = 'none';
-      }
-    }
   }
 
   /**
@@ -1090,75 +913,6 @@
     }
 
     // Refresh Auth button - trigger auth detection on all tabs
-    const refreshAuthBtn = document.getElementById('refreshAuthBtn');
-    if (refreshAuthBtn) {
-      const clickHandler = async () => {
-        try {
-          Logger.info('[Popup] Refresh Auth button clicked - triggering auth detection on all tabs');
-          refreshAuthBtn.disabled = true;
-          refreshAuthBtn.textContent = '🔄 Checking...';
-          
-          // Send FORCE_CHECK_AUTH message to all tabs
-          const tabs = await chrome.tabs.query({});
-          let checkedTabs = 0;
-          
-          for (const tab of tabs) {
-            try {
-              await chrome.tabs.sendMessage(tab.id, { type: 'FORCE_CHECK_AUTH' });
-              checkedTabs++;
-            } catch (e) {
-              // Tab might not have content script (e.g., chrome:// pages)
-              // This is expected and not an error
-            }
-          }
-          
-          Logger.info(`[Popup] Sent FORCE_CHECK_AUTH to ${checkedTabs} tabs`);
-          
-          // Wait a moment for content scripts to respond
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          // Refresh auth state
-          await initializeAuth();
-          await updateAuthUI();
-          
-          refreshAuthBtn.textContent = '🔄 Refresh Auth';
-          refreshAuthBtn.disabled = false;
-          
-          showSuccess('✅ Auth state refreshed. Please check again.');
-        } catch (err) {
-          Logger.error('[Popup] Failed to refresh auth', err);
-          refreshAuthBtn.textContent = '🔄 Refresh Auth';
-          refreshAuthBtn.disabled = false;
-          showFallbackError('Failed to refresh auth. Please try again.');
-        }
-      };
-
-      refreshAuthBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: refreshAuthBtn, event: 'click', handler: clickHandler });
-      Logger.info('[Popup] Refresh Auth button listener attached');
-    } else {
-      Logger.warn('[Popup] refreshAuthBtn not found in DOM');
-    }
-
-    // Status button - show diagnostic panel
-    const toggleStatusBtn = document.getElementById('toggleStatusBtn');
-    if (toggleStatusBtn) {
-      const clickHandler = () => {
-        try {
-          showDiagnosticPanel();
-          Logger.info('[Popup] Diagnostic panel opened via Status button');
-        } catch (err) {
-          Logger.error('[Popup] Failed to show diagnostic panel', err);
-          showFallbackError('Failed to open diagnostic panel. Please try again.');
-        }
-      };
-
-      toggleStatusBtn.addEventListener('click', clickHandler);
-      eventListeners.push({ element: toggleStatusBtn, event: 'click', handler: clickHandler });
-      Logger.info('[Popup] Status button listener attached (shows diagnostic panel)');
-    } else {
-      Logger.warn('[Popup] toggleStatusBtn not found in DOM');
-    }
 
     // OAuth error banner handlers
     const closeOAuthErrorBtn = document.getElementById('closeOAuthError');
@@ -1423,15 +1177,6 @@
 
       // Make status section clickable to open diagnostics when there's an error
       const statusSection = document.querySelector('.status-section');
-      if (statusSection && !statusSection.hasAttribute('data-error-click-handler')) {
-        statusSection.setAttribute('data-error-click-handler', 'true');
-        statusSection.style.cursor = 'pointer';
-        statusSection.addEventListener('click', () => {
-          if (currentStatus === 'error') {
-            showDiagnosticPanel();
-          }
-        });
-      }
 
       currentStatus = 'error';
     }
@@ -1800,177 +1545,6 @@
     }
   }
 
-  /**
-   * Update connection status indicators
-   */
-  function updateConnectionStatus(result) {
-    const connectionStatus = document.getElementById('connectionStatus');
-    const backendStatus = document.getElementById('backendConnectionStatus');
-    const authStatus = document.getElementById('authConnectionStatus');
-    
-    if (!connectionStatus) {
-      return;
-    }
-    
-    // Show connection status section
-    connectionStatus.style.display = 'block';
-    
-    // Determine backend connection status
-    if (result && result.success !== false && !result.error) {
-      if (backendStatus) {
-        backendStatus.textContent = '✅ Connected';
-        backendStatus.className = 'connection-value connected';
-      }
-    } else {
-      if (backendStatus) {
-        const errorMsg = result?.error || '';
-        if (errorMsg.includes('401') || errorMsg.includes('403') || errorMsg.includes('Unauthorized')) {
-          backendStatus.textContent = '⚠️ Auth Required';
-          backendStatus.className = 'connection-value auth-required';
-        } else if (errorMsg.includes('network') || errorMsg.includes('fetch') || errorMsg.includes('timeout')) {
-          backendStatus.textContent = '⚠️ Disconnected';
-          backendStatus.className = 'connection-value disconnected';
-        } else {
-          backendStatus.textContent = '⚠️ Error';
-          backendStatus.className = 'connection-value disconnected';
-        }
-      }
-    }
-    
-    // Determine auth status and verify token is stored
-    chrome.storage.local.get(['clerk_user', 'clerk_token'], (data) => {
-      if (authStatus) {
-        if (data.clerk_user && data.clerk_token) {
-          authStatus.textContent = '✅ Signed In';
-          authStatus.className = 'connection-value connected';
-          
-          // Verify token format
-          const tokenParts = data.clerk_token.split('.');
-          if (tokenParts.length !== 3) {
-            Logger.warn('[Popup] Token format invalid - refreshing token');
-            // Try to refresh token if format is invalid (async, don't await)
-            if (auth && auth.isAuthenticated()) {
-              auth.getToken().then((refreshedToken) => {
-                if (refreshedToken) {
-                  Logger.info('[Popup] Token refreshed successfully');
-                }
-              }).catch((e) => {
-                Logger.error('[Popup] Failed to refresh invalid token:', e);
-              });
-            }
-          }
-        } else if (data.clerk_user && !data.clerk_token) {
-          // User exists but token is missing - try to get it
-          Logger.warn('[Popup] User found but token missing - attempting to retrieve token');
-          authStatus.textContent = '⚠️ Token Missing';
-          authStatus.className = 'connection-value auth-required';
-          
-          // Try to get token - check if auth object needs to be synced first
-          const tryGetToken = async () => {
-            try {
-              Logger.info('[Popup] Starting token retrieval process...');
-              
-              // If auth doesn't exist, create and initialize it
-              if (!auth) {
-                Logger.info('[Popup] Auth object missing - initializing to retrieve token');
-                auth = new AiGuardianAuth();
-                await auth.initialize();
-              }
-              
-              // Ensure auth is initialized
-              if (!auth.isInitialized) {
-                Logger.info('[Popup] Auth not initialized - initializing now');
-                await auth.initialize();
-              }
-              
-              // Sync user session to ensure auth object has the user
-              Logger.info('[Popup] Checking user session to sync auth state...');
-              await auth.checkUserSession();
-              
-              // Now try to get the token - with retry logic if needed
-              // This handles cases where Clerk SDK session isn't ready immediately
-              Logger.info('[Popup] Attempting to retrieve token from Clerk...');
-              let token = await auth.getToken();
-              
-              // If token retrieval failed, try again with retries
-              if (!token && auth.clerk) {
-                Logger.warn('[Popup] Initial token retrieval failed, attempting retries...');
-                const maxRetries = 3;
-                const retryDelay = 300;
-                
-                for (let retry = 0; retry < maxRetries && !token; retry++) {
-                  Logger.info(`[Popup] Token retrieval retry ${retry + 1}/${maxRetries}...`);
-                  await new Promise((resolve) => setTimeout(resolve, retryDelay));
-                  
-                  // Try reloading Clerk SDK to refresh session state
-                  if (typeof auth.clerk.load === 'function' && !auth.clerk.loaded) {
-                    await auth.clerk.load();
-                  }
-                  
-                  // Try getting token again
-                  token = await auth.getToken();
-                  
-                  if (token) {
-                    Logger.info(`[Popup] ✅ Token retrieved successfully on retry ${retry + 1}`);
-                    break;
-                  }
-                }
-              }
-              
-              if (token) {
-                Logger.info('[Popup] ✅ Token retrieved and stored successfully');
-                // Update UI immediately
-                authStatus.textContent = '✅ Signed In';
-                authStatus.className = 'connection-value connected';
-                
-                // Also trigger a storage update check to refresh any other UI elements
-                chrome.storage.local.get(['clerk_token'], (updatedData) => {
-                  if (updatedData.clerk_token) {
-                    Logger.info('[Popup] Token confirmed in storage after retrieval');
-                  }
-                });
-              } else {
-                Logger.warn('[Popup] ⚠️ Token retrieval returned null - checking why...');
-                
-                // Check if Clerk is available
-                const hasClerk = auth.clerk && typeof window !== 'undefined' && window.Clerk;
-                Logger.warn('[Popup] Clerk availability:', {
-                  hasAuthClerk: !!auth.clerk,
-                  hasWindowClerk: typeof window !== 'undefined' && !!window.Clerk,
-                  authInitialized: auth.isInitialized,
-                  hasUser: !!auth.user,
-                  hasStoredUser: !!data.clerk_user
-                });
-                
-                // If Clerk isn't available, user might need to sign in again
-                if (!hasClerk) {
-                  Logger.warn('[Popup] Clerk SDK not available - user may need to sign in again');
-                  authStatus.textContent = '⚠️ Token Missing';
-                  authStatus.className = 'connection-value auth-required';
-                }
-              }
-            } catch (e) {
-              Logger.error('[Popup] ❌ Failed to retrieve missing token:', e);
-              Logger.error('[Popup] Error details:', {
-                message: e.message,
-                stack: e.stack,
-                name: e.name
-              });
-              // Keep showing "Token Missing" on error
-              authStatus.textContent = '⚠️ Token Missing';
-              authStatus.className = 'connection-value auth-required';
-            }
-          };
-          
-          // Call async function without blocking UI
-          tryGetToken();
-        } else {
-          authStatus.textContent = '🔒 Not Signed In';
-          authStatus.className = 'connection-value auth-required';
-        }
-      }
-    });
-  }
 
   /**
    * Update analysis result display
@@ -1978,9 +1552,6 @@
    * CRITICAL: Check for errors before displaying results
    */
   function updateAnalysisResult(result) {
-    // Update connection status indicators
-    updateConnectionStatus(result);
-
     // SAFETY: Check for error responses FIRST - don't display 0% for errors
     if (!result || result.success === false || result.error) {
       const errorMessage = result?.error || result?.detail || 'Analysis failed';
@@ -2461,329 +2032,6 @@
   /**
    * Show diagnostic panel
    */
-  function showDiagnosticPanel() {
-    const panel = document.getElementById('diagnosticPanel');
-    if (panel) {
-      panel.style.display = 'block';
-      runDiagnostics();
-    }
-  }
-
-  /**
-   * Hide diagnostic panel
-   */
-  function hideDiagnosticPanel() {
-    const panel = document.getElementById('diagnosticPanel');
-    if (panel) {
-      panel.style.display = 'none';
-    }
-  }
-
-  /**
-   * Check for issues and auto-show diagnostic panel if problems found
-   */
-  async function checkForIssues() {
-    try {
-      // Check backend connection
-      const backendResponse = await sendMessageToBackground('TEST_GATEWAY_CONNECTION');
-      const backendOk = backendResponse && backendResponse.success;
-
-      // Check Clerk key
-      const syncData = await new Promise((resolve) => {
-        chrome.storage.sync.get(['clerk_publishable_key'], resolve);
-      });
-      let clerkKeyOk = !!syncData.clerk_publishable_key;
-
-      if (!clerkKeyOk) {
-        // Try fetching from backend
-        try {
-          const auth = new AiGuardianAuth();
-          const settings = await auth.getSettings();
-          clerkKeyOk = !!settings.clerk_publishable_key;
-        } catch (e) {
-          // Ignore errors
-        }
-      }
-
-      // Check auth state
-      const localData = await new Promise((resolve) => {
-        chrome.storage.local.get(['clerk_user'], resolve);
-      });
-      const authOk = !!localData.clerk_user || (auth && auth.isAuthenticated());
-
-      // Show diagnostic panel if any issues found
-      if (!backendOk || !clerkKeyOk || !authOk) {
-        showDiagnosticPanel();
-      }
-    } catch (err) {
-      Logger.error('Issue check failed', err);
-      // Show diagnostic panel on error
-      showDiagnosticPanel();
-    }
-  }
-
-  /**
-   * Run comprehensive diagnostics
-   */
-  async function runDiagnostics() {
-    Logger.info('[Diagnostics] runDiagnostics() called');
-    const backendStatusEl = document.getElementById('backendStatus');
-    const clerkKeyStatusEl = document.getElementById('clerkKeyStatus');
-    const authStateStatusEl = document.getElementById('authStateStatus');
-    const tokenStatusEl = document.getElementById('tokenStatus');
-
-    if (!backendStatusEl || !clerkKeyStatusEl || !authStateStatusEl || !tokenStatusEl) {
-      Logger.error('[Diagnostics] Diagnostic elements not found:', {
-        backendStatusEl: !!backendStatusEl,
-        clerkKeyStatusEl: !!clerkKeyStatusEl,
-        authStateStatusEl: !!authStateStatusEl,
-        tokenStatusEl: !!tokenStatusEl,
-      });
-      Logger.error('Diagnostic elements not found');
-      return;
-    }
-
-    Logger.info('[Diagnostics] Starting diagnostic checks...');
-    Logger.info('[Diagnostics] All elements found, starting checks...');
-
-    // Check backend connection (with timeout and direct fallback)
-    backendStatusEl.textContent = 'Checking...';
-    backendStatusEl.className = 'diagnostic-value';
-    try {
-      Logger.info('[Diagnostics] Checking backend connection...');
-
-      // First try via background script
-      let response = null;
-      try {
-        response = await Promise.race([
-          sendMessageToBackground('TEST_GATEWAY_CONNECTION', null, 3000),
-          new Promise((resolve) =>
-            setTimeout(() => resolve({ success: false, error: 'Timeout' }), 3000)
-          ),
-        ]);
-      } catch (bgErr) {
-        Logger.warn('[Diagnostics] Background script check failed, trying direct:', bgErr);
-      }
-
-      // If background script didn't work, try direct connection test
-      if (!response || !response.success) {
-        Logger.info('[Diagnostics] Trying direct backend connection test...');
-        try {
-          const gatewayUrl = await new Promise((resolve) => {
-            chrome.storage.sync.get(['gateway_url'], (data) => {
-              resolve(data.gateway_url || 'https://api.aiguardian.ai');
-            });
-          });
-
-          const healthUrl = gatewayUrl.replace(/\/$/, '') + '/health/live';
-          const directResponse = await Promise.race([
-            fetch(healthUrl, {
-              method: 'GET',
-              headers: { 'X-Extension-Version': chrome.runtime.getManifest().version },
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)),
-          ]);
-
-          if (directResponse && directResponse.ok) {
-            response = { success: true };
-          } else {
-            response = { success: false, error: `HTTP ${directResponse.status}` };
-          }
-        } catch (directErr) {
-          Logger.error('[Diagnostics] Direct connection test failed:', directErr);
-          response = { success: false, error: directErr.message || 'Connection failed' };
-        }
-      }
-
-      Logger.info('[Diagnostics] Backend response:', response);
-
-      if (response && response.success) {
-        backendStatusEl.textContent = '✅ Connected';
-        backendStatusEl.className = 'diagnostic-value status-ok';
-      } else {
-        const errorMsg = response?.error || 'Unknown error';
-        const displayMsg = errorMsg.includes('Timeout')
-          ? 'Timeout'
-          : errorMsg.includes('Failed to fetch')
-            ? 'Network error'
-            : errorMsg.includes('not responding')
-              ? 'Background error'
-              : 'Disconnected';
-        backendStatusEl.textContent = `❌ ${displayMsg}`;
-        backendStatusEl.className = 'diagnostic-value status-error';
-      }
-    } catch (err) {
-      backendStatusEl.textContent = '❌ Error';
-      backendStatusEl.className = 'diagnostic-value status-error';
-      Logger.error('[Diagnostics] Backend check failed', err);
-    }
-
-    // Check Clerk key - automatically fetch from backend
-    clerkKeyStatusEl.textContent = 'Checking...';
-    clerkKeyStatusEl.className = 'diagnostic-value';
-
-    // Use setTimeout to ensure UI updates immediately
-    setTimeout(async () => {
-      try {
-        Logger.info('[Diagnostics] Checking Clerk key...');
-
-        // First check if we already have it in storage
-        const syncData = await new Promise((resolve) => {
-          chrome.storage.sync.get(['clerk_publishable_key', 'clerk_key_source'], (data) => {
-            resolve(data || {});
-          });
-        });
-
-        Logger.info('[Diagnostics] Clerk key data from storage:', {
-          hasKey: !!syncData.clerk_publishable_key,
-          source: syncData.clerk_key_source,
-        });
-
-        if (syncData.clerk_publishable_key) {
-          const source = syncData.clerk_key_source === 'backend_api' ? 'Auto' : 'Manual';
-          clerkKeyStatusEl.textContent = `✅ Configured (${source})`;
-          clerkKeyStatusEl.className = 'diagnostic-value status-ok';
-        } else {
-          // Automatically fetch from backend
-          Logger.info('[Diagnostics] Automatically fetching Clerk key from backend...');
-          try {
-            const auth = new AiGuardianAuth();
-            const settings = await auth.getSettings();
-
-            Logger.info('[Diagnostics] getSettings() returned:', {
-              hasKey: !!settings.clerk_publishable_key,
-              source: settings.source,
-              error: settings.error,
-              fullSettings: settings,
-            });
-
-            if (settings && settings.clerk_publishable_key) {
-              clerkKeyStatusEl.textContent = '✅ Auto-configured';
-              clerkKeyStatusEl.className = 'diagnostic-value status-ok';
-            } else if (settings && settings.error) {
-              // Show specific error message
-              const errorMsg =
-                typeof settings.error === 'string'
-                  ? settings.error
-                  : settings.error.error || settings.error.message || 'Unknown error';
-              clerkKeyStatusEl.textContent = `❌ ${errorMsg}`;
-              clerkKeyStatusEl.className = 'diagnostic-value status-error';
-              Logger.warn('[Diagnostics] Backend fetch failed:', settings.error);
-            } else {
-              // No error object, but also no key - show generic message with debug info
-              const debugInfo = settings ? ` (source: ${settings.source || 'unknown'})` : '';
-              clerkKeyStatusEl.textContent = `❌ Not configured${debugInfo}`;
-              clerkKeyStatusEl.className = 'diagnostic-value status-error';
-              Logger.warn('[Diagnostics] No key and no error object:', settings);
-            }
-          } catch (e) {
-            Logger.error('[Diagnostics] Failed to fetch from backend:', e);
-            const errorMsg = e.message || 'Failed to fetch';
-            clerkKeyStatusEl.textContent = `❌ ${errorMsg}`;
-            clerkKeyStatusEl.className = 'diagnostic-value status-error';
-          }
-        }
-      } catch (err) {
-        clerkKeyStatusEl.textContent = '❌ Error';
-        clerkKeyStatusEl.className = 'diagnostic-value status-error';
-        Logger.error('[Diagnostics] Clerk key check failed', err);
-      }
-    }, 0);
-
-    // Check auth state (synchronous - should be fast)
-    authStateStatusEl.textContent = 'Checking...';
-    authStateStatusEl.className = 'diagnostic-value';
-    Logger.info('[Diagnostics] Starting auth state check...');
-
-    // Remove setTimeout and run directly
-    try {
-      Logger.info('[Diagnostics] Checking auth state...');
-      const localData = await new Promise((resolve) => {
-        chrome.storage.local.get(['clerk_user', 'clerk_token'], (data) => {
-          resolve(data || {});
-        });
-      });
-
-      Logger.info('[Diagnostics] Auth data:', {
-        hasUser: !!localData.clerk_user,
-        hasToken: !!localData.clerk_token,
-      });
-
-      if (localData.clerk_user) {
-        const email = localData.clerk_user.email || 'User';
-        authStateStatusEl.textContent = `✅ Signed in (${email.substring(0, 20)}...)`;
-        authStateStatusEl.className = 'diagnostic-value status-ok';
-        Logger.info('[Diagnostics] ✅ Auth state updated: Signed in');
-      } else if (auth && auth.isAuthenticated()) {
-        const user = auth.getCurrentUser();
-        const email = user?.email || user?.primaryEmailAddress?.emailAddress || 'User';
-        authStateStatusEl.textContent = `✅ Signed in (${email.substring(0, 20)}...)`;
-        authStateStatusEl.className = 'diagnostic-value status-ok';
-        Logger.info('[Diagnostics] ✅ Auth state updated: Signed in (from auth object)');
-      } else {
-        authStateStatusEl.textContent = '⚠️ Not signed in';
-        authStateStatusEl.className = 'diagnostic-value status-warning';
-        Logger.info('[Diagnostics] ⚠️ Auth state updated: Not signed in');
-      }
-    } catch (err) {
-      authStateStatusEl.textContent = '❌ Error';
-      authStateStatusEl.className = 'diagnostic-value status-error';
-      Logger.error('[Diagnostics] Auth state check failed', err);
-      Logger.error('[Diagnostics] ❌ Auth state check error:', err);
-    }
-
-    // Check token status and validation
-    tokenStatusEl.textContent = 'Checking...';
-    tokenStatusEl.className = 'diagnostic-value';
-    try {
-      const localData = await new Promise((resolve) => {
-        chrome.storage.local.get(['clerk_token'], (data) => {
-          resolve(data || {});
-        });
-      });
-
-      const token = localData.clerk_token;
-      if (token) {
-        // Validate token format (JWT tokens have 3 parts separated by dots)
-        const parts = token.split('.');
-        const isValidFormat = parts.length === 3;
-
-        if (isValidFormat) {
-          try {
-            // Try to decode header to verify it's valid base64
-            const header = atob(parts[0]);
-            if (header.startsWith('{')) {
-              tokenStatusEl.textContent = `✅ Valid format (${token.length} chars)`;
-              tokenStatusEl.className = 'diagnostic-value status-ok';
-              Logger.info('[Diagnostics] Token format is valid');
-            } else {
-              tokenStatusEl.textContent = '⚠️ Invalid format';
-              tokenStatusEl.className = 'diagnostic-value status-warning';
-              Logger.warn('[Diagnostics] Token format invalid - header not JSON');
-            }
-          } catch (e) {
-            tokenStatusEl.textContent = '⚠️ Invalid format';
-            tokenStatusEl.className = 'diagnostic-value status-warning';
-            Logger.warn('[Diagnostics] Token format invalid - cannot decode:', e.message);
-          }
-        } else {
-          tokenStatusEl.textContent = '⚠️ Invalid format';
-          tokenStatusEl.className = 'diagnostic-value status-warning';
-          Logger.warn('[Diagnostics] Token format invalid - wrong number of parts');
-        }
-      } else {
-        tokenStatusEl.textContent = '⚠️ No token';
-        tokenStatusEl.className = 'diagnostic-value status-warning';
-        Logger.info('[Diagnostics] No token found');
-      }
-    } catch (err) {
-      tokenStatusEl.textContent = '❌ Error';
-      tokenStatusEl.className = 'diagnostic-value status-error';
-      Logger.error('[Diagnostics] Token check failed', err);
-    }
-
-    Logger.info('[Diagnostics] Diagnostic checks completed');
-  }
 
   // Cleanup on popup close
   window.addEventListener('beforeunload', cleanupEventListeners);

@@ -16,38 +16,6 @@
       <p>Finally, AI tools for engineers who don't believe the hype</p>
     </div>
 
-    <!-- Diagnostic Panel -->
-    <div class="diagnostic-panel" id="diagnosticPanel" style="display: none">
-      <div class="diagnostic-header">
-        <span class="diagnostic-title">🔍 Connection Status</span>
-        <button class="btn-close-diagnostic" id="closeDiagnostic">✕</button>
-      </div>
-      <div class="diagnostic-content" id="diagnosticContent">
-        <div class="diagnostic-item">
-          <span class="diagnostic-label">Backend:</span>
-          <span class="diagnostic-value" id="backendStatus">Checking...</span>
-        </div>
-        <div class="diagnostic-item">
-          <span class="diagnostic-label">Clerk Key:</span>
-          <span class="diagnostic-value" id="clerkKeyStatus">Checking...</span>
-        </div>
-        <div class="diagnostic-item">
-          <span class="diagnostic-label">Auth State:</span>
-          <span class="diagnostic-value" id="authStateStatus">Checking...</span>
-        </div>
-        <div class="diagnostic-item">
-          <span class="diagnostic-label">Token:</span>
-          <span class="diagnostic-value" id="tokenStatus">Checking...</span>
-        </div>
-        <div class="diagnostic-actions">
-          <button class="btn btn-secondary btn-small" id="refreshDiagnostic">🔄 Refresh</button>
-          <button class="btn btn-secondary btn-small" id="openSettingsFromDiagnostic">
-            ⚙️ Open Settings
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Authentication Section -->
     <div class="auth-section" id="authSection">
       <div class="user-profile" id="userProfile" style="display: none">
@@ -59,8 +27,6 @@
       </div>
       <div class="auth-buttons" id="authButtons">
         <button class="btn btn-primary" id="authCtaBtn">🔐 Sign in or sign up</button>
-        <button class="btn btn-secondary btn-small" id="refreshAuthBtn" style="display: none;">🔄 Refresh Auth</button>
-        <button class="btn btn-secondary btn-small" id="toggleStatusBtn">🔍 Status</button>
       </div>
     </div>
 
@@ -93,16 +59,6 @@
           style="margin-top: 8px; font-size: 11px; color: rgba(249, 249, 249, 0.75)"
         >
           No analysis run yet.
-        </div>
-        <div class="connection-status" id="connectionStatus" style="display: none; margin-top: 8px;">
-          <div class="connection-item">
-            <span class="connection-label">Backend:</span>
-            <span class="connection-value" id="backendConnectionStatus">Checking...</span>
-          </div>
-          <div class="connection-item">
-            <span class="connection-label">Auth:</span>
-            <span class="connection-value" id="authConnectionStatus">Checking...</span>
-          </div>
         </div>
         
         <!-- Score Explanation Section -->

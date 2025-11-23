@@ -579,29 +579,6 @@ try {
           })();
           return true; // Keep channel open for async response
 
-        case 'GET_CLERK_KEY':
-          // Get Clerk publishable key from storage, fallback to hardcoded default
-          chrome.storage.sync.get(['clerk_publishable_key'], (data) => {
-            let key = data.clerk_publishable_key;
-
-            // Fallback to hardcoded default if not in storage
-            if (
-              !key &&
-              typeof DEFAULT_CONFIG !== 'undefined' &&
-              DEFAULT_CONFIG.CLERK_PUBLISHABLE_KEY
-            ) {
-              key = DEFAULT_CONFIG.CLERK_PUBLISHABLE_KEY.trim();
-              Logger.info('[BG] Using hardcoded Clerk publishable key fallback');
-            }
-
-            if (!key) {
-              Logger.warn('[BG] Clerk publishable key not configured');
-              sendResponse({ success: false, key: null });
-              return;
-            }
-            sendResponse({ success: true, key: key });
-          });
-          return true;
 
         case 'REFRESH_CLERK_TOKEN':
           // Handle token refresh request from gateway
@@ -657,67 +634,6 @@ try {
             });
           });
           return true; // Keep message channel open for async response
-
-        case 'AUTH_CALLBACK_SUCCESS':
-          // Handle successful authentication callback
-          Logger.info('[BG] 🔔 AUTH_CALLBACK_SUCCESS message received', {
-            hasUser: !!request.user,
-            hasToken: !!request.token,
-            userId: request.user?.id,
-            email: request.user?.email,
-          });
-
-          // Store user data if provided
-          if (request.user) {
-            const dataToStore = {
-              clerk_user: {
-                id: request.user.id,
-                email: request.user.primaryEmailAddress?.emailAddress || request.user.email,
-                firstName: request.user.firstName,
-                lastName: request.user.lastName,
-                username: request.user.username,
-                imageUrl: request.user.imageUrl || request.user.profileImageUrl,
-              },
-            };
-            if (request.token) {
-              dataToStore.clerk_token = request.token;
-            }
-
-            Logger.info('[BG] Storing user data in service worker:', {
-              userId: dataToStore.clerk_user.id,
-              email: dataToStore.clerk_user.email,
-              hasToken: !!dataToStore.clerk_token,
-            });
-
-            chrome.storage.local.set(dataToStore, () => {
-              if (chrome.runtime.lastError) {
-                Logger.error(
-                  '[BG] ❌ Failed to store user data in service worker:',
-                  chrome.runtime.lastError
-                );
-              } else {
-                Logger.info('[BG] ✅ User data stored successfully in service worker');
-
-                // Verify the storage write
-                chrome.storage.local.get(['clerk_user', 'clerk_token'], (verifyData) => {
-                  if (chrome.runtime.lastError) {
-                    Logger.error('[BG] ❌ Storage verification failed:', chrome.runtime.lastError);
-                  } else {
-                    Logger.info('[BG] ✅ Storage verification:', {
-                      hasUser: !!verifyData.clerk_user,
-                      userId: verifyData.clerk_user?.id,
-                      hasToken: !!verifyData.clerk_token,
-                      matches: verifyData.clerk_user?.id === dataToStore.clerk_user.id,
-                    });
-                  }
-                });
-              }
-            });
-          } else {
-            Logger.warn('[BG] ⚠️ AUTH_CALLBACK_SUCCESS received but no user data provided');
-          }
-          sendResponse({ success: true });
-          return true;
 
         case 'CLERK_AUTH_DETECTED':
           // Handle Clerk auth detected from content script on accounts.dev pages
