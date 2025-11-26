@@ -619,6 +619,14 @@
         user = auth.getCurrentUser();
         avatarUrl = auth.getUserAvatar();
         displayName = auth.getUserDisplayName();
+        Logger.info('[Popup] Auth object displayName:', {
+          displayName,
+          userId: user?.id,
+          hasFirstName: !!user?.firstName,
+          hasLastName: !!user?.lastName,
+          hasUsername: !!user?.username,
+          hasEmail: !!(user?.email || user?.primaryEmailAddress?.emailAddress)
+        });
       } else if (hasStoredUser) {
         // Get user from storage directly
         const storedUser = await new Promise((resolve) => {
@@ -631,11 +639,33 @@
           avatarUrl = storedUser.imageUrl || null;
           const firstName = storedUser.firstName || '';
           const lastName = storedUser.lastName || '';
-          const email = storedUser.email || '';
-          displayName =
-            firstName && lastName
-              ? `${firstName} ${lastName}`
-              : firstName || lastName || email || 'User';
+          const username = storedUser.username || '';
+          const email = storedUser.email || storedUser.primaryEmailAddress?.emailAddress || '';
+
+          // Enhanced fallback chain: full name > first/last > username > email prefix > user ID suffix > 'User'
+          if (firstName && lastName) {
+            displayName = `${firstName} ${lastName}`;
+          } else if (firstName || lastName) {
+            displayName = firstName || lastName;
+          } else if (username) {
+            displayName = username;
+          } else if (email) {
+            // Use email prefix (before @) as fallback
+            displayName = email.split('@')[0];
+          } else if (storedUser.id) {
+            // Use last 8 characters of user ID as ultimate fallback
+            displayName = `User-${storedUser.id.slice(-8)}`;
+          } else {
+            displayName = 'User';
+          }
+          Logger.info('[Popup] Stored user displayName:', {
+            displayName,
+            userId: storedUser.id,
+            hasFirstName: !!storedUser.firstName,
+            hasLastName: !!storedUser.lastName,
+            hasUsername: !!storedUser.username,
+            hasEmail: !!(storedUser.email || storedUser.primaryEmailAddress?.emailAddress)
+          });
         }
       }
 
@@ -659,7 +689,10 @@
       }
 
       if (userName) {
-        userName.textContent = displayName;
+        // Ensure displayName is never null to prevent display issues
+        const finalDisplayName = displayName || 'User';
+        Logger.info('[Popup] Setting userName.textContent to:', finalDisplayName);
+        userName.textContent = finalDisplayName;
       }
 
       userProfile.style.display = 'flex';
