@@ -57,19 +57,26 @@ class MLBiasDetection {
       // Try to load enhanced bias detection engine
       if (this.options.enableML) {
         try {
-          // Dynamic import of enhanced engine
-          const module = await import(chrome.runtime.getURL(this.options.modelPath));
-          const { EnhancedBiasDetectionEngine } = module;
-          this.engine = new EnhancedBiasDetectionEngine(this.options);
+          // Use globally available enhanced engine (loaded via importScripts in service worker)
+          const globalDeps = typeof self !== 'undefined' ? self.AiGuardianBiasDetection : null;
+          const EnhancedBiasDetectionEngine = globalDeps && globalDeps.EnhancedBiasDetectionEngine;
 
-          if (typeof Logger !== 'undefined') {
-            Logger.info('[MLBiasDetection] Enhanced bias detection engine loaded successfully');
+          if (EnhancedBiasDetectionEngine) {
+            this.engine = new EnhancedBiasDetectionEngine(this.options);
+
+            if (typeof Logger !== 'undefined') {
+              Logger.info('[MLBiasDetection] Enhanced bias detection engine loaded successfully');
+            }
+
+            return this.engine;
+          } else {
+            if (typeof Logger !== 'undefined') {
+              Logger.warn('[MLBiasDetection] EnhancedBiasDetectionEngine not available in global namespace');
+            }
           }
-
-          return this.engine;
-        } catch (importError) {
+        } catch (engineError) {
           if (typeof Logger !== 'undefined') {
-            Logger.warn('[MLBiasDetection] Enhanced engine not available, falling back to legacy ML:', importError.message);
+            Logger.error('[MLBiasDetection] Enhanced engine failed to initialize:', engineError);
           }
         }
       }
@@ -120,6 +127,103 @@ class MLBiasDetection {
   }
 
   /**
+   * Validate input parameters
+   * @private
+   */
+  _validateInput(text) {
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      throw new Error('Invalid input: text must be a non-empty string');
+    }
+    if (text.length > 10000) {
+      throw new Error('Input text too long: maximum 10000 characters allowed');
+    }
+  }
+
+  /**
+   * Try enhanced bias detection engine
+   * @private
+   */
+  async _tryEnhancedEngine(text, metadata, startTime) {
+    if (!this.engine || !this.engine.detectBias) {
+      return null;
+    }
+
+    try {
+      const result = await this.engine.detectBias(text, metadata);
+      if (result.success && result.confidence >= 0.4) {
+        return this._formatEnhancedResult(result, startTime);
+      }
+    } catch (error) {
+      if (typeof Logger !== 'undefined') {
+        Logger.warn('[MLBiasDetection] Enhanced engine failed:', error.message);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Try legacy ML model
+   * @private
+   */
+  async _tryMLModel(text, metadata, startTime) {
+    if (!this.model || !this.preprocessor) {
+      return null;
+    }
+
+    try {
+      const preprocessed = this.preprocessor.preprocess(text);
+      const predictions = await this._runInference(preprocessed);
+      return this._postprocessResults(predictions, text, preprocessed, startTime);
+    } catch (error) {
+      if (typeof Logger !== 'undefined') {
+        Logger.warn('[MLBiasDetection] Legacy ML failed:', error.message);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Try regex-based fallback
+   * @private
+   */
+  async _tryRegexFallback(text, metadata, startTime) {
+    if (!this.options.fallbackToRegex || typeof OnboardBiasDetection === 'undefined') {
+      return null;
+    }
+
+    try {
+      if (typeof Logger !== 'undefined') {
+        Logger.warn('[MLBiasDetection] Using regex-based detection as fallback');
+      }
+      const regexDetector = new OnboardBiasDetection();
+      return regexDetector.detectBias(text, metadata);
+    } catch (error) {
+      if (typeof Logger !== 'undefined') {
+        Logger.error('[MLBiasDetection] Regex fallback failed:', error);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check if result is valid
+   * @private
+   */
+  _isValidResult(result) {
+    return result && typeof result === 'object' && result.success !== false;
+  }
+
+  /**
+   * Log strategy failure
+   * @private
+   */
+  _logStrategyFailure(error) {
+    if (typeof Logger !== 'undefined') {
+      Logger.debug('[MLBiasDetection] Strategy failed:', error.message);
+    }
+  }
+
+  /**
    * Detect bias in text using enhanced engine
    * @param {string} text - Text to analyze
    * @param {Object} metadata - Analysis metadata (context, source, etc.)
@@ -130,70 +234,32 @@ class MLBiasDetection {
 
     try {
       // Validate input
-      if (!text || typeof text !== 'string' || text.trim().length === 0) {
-        return this._createEmptyResult(performance.now() - startTime);
-      }
+      this._validateInput(text);
 
       // Ensure system is initialized
       if (!this.initialized) {
+        await this.initialize();
+      }
+
+      // Try detection strategies in order of preference
+      const strategies = [
+        () => this._tryEnhancedEngine(text, metadata, startTime),
+        () => this._tryMLModel(text, metadata, startTime),
+        () => this._tryRegexFallback(text, metadata, startTime)
+      ];
+
+      for (const strategy of strategies) {
         try {
-          await this.initialize();
-        } catch (initError) {
-          // Fallback to regex if enhanced system fails
-          if (this.options.fallbackToRegex && typeof OnboardBiasDetection !== 'undefined') {
-            if (typeof Logger !== 'undefined') {
-              Logger.warn('[MLBiasDetection] Falling back to regex-based detection');
-            }
-            const regexDetector = new OnboardBiasDetection();
-            return regexDetector.detectBias(text, metadata);
+          const result = await strategy();
+          if (result && this._isValidResult(result)) {
+            return result;
           }
-          throw initError;
+        } catch (error) {
+          this._logStrategyFailure(error);
         }
       }
 
-      // Try enhanced engine first
-      if (this.engine && this.engine.detectBias) {
-        try {
-          const result = await this.engine.detectBias(text, metadata);
-          if (result.success && result.confidence >= 0.4) {
-            return this._formatEnhancedResult(result, startTime);
-          }
-        } catch (enhancedError) {
-          if (typeof Logger !== 'undefined') {
-            Logger.warn('[MLBiasDetection] Enhanced engine failed:', enhancedError.message);
-          }
-        }
-      }
-
-      // Try legacy ML model
-      if (this.model && this.preprocessor) {
-        try {
-          const preprocessed = this.preprocessor.preprocess(text);
-          const predictions = await this._runInference(preprocessed);
-          return this._postprocessResults(predictions, text, preprocessed, startTime);
-        } catch (legacyError) {
-          if (typeof Logger !== 'undefined') {
-            Logger.warn('[MLBiasDetection] Legacy ML failed:', legacyError.message);
-          }
-        }
-      }
-
-      // Final fallback: regex-based detection
-      if (this.options.fallbackToRegex && typeof OnboardBiasDetection !== 'undefined') {
-        if (typeof Logger !== 'undefined') {
-          Logger.warn('[MLBiasDetection] Using regex-based detection as final fallback');
-        }
-        try {
-          const regexDetector = new OnboardBiasDetection();
-          return regexDetector.detectBias(text, metadata);
-        } catch (fallbackError) {
-          if (typeof Logger !== 'undefined') {
-            Logger.error('[MLBiasDetection] All detection methods failed:', fallbackError);
-          }
-        }
-      }
-
-      // Return error result
+      // Return empty result if all strategies fail
       return {
         success: false,
         bias_detected: false,

@@ -177,8 +177,8 @@ if (accessCheck.hasAccess && accessCheck.transcendent) {
 - ✅ `src/onboard/transcendence.js` - Transcendence calculation
 - ✅ `src/onboard/access-control.js` - Clerk access control
 - ✅ `tests/transcendent-integration-test.js` - Integration tests
-- ✅ `TRANSCENDENT_ONBOARD_ARCHITECTURE.md` - Architecture docs
-- ✅ `TRANSCENDENT_BUILD_SUMMARY.md` - This file
+- ✅ `docs/development/TRANSCENDENT_ONBOARD_ARCHITECTURE.md` - Architecture docs
+- ✅ `docs/releases/TRANSCENDENT_BUILD_SUMMARY.md` - This file
 
 ### Modified Files
 - ✅ `src/service-worker.js` - Added onboard module imports and dual-mode support

@@ -154,12 +154,12 @@
 ### Alignment Status: ✅ **COMPLETE**
 
 **Validation Coverage:**
-- ✅ Bias scoring validation (`BIAS_SCORING_VALIDATION.md`)
-- ✅ Fail-fast validation (`FAIL_FAST_VALIDATION.md`)
-- ✅ System consciousness validation (`SYSTEM_CONSCIOUSNESS_VALIDATION.md`)
+- ✅ Bias scoring validation (`docs/development/BIAS_SCORING_VALIDATION.md`)
+- ✅ Fail-fast validation (`docs/development/FAIL_FAST_VALIDATION.md`)
+- ✅ System consciousness validation (`docs/development/SYSTEM_CONSCIOUSNESS_VALIDATION.md`)
 - ✅ Epistemic certainty validation (98.7% threshold)
-- ✅ MV3 compliance validation (`MV3_CLERK_AUTH_FIXES.md`)
-- ✅ Score explanation validation (`SCORE_EXPLANATION_FEATURE.md`)
+- ✅ MV3 compliance validation (`docs/bug-fixes/MV3_CLERK_AUTH_FIXES.md`)
+- ✅ Score explanation validation (`docs/development/SCORE_EXPLANATION_FEATURE.md`)
 
 **Validation Methods:**
 - ✅ Mathematical validation (weights sum to 1.0)
