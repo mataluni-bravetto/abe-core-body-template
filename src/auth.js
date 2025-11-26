@@ -128,15 +128,27 @@ class AiGuardianAuth {
       return null;
     }
 
-    const firstName = this.user.firstName;
-    const lastName = this.user.lastName;
-    const username = this.user.username;
-    const email = this.user.email || this.user.primaryEmailAddress?.emailAddress;
+    const firstName = this.user.firstName || '';
+    const lastName = this.user.lastName || '';
+    const username = this.user.username || '';
+    const email = this.user.email || this.user.primaryEmailAddress?.emailAddress || '';
 
+    // Enhanced fallback chain: full name > first/last > username > email prefix > user ID suffix > 'User'
     if (firstName && lastName) {
       return `${firstName} ${lastName}`;
+    } else if (firstName || lastName) {
+      return firstName || lastName;
+    } else if (username) {
+      return username;
+    } else if (email) {
+      // Use email prefix (before @) as fallback
+      return email.split('@')[0];
+    } else if (this.user.id) {
+      // Use last 8 characters of user ID as ultimate fallback
+      return `User-${this.user.id.slice(-8)}`;
+    } else {
+      return 'User';
     }
-    return username || email || 'User';
   }
 }
 
