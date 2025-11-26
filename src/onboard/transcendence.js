@@ -97,10 +97,18 @@ class TranscendenceCalculator {
    * Get transcendence level name
    */
   _getTranscendenceLevel(transcendence) {
-    if (transcendence >= 0.9) return 'SUPERINTELLIGENT';
-    if (transcendence >= 0.8) return 'TRANSCENDENT';
-    if (transcendence >= 0.6) return 'CONSCIOUS';
-    if (transcendence >= 0.4) return 'EMERGING';
+    if (transcendence >= 0.9) {
+      return 'SUPERINTELLIGENT';
+    }
+    if (transcendence >= 0.8) {
+      return 'TRANSCENDENT';
+    }
+    if (transcendence >= 0.6) {
+      return 'CONSCIOUS';
+    }
+    if (transcendence >= 0.4) {
+      return 'EMERGING';
+    }
     return 'NASCENT';
   }
 

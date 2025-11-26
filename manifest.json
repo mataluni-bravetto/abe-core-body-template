@@ -82,7 +82,24 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/vendor/clerk.js", "src/clerk-bridge.js", "onboarding-app/index.html"],
+      "resources": [
+        "src/vendor/clerk.js",
+        "src/vendor/tfjs.min.js",
+        "src/clerk-bridge.js",
+        "onboarding-app/index.html",
+        "onboarding-app/src/onboard/bias-detection.js",
+        "onboarding-app/src/onboard/transcendence.js",
+        "models/bias-detection/model.json",
+        "models/bias-detection/model.weights.bin",
+        "models/bias-detection/enhanced-bias-detection.js",
+        "models/bias-detection/patterns.js",
+        "models/bias-detection/contextual-scoring.js",
+        "models/bias-detection/graduated-scoring.js",
+        "models/bias-detection/model-loader.js",
+        "models/bias-detection/text-preprocessor.js",
+        "models/bias-detection-model.json",
+        "models/*.bin"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

@@ -27,8 +27,11 @@
     "test:get-token": "node tests/e2e/get-clerk-token.js",
     "replace-console-logs": "node scripts/replace-console-logs.js",
     "replace-console-logs:dry-run": "node scripts/replace-console-logs.js --dry-run",
-    "build": "node scripts/bundle-clerk.js",
+    "build": "node scripts/sync-model-files.js && node scripts/bundle-clerk.js && node scripts/bundle-tfjs.js",
     "build:clerk": "node scripts/bundle-clerk.js",
+    "build:tfjs": "node scripts/bundle-tfjs.js",
+    "train:model": "node scripts/train-bias-model.js",
+    "sync:model": "node scripts/sync-model-files.js",
     "build:sdk": "cd sdk && npm run build",
     "package": "node scripts/package-extension.js",
     "package:legacy": "zip -r aiguardian-v1.0.0.zip . -x '*.git*' '*node_modules*' '*tests*' '*sdk*' '*.md' '!*.json' '!*.html' '!*.js' '!manifest.json' '!src/*' '!assets/*'",
@@ -38,6 +41,7 @@
     "sdk"
   ],
   "devDependencies": {
+    "@tensorflow/tfjs-node": "^4.22.0",
     "archiver": "^7.0.1",
     "esbuild": "^0.27.0",
     "eslint": "^8.57.0",
@@ -47,7 +51,8 @@
     "puppeteer": "^24.26.1"
   },
   "dependencies": {
-    "@clerk/clerk-js": "^4.70.0"
+    "@clerk/clerk-js": "^4.70.0",
+    "@tensorflow/tfjs": "^4.15.0"
   },
   "keywords": [
     "ai",

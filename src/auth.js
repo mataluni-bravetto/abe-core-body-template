@@ -114,7 +114,9 @@ class AiGuardianAuth {
    * Get user avatar URL
    */
   getUserAvatar() {
-    if (!this.user) return null;
+    if (!this.user) {
+      return null;
+    }
     return this.user.imageUrl || this.user.profileImageUrl || null;
   }
 
@@ -122,7 +124,9 @@ class AiGuardianAuth {
    * Get user display name
    */
   getUserDisplayName() {
-    if (!this.user) return null;
+    if (!this.user) {
+      return null;
+    }
 
     const firstName = this.user.firstName;
     const lastName = this.user.lastName;

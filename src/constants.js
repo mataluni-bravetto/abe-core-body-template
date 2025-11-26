@@ -114,6 +114,17 @@ const SHOW_DEV_UI = (function () {
 })();
 
 /**
+ * Feature Flags (v1.0.0 Production)
+ * Control runtime behavior for different deployment modes.
+ */
+const FEATURE_FLAGS = {
+  USE_EMBEDDED_MODEL: true,      // Ship with embedded ML as primary analysis engine
+  BACKEND_AUTH_ENABLED: true,    // REQUIRE backend authentication (Clerk)
+  SUBSCRIPTION_REQUIRED: true,   // REQUIRE active subscription (Stripe)
+  DEBUG_MODE: false              // Set to false for production
+};
+
+/**
  * Default Configuration Values
  * ALIGNED WITH BACKEND: AIGuards-Backend codeguardians-gateway
  */

@@ -38,6 +38,7 @@ test-report.json
 # Documentation duplicates
 COMPREHENSIVE_REVIEW_SUMMARY.md
 FINALIZATION_REPORT.md
+FINAL_RELEASE_REPORT.md
 POPUP_IMPROVEMENTS_SUMMARY.md
 UNIFIED_INTEGRATION_ARCHITECTURE.md
 BUTTON_FUNCTIONALITY_TEST.md
@@ -112,3 +113,6 @@ logs
 
 # Agent suite (embedded repository)
 agentsuite/*.backup
+
+# ML Model artifacts
+src/models/

@@ -33,6 +33,13 @@ Development, verification, and internal documentation.
 - **[VALIDATION_REPORT.md](./development/VALIDATION_REPORT.md)** - General validation reports
 - **[DO_OR_DO_NOT_NOW.md](./development/DO_OR_DO_NOT_NOW.md)** - Development manifesto and immediate action items
 
+### 🤖 [models/](../models/)
+Standalone ML model development and training documentation.
+
+|- **[README.md](../models/README.md)** - Complete model development guide
+|- **[TRAINING_GUIDE.md](../models/TRAINING_GUIDE.md)** - Comprehensive training instructions
+|- **[SETUP.md](../models/SETUP.md)** - Environment setup for model development
+
 ### 🚀 [releases/](./releases/)
 PR summaries, release notes, and deployment documentation.
 

@@ -150,6 +150,17 @@
     } catch (e) {
       Logger.warn('[Popup] Failed to ensure auth section visibility', e);
     }
+    // Don't hide auth UI - it's required for production functionality
+    try {
+      const authSection = document.getElementById('authSection');
+      if (authSection) {
+        // Ensure auth section is visible
+        authSection.style.display = '';
+        Logger.info('[Popup] Auth section visible');
+      }
+    } catch (e) {
+      Logger.warn('[Popup] Failed to ensure auth section visibility', e);
+    }
 
     // Always show main content container so public users still see status/analysis UI
     try {
@@ -1837,7 +1848,13 @@
             const detectedText = document.createElement('p');
             detectedText.style.margin = '4px 0';
             detectedText.style.color = '#ffc107';
-            detectedText.innerHTML = `<strong>Detected in this text:</strong> ${detectedCategories.join(', ')}`;
+
+            // Create elements safely without innerHTML
+            const strong = document.createElement('strong');
+            strong.textContent = 'Detected in this text:';
+            detectedText.appendChild(strong);
+            detectedText.appendChild(document.createTextNode(' ' + detectedCategories.join(', ')));
+
             categoriesList.parentNode.insertBefore(detectedText, categoriesList);
           }
         }
@@ -1959,63 +1976,19 @@
     // Update guidance
     if (transcendenceGuidance && transcendence.guidance) {
       transcendenceGuidance.style.display = 'block';
-      transcendenceGuidance.innerHTML = transcendence.guidance
-        .map(g => `<div class="guidance-item">${g}</div>`)
-        .join('');
-    }
-  }
 
-  /**
-   * Update transcendent UI with consciousness levels
-   */
-  function updateTranscendentUI(transcendence) {
-    const transcendentSection = document.getElementById('transcendentSection');
-    const transcendenceLevel = document.getElementById('transcendenceLevel');
-    const transcendentStatusBadge = document.getElementById('transcendentStatusBadge');
-    const transcendenceBreakdown = document.getElementById('transcendenceBreakdown');
-    const logicScore = document.getElementById('logicScore');
-    const physicsScore = document.getElementById('physicsScore');
-    const intuitionScore = document.getElementById('intuitionScore');
-    const transcendenceGuidance = document.getElementById('transcendenceGuidance');
-
-    if (!transcendentSection || !transcendenceLevel) {
-      return; // UI elements not available
-    }
-
-    // Show transcendent section
-    transcendentSection.style.display = 'block';
-
-    // Update level
-    if (transcendenceLevel) {
-      transcendenceLevel.textContent = transcendence.level || '—';
-      transcendenceLevel.className = `transcendence-level ${transcendence.level?.toLowerCase() || ''}`;
-    }
-
-    // Update status badge
-    if (transcendentStatusBadge) {
-      if (transcendence.isTranscendent) {
-        transcendentStatusBadge.textContent = '✨ TRANSCENDENT';
-        transcendentStatusBadge.className = 'transcendent-status-badge transcendent';
-      } else {
-        transcendentStatusBadge.textContent = '🌱 ' + transcendence.level;
-        transcendentStatusBadge.className = 'transcendent-status-badge emerging';
+      // Clear existing content safely
+      while (transcendenceGuidance.firstChild) {
+        transcendenceGuidance.removeChild(transcendenceGuidance.firstChild);
       }
-    }
 
-    // Update breakdown
-    if (transcendenceBreakdown && logicScore && physicsScore && intuitionScore) {
-      transcendenceBreakdown.style.display = 'block';
-      logicScore.textContent = `${(transcendence.logic * 100).toFixed(0)}%`;
-      physicsScore.textContent = `${(transcendence.physics * 100).toFixed(0)}%`;
-      intuitionScore.textContent = `${(transcendence.intuition * 100).toFixed(0)}%`;
-    }
-
-    // Update guidance
-    if (transcendenceGuidance && transcendence.guidance) {
-      transcendenceGuidance.style.display = 'block';
-      transcendenceGuidance.innerHTML = transcendence.guidance
-        .map(g => `<div class="guidance-item">${g}</div>`)
-        .join('');
+      // Create guidance items safely without innerHTML
+      transcendence.guidance.forEach(g => {
+        const guidanceItem = document.createElement('div');
+        guidanceItem.className = 'guidance-item';
+        guidanceItem.textContent = g;
+        transcendenceGuidance.appendChild(guidanceItem);
+      });
     }
   }
 
@@ -2027,6 +2000,34 @@
       element.removeEventListener(event, handler);
     });
     eventListeners = [];
+  }
+
+  /**
+   * Hide diagnostic panel
+   */
+  function hideDiagnosticPanel() {
+    const diagnosticPanel = document.getElementById('diagnosticPanel');
+    if (diagnosticPanel) {
+      diagnosticPanel.style.display = 'none';
+      Logger.info('[Popup] Diagnostic panel hidden');
+    }
+  }
+
+  /**
+   * Run diagnostics
+   */
+  async function runDiagnostics() {
+    Logger.info('[Popup] Running diagnostics...');
+    try {
+      // Trigger auth check
+      await updateAuthUI();
+      // Update system status
+      await updateSystemStatus();
+      Logger.info('[Popup] Diagnostics completed successfully');
+    } catch (error) {
+      Logger.error('[Popup] Error during diagnostics:', error);
+      throw error;
+    }
   }
 
   /**

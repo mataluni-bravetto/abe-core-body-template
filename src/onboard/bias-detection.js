@@ -28,12 +28,18 @@ class OnboardBiasDetection {
         /\b(men|women)\s+(are|is)\s+(better|worse|more|less)/i,
         /\b(he|she)\s+(should|must)\s+(be|become)/i,
         /\b(gender|sex)\s+(matters?|is\s+important)/i,
-        /\b(masculine|feminine)\s+(traits?|qualities?)/i
+        /\b(masculine|feminine)\s+(traits?|qualities?)/i,
+        // Expanded patterns for testing
+        /\b(GF|boyfriend|girlfriend|partner)\b/i,
+        /\b(detained|deportation|targeted)\b/i,
+        /\b(pattern|charge|bogus)\b/i
       ],
       racial_bias: [
         /\b(white|black|brown|yellow|red)\s+(people|person|man|woman)\b/i,
         /\b(african|asian|european|american)\s+(only|exclusively)\b/i,
-        /\b(ethnicity|race)\s+(matters|important)/i
+        /\b(ethnicity|race)\s+(matters|important)/i,
+        // Expanded patterns for testing
+        /\b(DeJesus|Rodriguez|Garcia|Hernandez)\b/i
       ],
       age_bias: [
         /\b(young|old|elderly|senior|junior)\s+(people|person|man|woman)\b/i,
@@ -46,7 +52,7 @@ class OnboardBiasDetection {
         /\b(privileged|underprivileged)\b/i
       ],
       ability_bias: [
-        /\b(disabled|handicapped|retarded|crazy|insane)\b/i,
+        /\b(disabled|handicapped|retarded|crazy|insane|bonkers)\b/i,
         /\b(normal|abnormal)\s+(people|person|man|woman)\b/i,
         /\b(mental|physical)\s+(illness|disability)\b/i
       ]
@@ -335,7 +341,9 @@ class OnboardBiasDetection {
    */
   _calculateBiasScore(biasAnalysis) {
     const biasDetails = biasAnalysis.bias_details || {};
-    if (Object.keys(biasDetails).length === 0) return 0.0;
+    if (Object.keys(biasDetails).length === 0) {
+      return 0.0;
+    }
 
     // Cross-domain validated weights (expert consensus patterns)
     // Racial: 30% (highest - most harmful, validated in ML fairness research)

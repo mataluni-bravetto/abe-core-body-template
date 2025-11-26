@@ -135,4 +135,3 @@ Based on code review:
 ---
 
 **Summary:** Clerk keys are **automatically fetched from backend**. No manual setup required unless backend is not configured yet. In that case, you can configure manually via the options page.
-

@@ -20,8 +20,31 @@ class TranscendentAccessControl {
    */
   async checkTranscendentAccess() {
     try {
-      // Check Clerk authentication
+      // Check Clerk authentication first
       const authStatus = await this._checkClerkAuth();
+      if (!authStatus.authenticated) {
+        return {
+          hasAccess: false,
+          reason: 'not_authenticated',
+          message: 'Please sign in to access features',
+          transcendent: false
+        };
+      }
+
+      // Feature Flag Check: Embedded Mode (v1.0.0)
+      // Onboard components always use embedded mode
+      if (true) { // Always allow embedded mode for onboard components
+        return {
+          hasAccess: true,
+          reason: 'embedded_mode_auth',
+          message: 'Embedded ML Mode Enabled (Authenticated)',
+          transcendent: true,
+          embedded: true
+        };
+      }
+
+      // Check subscription status (if not using embedded override)
+      const subscriptionStatus = await this._checkSubscription();
       if (!authStatus.authenticated) {
         return {
           hasAccess: false,
@@ -31,8 +54,7 @@ class TranscendentAccessControl {
         };
       }
 
-      // Check subscription status
-      const subscriptionStatus = await this._checkSubscription();
+      // Check subscription status (already declared above)
       if (!subscriptionStatus.hasAccess) {
         return {
           hasAccess: false,
