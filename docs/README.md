@@ -22,6 +22,15 @@ Testing documentation, instructions, and test reports.
 - **[E2E_TEST_SUMMARY.md](./testing/E2E_TEST_SUMMARY.md)** - Summary of end-to-end test results
 - **[MERGE_TEST_REPORT.md](./testing/MERGE_TEST_REPORT.md)** - Test reports from merge operations
 
+### 🧪 [models/ Testing Framework](../models/)
+Comprehensive automated testing framework for bias detection model (100% coverage).
+
+|- **[run-all-tests.js](../models/run-all-tests.js)** - Master test runner (4 test suites)
+|- **[regression-tests.js](../models/regression-tests.js)** - 30 regression tests (100% pass rate)
+|- **[edge-case-tests.js](../models/edge-case-tests.js)** - 23 edge case validations
+|- **[improved-bias-detector.js](../models/improved-bias-detector.js)** - Enhanced detector with edge case handling
+|- **[regression-summary.md](../models/regression-summary.md)** - Complete QA report and metrics
+
 ### 🔧 [development/](./development/)
 Development, verification, and internal documentation.
 
@@ -34,10 +43,12 @@ Development, verification, and internal documentation.
 - **[DO_OR_DO_NOT_NOW.md](./development/DO_OR_DO_NOT_NOW.md)** - Development manifesto and immediate action items
 
 ### 🤖 [models/](../models/)
-Standalone ML model development and training documentation.
+Standalone ML model development, training, and comprehensive testing documentation.
 
-|- **[README.md](../models/README.md)** - Complete model development guide
+|- **[README.md](../models/README.md)** - Complete model development and testing guide
 |- **[TRAINING_GUIDE.md](../models/TRAINING_GUIDE.md)** - Comprehensive training instructions
+|- **[regression-summary.md](../models/regression-summary.md)** - Testing framework and QA results (100% coverage)
+|- **[run-all-tests.js](../models/run-all-tests.js)** - Automated test orchestration
 |- **[SETUP.md](../models/SETUP.md)** - Environment setup for model development
 
 ### 🚀 [releases/](./releases/)
