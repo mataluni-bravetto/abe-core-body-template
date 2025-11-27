@@ -40,7 +40,7 @@ class BiasGuardEpistemicCalibration {
       // Jimmy's Story - IMMIGRATION TARGETING + RACIAL BIAS
       jimmy: {
         text: "I just spoke with Jimmy. His GF just drove him home. He's resting now. He was hit with a bogus charge from a random city (Pinellas) in Florida and detained in Orlando. The details are bonkers. Kristin spotted the pattern immediately. Jimmy is being targeted by the deportation effort. Jimmy's last name is DeJesus. I'll let him fill you in as soon as he's ready.",
-        expectedBiasTypes: ['immigration', 'racial'],
+        expectedBiasTypes: ['immigration_bias', 'racial_bias'],
         expectedScore: { min: 0.7, max: 1.0 },
         truthWeight: 1.0, // Maximum truth weight - this is REAL
         description: "Real-world immigration targeting case - Jimmy DeJesus"
@@ -67,7 +67,7 @@ class BiasGuardEpistemicCalibration {
       // IMMIGRATION BIAS - Law Enforcement
       immigrationEnforcement: {
         text: "The new policy requires local law enforcement to check immigration status during routine traffic stops. Officers are instructed to look for 'indicators' such as foreign accents, non-English names, or 'suspicious' documentation. Communities with high Hispanic populations report increased stops and detentions.",
-        expectedBiasTypes: ['immigration', 'racial'],
+        expectedBiasTypes: ['immigration_bias', 'racial_bias'],
         expectedScore: { min: 0.75, max: 1.0 },
         truthWeight: 0.95,
         description: "Immigration enforcement bias - systemic profiling"

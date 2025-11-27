@@ -31,6 +31,10 @@ try {
   try {
     importScripts('models/text-preprocessor.js');
     importScripts('models/model-loader.js');
+    importScripts('models/bias-detection/enhanced-bias-detection.js');
+    importScripts('models/bias-detection/contextual-scoring.js');
+    importScripts('models/bias-detection/graduated-scoring.js');
+    importScripts('models/bias-detection/patterns.js');
     Logger.info('[BG] ML model support modules loaded');
   } catch (e) {
     Logger.warn('[BG] ML model support modules not available:', e);
