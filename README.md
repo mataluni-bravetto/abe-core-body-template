@@ -32,21 +32,58 @@ Complete systems, organisms, and application templates.
 
 ## 🚀 Quick Start
 
-### As a Development Template
+### Step 1: Clone the Template
+
+**Choose the repository based on your project type:**
 
 ```bash
-# Duplicate this template to start a new project
+# For Backend Projects
+git clone https://github.com/BravettoBackendTeam/abe-core-body-template.git
+
+# For Frontend Projects
+git clone https://github.com/BravettoFrontendTeam/abe-core-body-template.git
+
+# For Full-Stack Projects
+git clone https://github.com/bravetto/abe-core-body-template.git
+
+# For Open Source/Experimental
+git clone https://github.com/mataluni-bravetto/abe-core-body-template.git
+```
+
+### Step 2: Duplicate to Start New Project
+
+```bash
+# Navigate to cloned template
+cd abe-core-body-template
+
+# Duplicate to create your new project
 ./scripts/duplicate.sh my-new-project
 
 # Navigate to new project
 cd ../my-new-project
-
-# Complete setup (installs + configures)
-make setup
-
-# Start development
-make dev
 ```
+
+### Step 3: Complete Setup
+
+```bash
+# Complete setup (installs dependencies + configures)
+make setup-all
+
+# Verify everything works
+make verify
+```
+
+### Step 4: Start Development
+
+```bash
+# Terminal 1: Start backend
+make dev-backend
+
+# Terminal 2: Start frontend
+make dev-frontend
+```
+
+**That's it!** You're now developing. 🎉
 
 **New to the project?** Start with **[`docs/ONBOARDING.md`](docs/ONBOARDING.md)** for frictionless step-by-step onboarding!  
 **See `docs/DUPLICATION_GUIDE.md` for complete duplication instructions.**
@@ -229,12 +266,25 @@ make onboard          # Interactive onboarding chat flow
 make validate-rules   # Validate project rules compliance
 ```
 
-## 🔗 GitHub Organizations
+## 🔗 GitHub Organizations & Repositories
+
+### Primary Template Repositories (Use These!)
+
+**Clone these repositories to start new projects:**
+
+- **Backend Projects:** [`BravettoBackendTeam/abe-core-body-template`](https://github.com/BravettoBackendTeam/abe-core-body-template)
+- **Frontend Projects:** [`BravettoFrontendTeam/abe-core-body-template`](https://github.com/BravettoFrontendTeam/abe-core-body-template)
+- **Full-Stack Projects:** [`bravetto/abe-core-body-template`](https://github.com/bravetto/abe-core-body-template)
+- **Open Source/Experimental:** [`mataluni-bravetto/abe-core-body-template`](https://github.com/mataluni-bravetto/abe-core-body-template)
+
+### Organization Links
 
 - **Frontend:** [BravettoFrontendTeam](https://github.com/orgs/BravettoFrontendTeam) - Frontend projects
 - **Backend:** [BravettoBackendTeam](https://github.com/orgs/BravettoBackendTeam) - Backend projects
 - **Unified:** [bravetto](https://github.com/bravetto) - Complete deployment-ready projects
 - **Open Source:** [mataluni-bravetto](https://github.com/mataluni-bravetto) - Open source development
+
+**⚠️ Important:** Always clone the **full template repository** (`abe-core-body-template`). The separate backend/frontend repos are archived examples and cannot be used standalone.
 
 See `docs/GITHUB_DEPLOYMENT.md` for complete GitHub workflow.
 
