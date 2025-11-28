@@ -1,0 +1,68 @@
+{
+  "name": "abe-core-body-template",
+  "version": "1.0.0",
+  "description": "AbëONE Core Body - Perfect Development Environment Template",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./atoms": "./dist/atoms/index.js",
+    "./molecules": "./dist/molecules/index.js",
+    "./organisms": "./dist/organisms/index.js",
+    "./templates": "./dist/templates/index.js",
+    "./systems": "./dist/systems/index.js",
+    "./security": "./dist/security/index.js",
+    "./patterns": "./dist/patterns/index.js",
+    "./design-system": "./dist/design-system/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "abeone",
+    "bravetto",
+    "organisms",
+    "templates",
+    "systems",
+    "implementation",
+    "body",
+    "development-template",
+    "frontend-backend-separation"
+  ],
+  "author": "Bravetto",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bravetto/abe-core-body-template.git"
+  },
+  "dependencies": {
+    "@bravetto/abe-core-brain": "file:../abe-core-brain",
+    "@bravetto/abe-consciousness": "file:../abe-consciousness"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@types/jest": "^29.5.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.50.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "typescript": "^5.4.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  }
+}
