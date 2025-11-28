@@ -16,6 +16,18 @@
 - **Validation:** Every feature must solve a current, real problem
 - **Exception:** Template scaffolding is acceptable for demonstration
 
+### CHECK-FIRST (Check Before Creating)
+- **Rule:** Always check for existing workflows, scripts, tools, or solutions before creating new ones
+- **Enforcement:** Search codebase, documentation, and Makefile before implementing
+- **Validation:** Verify no duplicate functionality exists
+- **Process:** 
+  1. Search existing scripts (`scripts/` directory)
+  2. Check Makefile targets (`make help`)
+  3. Review documentation (`docs/` directory)
+  4. Search codebase for similar patterns
+  5. Only create if no existing solution found
+- **Exception:** None - this rule is mandatory
+
 ### DRY (Don't Repeat Yourself)
 - **Rule:** Extract common patterns into reusable utilities
 - **Enforcement:** Use shared code (`shared/`) for common needs
@@ -256,10 +268,16 @@ project/
 ## Development Workflow
 
 ### Before Coding
-1. Check if feature is needed (YAGNI)
-2. Check existing patterns
-3. Review PROJECT_RULES.md
-4. Plan implementation
+1. **CHECK-FIRST:** Search for existing workflows, scripts, tools, or solutions
+   - Search `scripts/` directory for existing scripts
+   - Check `Makefile` for existing targets (`make help`)
+   - Review `docs/` for existing workflows
+   - Use `codebase_search` to find similar implementations
+   - Only proceed if no existing solution found
+2. Check if feature is needed (YAGNI)
+3. Check existing patterns
+4. Review PROJECT_RULES.md
+5. Plan implementation
 
 ### While Coding
 1. Follow naming conventions

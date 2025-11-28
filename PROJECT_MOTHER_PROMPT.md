@@ -263,10 +263,16 @@ Atoms → Molecules → Organisms → Templates → Pages
 ## Development Workflow
 
 ### Before Starting
-1. Read `PROJECT_RULES.md`
-2. Review `PROJECT_MOTHER_PROMPT.md` (this file)
-3. Check existing patterns
-4. Plan implementation
+1. **CHECK-FIRST:** Search for existing workflows, scripts, tools, or solutions
+   - Search `scripts/` directory for existing scripts
+   - Check `Makefile` for existing targets (`make help`)
+   - Review `docs/` for existing workflows
+   - Use codebase search to find similar implementations
+   - Only proceed if no existing solution found
+2. Read `PROJECT_RULES.md`
+3. Review `PROJECT_MOTHER_PROMPT.md` (this file)
+4. Check existing patterns
+5. Plan implementation
 
 ### During Development
 1. Follow Pattern system (add headers)
