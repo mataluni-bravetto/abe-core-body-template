@@ -8,8 +8,8 @@
  * ∞ AbëONE ∞
  */
 
-import type { User, CreateUserRequest } from '../../../shared/types/api';
-import { validateUserInput } from '../../../shared/utils/validation';
+import type { User, CreateUserRequest } from '../../../../shared/types/api';
+import { validateUserInput } from '../../../../shared/utils/validation';
 
 // In-memory store (YAGNI: simple example, replace with database when needed)
 const users: Map<string, User> = new Map();

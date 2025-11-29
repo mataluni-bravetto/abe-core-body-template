@@ -30,8 +30,7 @@ describe('APIClient', () => {
       const result = await apiClient.get(API_ENDPOINTS.HEALTH);
 
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining(API_ENDPOINTS.HEALTH),
-        undefined
+        expect.stringContaining(API_ENDPOINTS.HEALTH)
       );
       expect(result).toEqual(mockResponse);
     });
