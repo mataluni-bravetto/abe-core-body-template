@@ -1045,6 +1045,78 @@ body {
   border-bottom: none;
 }
 
+/* Guardian Section */
+.guardian-section {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.guardian-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.guardian-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #f9f9f9;
+}
+
+.guardian-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.guardian-loading,
+.guardian-error {
+  padding: 12px;
+  text-align: center;
+  color: rgba(249, 249, 249, 0.7);
+  font-size: 12px;
+}
+
+.guardian-error {
+  color: #f87171;
+}
+
+.guardian-item {
+  transition: all 0.2s ease;
+}
+
+.guardian-item:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.guardian-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.guardian-activate-btn,
+.guardian-status-btn {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.guardian-activate-btn:hover {
+  background: #4ade80 !important;
+  transform: scale(1.05);
+}
+
+.guardian-status-btn:hover {
+  background: #3b82f6 !important;
+  transform: scale(1.05);
+}
+
 .breakdown-label {
   font-size: 12px;
   color: rgba(249, 249, 249, 0.8);

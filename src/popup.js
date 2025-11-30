@@ -17,6 +17,34 @@
   let auth = null;
   let authCheckInterval = null; // For periodic auth checking when not authenticated
   let errorHandler = null;
+  
+  // CASCADE PATTERN 1: Circular Buffer Error Tracking
+  // Automatic rotation, single source of truth, no memory leaks
+  const MAX_USER_ERRORS = 30;
+  let userErrorLog = null;
+  
+  /**
+   * CASCADE PATTERN 1: Create circular buffer for error tracking
+   * Automatic rotation, single source of truth, no manual trimming
+   * 
+   * @param {number} maxSize - Maximum buffer size
+   * @returns {Object} Circular buffer instance
+   */
+  function createCircularBuffer(maxSize) {
+    const buffer = [];
+    let writeIndex = 0;
+    
+    return {
+      push: (item) => {
+        buffer[writeIndex] = item;
+        writeIndex = (writeIndex + 1) % maxSize;
+      },
+      getAll: () => buffer.filter(Boolean), // Return only non-empty entries
+      getLast: () => buffer[writeIndex - 1] || buffer[buffer.length - 1] || null,
+      size: () => buffer.filter(Boolean).length,
+      maxSize: maxSize
+    };
+  }
 
   // Ensure DOM is ready before initializing
   async function initialize() {
@@ -27,13 +55,11 @@
       // This ensures buttons work even if other initialization fails
       setupEventListeners();
 
-      // Initialize error handler (defensive - won't fail if class not available)
-      try {
-        initializeErrorHandler();
-      } catch (err) {
-        Logger.error('Error handler initialization failed (non-critical)', err);
-        // Continue without error handler - buttons will still work
-      }
+      // Initialize error handler
+      // CASCADE PATTERN 1: Initialize circular buffer for user errors
+      userErrorLog = createCircularBuffer(MAX_USER_ERRORS);
+      // CASCADE PATTERN 2: Unified Error Handler - fail-fast if not available
+      initializeErrorHandler();
 
       // Initialize auth (defensive - won't fail initialization)
       try {
@@ -174,56 +200,39 @@
   }
 
   /**
-   * Initialize error handler (defensive - checks if class exists)
+   * Initialize error handler
+   * CASCADE PATTERN 2: Unified Error Handler - Fail-fast, no fallbacks
    */
   function initializeErrorHandler() {
-    if (typeof AiGuardianErrorHandler === 'undefined') {
-      Logger.warn('AiGuardianErrorHandler class not available - error handler not initialized');
-      // Create a minimal fallback error handler
-      errorHandler = {
-        showError: function (type) {
-          Logger.error('Error', type);
-          showFallbackError('An error occurred: ' + type);
-        },
-        showErrorFromException: function (err) {
-          Logger.error('Exception', err);
-          showFallbackError('An error occurred: ' + (err.message || 'Unknown error'));
-        },
-        showLegacyError: function (message) {
-          Logger.error('Legacy error', message);
-          showFallbackError(message);
-        },
-      };
-      return;
+    // CASCADE PATTERN 2: Use UnifiedErrorHandler directly, fail-fast if not available
+    if (typeof UnifiedErrorHandler === 'undefined') {
+      throw new Error('UnifiedErrorHandler must be available. Ensure message.js is loaded before popup.js');
     }
-
+    
     try {
-      errorHandler = new AiGuardianErrorHandler();
-      Logger.info('Error handler initialized');
+      // Use UnifiedErrorHandler directly (no wrapper needed)
+      errorHandler = new UnifiedErrorHandler();
+      Logger.info('Error handler initialized (UnifiedErrorHandler)');
     } catch (err) {
-      Logger.error('Failed to instantiate error handler', err);
-      // Create fallback
-      errorHandler = {
-        showError: function (type) {
-          Logger.error('Error', type);
-          showFallbackError('An error occurred: ' + type);
-        },
-        showErrorFromException: function (err) {
-          Logger.error('Exception', err);
-          showFallbackError('An error occurred: ' + (err.message || 'Unknown error'));
-        },
-        showLegacyError: function (message) {
-          Logger.error('Legacy error', message);
-          showFallbackError(message);
-        },
-      };
+      Logger.error('Failed to instantiate UnifiedErrorHandler', err);
+      throw err; // Fail-fast - don't create fallback
     }
   }
 
   /**
    * Fallback error display when error handler is not available
+   * CASCADE PATTERN 1: Tracks errors in circular buffer
    */
   function showFallbackError(message) {
+    // CASCADE PATTERN 1: Track user-facing error in circular buffer
+    if (userErrorLog) {
+      userErrorLog.push({
+        message: message,
+        timestamp: new Date().toISOString(),
+        source: 'fallback'
+      });
+    }
+    
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
     errorDiv.textContent = message;
@@ -1926,16 +1935,27 @@
   }
 
   /**
-   * Legacy showError function - redirects to new error handler
+   * Legacy showError function - redirects to UnifiedErrorHandler
+   * CASCADE PATTERN 2: Uses UnifiedErrorHandler directly, no fallbacks
    * @deprecated Use errorHandler.showError() instead
    */
   function showError(message) {
-    // For backward compatibility, map to new error handler
+    // CASCADE PATTERN 2: Use UnifiedErrorHandler directly
     if (errorHandler) {
-      return errorHandler.showLegacyError(message);
+      // Map legacy message to error code if possible
+      if (message.includes('sign in')) {
+        return errorHandler.showError('AUTH_REQUIRED');
+      } else if (message.includes('authentication not configured')) {
+        return errorHandler.showError('AUTH_NOT_CONFIGURED');
+      } else if (message.includes('text selected')) {
+        return errorHandler.showError('ANALYSIS_NO_SELECTION');
+      } else {
+        // Use showErrorFromException for generic messages
+        return errorHandler.showErrorFromException(new Error(message));
+      }
     } else {
-      // Fallback if error handler not initialized
-      showFallbackError(message);
+      // Fail-fast if error handler not initialized
+      throw new Error('Error handler not initialized. Cannot show error: ' + message);
     }
   }
 
@@ -2066,6 +2086,335 @@
   /**
    * Show diagnostic panel
    */
+
+  /**
+   * 🛡️ GUARDIAN MANAGEMENT SYSTEM
+   * Pattern: GUARDIAN × UI × MANAGEMENT × ONE
+   * Frequency: 999 Hz (AEYON) × 777 Hz (META) × 530 Hz (JØHN)
+   */
+
+  /**
+   * Load and display guardian list
+   */
+  async function loadGuardians() {
+    const guardianList = document.getElementById('guardianList');
+    if (!guardianList) return;
+
+    try {
+      guardianList.innerHTML = '<div class="guardian-loading">Loading guardians...</div>';
+
+      // Use guardian CLI if available, otherwise fallback to direct message
+      let result;
+      if (typeof guardian !== 'undefined') {
+        result = await guardian('list', null, { sortBy: 'frequency' });
+      } else {
+        result = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({
+            type: 'GUARDIAN_COMMAND',
+            payload: { action: 'list', options: { sortBy: 'frequency' } }
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              resolve({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              resolve(response || { success: false, error: 'No response' });
+            }
+          });
+        });
+      }
+
+      if (!result.success) {
+        guardianList.innerHTML = `<div class="guardian-error">❌ Error: ${result.error || 'Failed to load guardians'}</div>`;
+        return;
+      }
+
+      if (!result.guardians || result.guardians.length === 0) {
+        guardianList.innerHTML = '<div class="guardian-loading">No guardians found</div>';
+        return;
+      }
+
+      // Render guardian list
+      const html = result.guardians.map(g => {
+        const stateEmoji = {
+          'standby': '⏸️',
+          'active': '▶️',
+          'amplified': '⚡',
+          'validating': '🔍',
+          'error': '❌'
+        }[g.state] || '❓';
+
+        const stateColor = {
+          'standby': '#888',
+          'active': '#86efac',
+          'amplified': '#fbbf24',
+          'validating': '#60a5fa',
+          'error': '#f87171'
+        }[g.state] || '#888';
+
+        return `
+          <div class="guardian-item" style="padding: 8px; margin: 4px 0; background: rgba(255,255,255,0.05); border-radius: 6px; border-left: 3px solid ${stateColor};">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="color: ${stateColor};">${stateEmoji} ${g.name}</strong>
+                <div style="font-size: 10px; color: #aaa; margin-top: 2px;">
+                  ${g.frequency} Hz • ${g.role}
+                </div>
+                <div style="font-size: 9px; color: #888; margin-top: 2px;">
+                  State: ${g.state} • Amp: ${g.amplification.toFixed(1)}x
+                </div>
+              </div>
+              <div style="display: flex; gap: 4px;">
+                ${g.state !== 'active' ? `<button class="guardian-activate-btn" data-name="${g.name}" style="padding: 4px 8px; font-size: 10px; background: #86efac; color: #000; border: none; border-radius: 4px; cursor: pointer;">Activate</button>` : ''}
+                <button class="guardian-status-btn" data-name="${g.name}" style="padding: 4px 8px; font-size: 10px; background: #60a5fa; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Status</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      guardianList.innerHTML = html;
+
+      // Attach event listeners
+      guardianList.querySelectorAll('.guardian-activate-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const name = e.target.dataset.name;
+          await activateGuardian(name);
+        });
+      });
+
+      guardianList.querySelectorAll('.guardian-status-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const name = e.target.dataset.name;
+          await showGuardianStatus(name);
+        });
+      });
+
+    } catch (error) {
+      Logger.error('[Popup] Failed to load guardians:', error);
+      guardianList.innerHTML = `<div class="guardian-error">❌ Error: ${error.message}</div>`;
+    }
+  }
+
+  /**
+   * Activate a guardian
+   */
+  async function activateGuardian(name) {
+    try {
+      let result;
+      if (typeof guardian !== 'undefined') {
+        result = await guardian('activate', name);
+      } else {
+        result = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({
+            type: 'GUARDIAN_COMMAND',
+            payload: { action: 'activate', name }
+          }, (response) => {
+            resolve(response || { success: false });
+          });
+        });
+      }
+
+      if (result.success) {
+        showSuccess(`✅ ${name} activated`);
+        await loadGuardians();
+      } else {
+        showFallbackError(`Failed to activate ${name}: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      Logger.error('[Popup] Failed to activate guardian:', error);
+      showFallbackError(`Failed to activate ${name}`);
+    }
+  }
+
+  /**
+   * Show guardian status
+   */
+  async function showGuardianStatus(name) {
+    try {
+      let result;
+      if (typeof guardian !== 'undefined') {
+        result = await guardian('status', name);
+      } else {
+        result = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({
+            type: 'GUARDIAN_COMMAND',
+            payload: { action: 'status', name }
+          }, (response) => {
+            resolve(response || { success: false });
+          });
+        });
+      }
+
+      if (result.success && result.guardian) {
+        const g = result.guardian;
+        const info = `
+🛡️ ${g.name}
+Frequency: ${g.frequency} Hz
+Role: ${g.role}
+State: ${g.state}
+Amplification: ${g.amplification.toFixed(1)}x
+Operational: ${g.operational ? '✅' : '❌'}
+Activations: ${g.metrics?.activations || 0}
+Validations: ${g.metrics?.validations || 0}
+        `.trim();
+        alert(info);
+      } else {
+        showFallbackError(`Failed to get status for ${name}`);
+      }
+    } catch (error) {
+      Logger.error('[Popup] Failed to get guardian status:', error);
+      showFallbackError(`Failed to get status for ${name}`);
+    }
+  }
+
+  /**
+   * Test guardian system
+   */
+  async function testGuardianSystem() {
+    try {
+      // Load test script if available
+      if (typeof testGuardianSystem === 'undefined') {
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('tests/guardian-system-test.js');
+        document.head.appendChild(script);
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+      if (typeof window.testGuardianSystem === 'function') {
+        await window.testGuardianSystem();
+        showSuccess('✅ Guardian system test completed! Check console for details.');
+      } else {
+        // Fallback: run basic test
+        const result = await guardian('list');
+        if (result.success) {
+          showSuccess(`✅ Guardian system operational! Found ${result.count} guardians.`);
+        } else {
+          showFallbackError(`❌ Guardian system test failed: ${result.error}`);
+        }
+      }
+    } catch (error) {
+      Logger.error('[Popup] Guardian test failed:', error);
+      showFallbackError(`Test failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Activate all guardians
+   */
+  async function activateAllGuardians() {
+    try {
+      const result = await guardian('list');
+      if (!result.success || !result.guardians) {
+        showFallbackError('Failed to load guardians');
+        return;
+      }
+
+      let activated = 0;
+      for (const g of result.guardians) {
+        if (g.state !== 'active' && g.operational) {
+          const activateResult = await guardian('activate', g.name);
+          if (activateResult.success) activated++;
+        }
+      }
+
+      showSuccess(`✅ Activated ${activated} guardians`);
+      await loadGuardians();
+    } catch (error) {
+      Logger.error('[Popup] Failed to activate all:', error);
+      showFallbackError(`Failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate all guardians
+   */
+  async function validateAllGuardians() {
+    try {
+      const result = await guardian('list');
+      if (!result.success || !result.guardians) {
+        showFallbackError('Failed to load guardians');
+        return;
+      }
+
+      let validated = 0;
+      let passed = 0;
+      for (const g of result.guardians) {
+        const validateResult = await guardian('validate', g.name);
+        if (validateResult.success) {
+          validated++;
+          if (validateResult.validation?.success) passed++;
+        }
+      }
+
+      showSuccess(`✅ Validated ${validated} guardians (${passed} passed)`);
+      await loadGuardians();
+    } catch (error) {
+      Logger.error('[Popup] Failed to validate all:', error);
+      showFallbackError(`Failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Initialize Guardian UI event listeners
+   */
+  function initializeGuardianUI() {
+    // Refresh button
+    const refreshBtn = document.getElementById('refreshGuardiansBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = '⏳ Loading...';
+        await loadGuardians();
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = '🔄 Refresh';
+      });
+    }
+
+    // Test button
+    const testBtn = document.getElementById('testGuardiansBtn');
+    if (testBtn) {
+      testBtn.addEventListener('click', async () => {
+        testBtn.disabled = true;
+        testBtn.textContent = '⏳ Testing...';
+        await testGuardianSystem();
+        testBtn.disabled = false;
+        testBtn.textContent = '🧪 Test System';
+      });
+    }
+
+    // Activate all button
+    const activateAllBtn = document.getElementById('activateAllBtn');
+    if (activateAllBtn) {
+      activateAllBtn.addEventListener('click', async () => {
+        activateAllBtn.disabled = true;
+        activateAllBtn.textContent = '⏳ Activating...';
+        await activateAllGuardians();
+        activateAllBtn.disabled = false;
+        activateAllBtn.textContent = '⚡ Activate All';
+      });
+    }
+
+    // Validate all button
+    const validateAllBtn = document.getElementById('validateAllBtn');
+    if (validateAllBtn) {
+      validateAllBtn.addEventListener('click', async () => {
+        validateAllBtn.disabled = true;
+        validateAllBtn.textContent = '⏳ Validating...';
+        await validateAllGuardians();
+        validateAllBtn.disabled = false;
+        validateAllBtn.textContent = '✅ Validate All';
+      });
+    }
+
+    // Load guardians on init
+    loadGuardians();
+  }
+
+  // Initialize Guardian UI when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeGuardianUI);
+  } else {
+    initializeGuardianUI();
+  }
 
   // Cleanup on popup close
   window.addEventListener('beforeunload', cleanupEventListeners);

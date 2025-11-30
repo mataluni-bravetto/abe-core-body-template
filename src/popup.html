@@ -175,6 +175,22 @@
         </button>
       </div>
 
+      <!-- Guardian Management Section -->
+      <div class="guardian-section" id="guardianSection">
+        <div class="guardian-header">
+          <span class="guardian-title">🛡️ BiasGuard Guardians</span>
+          <button class="btn btn-secondary btn-small" id="refreshGuardiansBtn">🔄 Refresh</button>
+        </div>
+        <div class="guardian-list" id="guardianList">
+          <div class="guardian-loading">Loading guardians...</div>
+        </div>
+        <div class="guardian-actions" style="margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;">
+          <button class="btn btn-primary btn-small" id="testGuardiansBtn">🧪 Test System</button>
+          <button class="btn btn-secondary btn-small" id="activateAllBtn">⚡ Activate All</button>
+          <button class="btn btn-secondary btn-small" id="validateAllBtn">✅ Validate All</button>
+        </div>
+      </div>
+
       <!-- Action Buttons -->
       <div class="action-buttons">
         <button class="btn btn-primary" id="analyzeBtn">🔍 Show Me the Proof</button>
@@ -192,11 +208,13 @@
 
     <!-- Scripts -->
     <script src="constants.js"></script>
+    <script src="message.js"></script>
     <script src="logging.js"></script>
     <script src="mutex-helper.js"></script>
     <script src="auth.js"></script>
     <script src="error-handler.js"></script>
     <script src="onboarding.js"></script>
+    <script src="guardian-cli.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
