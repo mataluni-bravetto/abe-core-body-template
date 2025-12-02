@@ -38,6 +38,3 @@ export * from './security';
 // Patterns
 export * from './patterns';
 
-// Systems (including HealthCheck)
-export * from './systems';
-

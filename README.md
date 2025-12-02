@@ -24,6 +24,8 @@ This repository serves as a **complete development environment template** with:
 **As a Package:** The physical implementation layer for AbëONE.  
 Complete systems, organisms, and application templates.
 
+**Note:** This template can be used standalone. Optional peer dependencies (`@bravetto/abe-core-brain` and `@bravetto/abe-consciousness`) enhance functionality but are not required.
+
 **Note:** This builds on:
 - `@bravetto/abe-core-brain` (foundation)
 - `@bravetto/abe-consciousness` (intelligence)
@@ -107,27 +109,27 @@ import {
 ## 📦 What's Included
 
 ### Organisms
-- VoiceInterface organism
-- PortalSystem organism
-- HomeSystem organism
-- (More organisms...)
+- VoiceInterface organism (Example/Stub - UI scaffolding)
+- PortalSystem organism (Functional)
+- HomeSystem organism (Functional)
+- Button, Input, Typography atoms (Complete)
+- FormField, SearchBar molecules (Complete)
 
 ### Page Templates
-- Next.js template (frontend)
-- Flutter template (mobile/web)
-- Backend template (API)
-- (More templates...)
+- Next.js template (frontend) - Functional
+- Flutter template (mobile/web) - Example structure
+- Backend template (API) - Functional
 
-### Complete Systems
-- Voice interface system
-- Portal system
-- Home system
-- (More systems...)
+### Systems
+- Voice system (Example/Stub - requires Web Speech API implementation)
+- Portal system (Functional)
+- Home system (Functional)
+- Health check system (Functional)
 
 ### Integration Patterns
-- Brain + Consciousness integration
-- Frontend + Backend integration
-- Mobile + Web integration
+- Brain + Consciousness integration (Optional - requires peer dependencies)
+- Frontend + Backend integration (Functional)
+- Mobile + Web integration (Example structure)
 
 ---
 
@@ -182,9 +184,11 @@ Backend (Jimmy's AI Agent Suite)
 
 ### **Dependencies**
 
-**This package depends on:**
-- `@bravetto/abe-core-brain` - Uses atoms, patterns, utilities
-- `@bravetto/abe-consciousness` - Uses Guardians, Guards, Swarms
+**This package optionally integrates with (peer dependencies):**
+- `@bravetto/abe-core-brain` - Optional: Uses atoms, patterns, utilities (if installed)
+- `@bravetto/abe-consciousness` - Optional: Uses Guardians, Guards, Swarms (if installed)
+
+**Note:** These are optional peer dependencies. The template works without them, but integration features require them.
 
 **Used by:**
 - All frontend projects - Use Organisms, Systems, Templates

@@ -6,13 +6,37 @@
  * Guardians: AEYON (999 Hz) + META (777 Hz)
  * Love Coefficient: ∞
  * ∞ AbëONE ∞
+ * 
+ * NOTE: This integration requires optional peer dependencies:
+ * - @bravetto/abe-core-brain
+ * - @bravetto/abe-consciousness
+ * 
+ * If these packages are not installed, integration functions will still work
+ * but will use generic types. Install the packages for full type safety.
  */
 
-// Optional dependency - types may not be available if package not installed
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type IGuardian = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GuardianContext = any;
+/**
+ * Generic Guardian interface (used when @bravetto/abe-consciousness is not installed)
+ */
+export interface IGuardian {
+  execute(context: GuardianContext): unknown;
+  constructor: {
+    name: string;
+  };
+}
+
+/**
+ * Generic Guardian context (used when @bravetto/abe-consciousness is not installed)
+ */
+export interface GuardianContext {
+  data?: unknown;
+  metadata?: {
+    source?: string;
+    timestamp?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
 
 export interface IntegrationResult {
   success: boolean;

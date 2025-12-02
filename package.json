@@ -2,18 +2,45 @@
   "name": "abe-core-body-template",
   "version": "1.0.0",
   "description": "AbëONE Core Body - Perfect Development Environment Template",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./atoms": "./dist/atoms/index.js",
-    "./molecules": "./dist/molecules/index.js",
-    "./organisms": "./dist/organisms/index.js",
-    "./templates": "./dist/templates/index.js",
-    "./systems": "./dist/systems/index.js",
-    "./security": "./dist/security/index.js",
-    "./patterns": "./dist/patterns/index.js",
-    "./design-system": "./dist/design-system/index.js"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./atoms": {
+      "types": "./src/atoms/index.ts",
+      "default": "./src/atoms/index.ts"
+    },
+    "./molecules": {
+      "types": "./src/molecules/index.ts",
+      "default": "./src/molecules/index.ts"
+    },
+    "./organisms": {
+      "types": "./src/organisms/index.ts",
+      "default": "./src/organisms/index.ts"
+    },
+    "./templates": {
+      "types": "./src/templates/index.ts",
+      "default": "./src/templates/index.ts"
+    },
+    "./systems": {
+      "types": "./src/systems/index.ts",
+      "default": "./src/systems/index.ts"
+    },
+    "./security": {
+      "types": "./src/security/index.ts",
+      "default": "./src/security/index.ts"
+    },
+    "./patterns": {
+      "types": "./src/patterns/index.ts",
+      "default": "./src/patterns/index.ts"
+    },
+    "./design-system": {
+      "types": "./src/design-system/index.ts",
+      "default": "./src/design-system/index.ts"
+    }
   },
   "scripts": {
     "build": "tsc",
@@ -43,10 +70,7 @@
     "type": "git",
     "url": "https://github.com/bravetto/abe-core-body-template.git"
   },
-  "dependencies": {
-    "@bravetto/abe-core-brain": "file:../abe-core-brain",
-    "@bravetto/abe-consciousness": "file:../abe-consciousness"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.0",
@@ -63,6 +87,16 @@
   },
   "peerDependencies": {
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-dom": "^18.3.0",
+    "@bravetto/abe-core-brain": "*",
+    "@bravetto/abe-consciousness": "*"
+  },
+  "peerDependenciesMeta": {
+    "@bravetto/abe-core-brain": {
+      "optional": true
+    },
+    "@bravetto/abe-consciousness": {
+      "optional": true
+    }
   }
 }

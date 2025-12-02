@@ -24,9 +24,11 @@ export default function HomePage() {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-        // This would call the backend API
+        // Uncomment to test backend API integration:
         // const response = await apiClient.get<ApiResponse<User[]>>('/api/users');
         // setUsers(response.data || []);
+        // For now, using empty array as example
+        setUsers([]);
       } catch (error) {
         console.error('Error fetching users:', error);
       } finally {

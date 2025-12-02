@@ -182,6 +182,11 @@ validate-rules: ## Validate project rules compliance
 	@chmod +x scripts/validate-rules.sh
 	@./scripts/validate-rules.sh
 
+validate-guardians: ## Validate Guardians, Agents & Swarms system
+	@echo "🔍 Validating Guardians, Agents & Swarms..."
+	@chmod +x scripts/validate-guardians-agents-swarms.sh
+	@./scripts/validate-guardians-agents-swarms.sh
+
 onboard: ## Interactive onboarding chat flow
 	@echo "🚀 Starting interactive onboarding..."
 	@./scripts/interactive-onboarding.sh

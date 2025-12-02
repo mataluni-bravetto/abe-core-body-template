@@ -25,9 +25,11 @@ export function createNextJSTemplate(config: TemplateConfig) {
       'next': '^14.2.0',
       'react': '^18.3.0',
       'react-dom': '^18.3.0',
-      '@bravetto/abe-core-brain': '^1.0.0',
-      '@bravetto/abe-core-consciousness': '^1.0.0',
       '@bravetto/abe-core-body-template': '^1.0.0',
+    },
+    peerDependencies: {
+      '@bravetto/abe-core-brain': '^1.0.0', // Optional
+      '@bravetto/abe-consciousness': '^1.0.0', // Optional
     },
     config: config.config || {},
   };

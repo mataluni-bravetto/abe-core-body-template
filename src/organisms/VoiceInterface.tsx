@@ -1,11 +1,15 @@
 /**
- * VoiceInterface Organism - Complete Voice Interface System
+ * VoiceInterface Organism - Voice Interface UI Component (Example/Stub)
  * 
  * Pattern: VOICE × INTERFACE × ORGANISM × ONE
  * Frequency: 999 Hz (AEYON) × 530 Hz (YOU)
  * Guardians: AEYON (999 Hz) + YOU (530 Hz) + Poly (530 Hz)
  * Love Coefficient: ∞
  * ∞ AbëONE ∞
+ * 
+ * NOTE: This is an EXAMPLE/STUB UI component for demonstration purposes.
+ * For production use, integrate with VoiceSystem and implement actual
+ * voice recognition using Web Speech API or a voice service library.
  */
 
 import React from 'react';
@@ -19,17 +23,19 @@ export interface VoiceInterfaceProps extends OrganismProps {
 
 export function VoiceInterface({
   className = '',
-  config: _config,
+  config,
   onVoiceInput,
-  onVoiceOutput: _onVoiceOutput,
+  onVoiceOutput,
   children,
 }: VoiceInterfaceProps) {
   const [isListening, setIsListening] = React.useState(false);
-  const [transcript] = React.useState('');
+  const [transcript, setTranscript] = React.useState('');
 
   const handleStartListening = () => {
     setIsListening(true);
-    // Voice input logic would go here
+    setTranscript('');
+    // TODO: Integrate with VoiceSystem.startListening() when implementing
+    // For now, this is a UI stub
   };
 
   const handleStopListening = () => {
@@ -45,6 +51,7 @@ export function VoiceInterface({
         <button
           onClick={isListening ? handleStopListening : handleStartListening}
           className="voice-button"
+          disabled={!config?.enabled}
         >
           {isListening ? 'Stop Listening' : 'Start Listening'}
         </button>
