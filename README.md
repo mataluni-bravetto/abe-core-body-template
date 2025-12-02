@@ -32,7 +32,14 @@ Complete systems, organisms, and application templates.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (4 Minutes)
+
+**Get started in 4 minutes:**
+1. Duplicate template (30 seconds)
+2. Install dependencies (1 minute)
+3. Start backend (30 seconds)
+4. Start frontend (30 seconds)
+5. Verify it works (1 minute)
 
 ### Step 1: Clone the Template
 
