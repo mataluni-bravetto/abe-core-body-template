@@ -223,9 +223,9 @@
 
 ---
 
-### Story 2: New Developer Joining Team
+### Story 2: Developer joining a new project
 
-**As a new developer,**  
+**As a developer,**  
 **I want to** understand project structure immediately,  
 **So that** I can be productive on day one.
 
